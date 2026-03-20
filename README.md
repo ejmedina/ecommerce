@@ -1,36 +1,179 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ecommerce Base
 
-## Getting Started
+Una base de ecommerce reusable para deploy en Vercel. Una tienda por deployment, configurable por cliente.
 
-First, run the development server:
+## Stack
+
+- **Frontend**: Next.js 16 (App Router) + TypeScript
+- **UI**: Tailwind CSS 4 + shadcn/ui
+- **Backend**: Next.js Server Actions + Route Handlers
+- **DB**: PostgreSQL (Neon/Vercel Postgres)
+- **ORM**: Prisma 7
+- **Auth**: Auth.js v5
+- **Payments**: Mercado Pago
+- **Email**: Resend
+- **Images**: Uploadthing
+
+## Empezar
+
+### 1. Instalar dependencias
+
+```bash
+npm install
+```
+
+### 2. Configurar variables de entorno
+
+```bash
+cp .env.example .env
+```
+
+Completar las variables en `.env`:
+- `DATABASE_URL` - URL de PostgreSQL
+- `AUTH_SECRET` - Generar con: `openssl rand -base64 32`
+- `MERCADOPAGO_ACCESS_TOKEN` - Token de Mercado Pago
+- `RESEND_API_KEY` - API key de Resend
+- `UPLOADTHING_SECRET` y `UPLOADTHING_APP_ID` - Configuración de Uploadthing
+
+### 3. Configurar base de datos
+
+```bash
+# Generar cliente Prisma
+npx prisma generate
+
+# Aplicar migraciones
+npx prisma migrate dev
+
+# Opcional: Poblar con datos de prueba
+npx prisma db seed
+```
+
+### 4. Correr en desarrollo
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy en Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Conectar repositorio en Vercel
 
-## Learn More
+```bash
+vercel
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Configurar variables de entorno en Vercel Dashboard
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Todas las variables de `.env.example` deben estar configuradas.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Agregar integration de PostgreSQL
 
-## Deploy on Vercel
+Vercel Postgres o Neon:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+vercel postgres create
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 4. Configurar Webhook de Mercado Pago
+
+En el dashboard de Mercado Pago:
+1. Ir a tu aplicación > Webhooks
+2. URL: `https://tu-dominino.com/api/webhooks/mercadopago`
+3. Eventos: `payment`
+
+## Estructura del proyecto
+
+```
+src/
+├── app/
+│   ├── (storefront)/     # Tienda pública
+│   │   ├── products/
+│   │   ├── cart/
+│   │   ├── checkout/
+│   │   ├── account/
+│   │   └── login/
+│   ├── (admin)/          # Panel de administración
+│   │   ├── dashboard/
+│   │   ├── products/
+│   │   ├── orders/
+│   │   ├── customers/
+│   │   ├── route-sheet/
+│   │   └── settings/
+│   └── api/              # API routes
+├── components/
+│   ├── ui/              # Componentes shadcn/ui
+│   └── ...
+└── lib/
+    ├── actions/          # Server Actions
+    ├── utils/            # Utilidades
+    └── ...
+```
+
+## Roles de usuario
+
+| Rol | Descripción |
+|-----|-------------|
+| SUPERADMIN | Acceso total al sistema |
+| OWNER | Dueño de la tienda, acceso total |
+| ADMIN | Gestiona productos, pedidos, clientes |
+| CUSTOMER | Cliente de la tienda |
+
+## Crear primer usuario admin
+
+En desarrollo, puedes crear un usuario manualmente en la base de datos:
+
+```sql
+INSERT INTO users (email, passwordHash, name, role)
+VALUES ('admin@example.com', '$2a$12$...', 'Admin', 'ADMIN');
+```
+
+O usar el seed de Prisma.
+
+## Features implementadas
+
+### Tienda (Storefront)
+- [x] Catálogo de productos con filtros
+- [x] Detalle de producto
+- [x] Carrito persistente
+- [x] Checkout (guest + logged)
+- [x] Métodos de pago: Mercado Pago, transferencia, efectivo
+- [x] Métodos de envío: retiro en tienda, envío a domicilio
+- [x] Cuenta de cliente con historial de pedidos
+
+### Admin
+- [x] Dashboard con estadísticas
+- [x] CRUD de productos
+- [x] CRUD de categorías y marcas
+- [x] Gestión de pedidos
+- [x] Gestión de clientes
+- [x] Configuración de tienda
+
+### Feature: Hoja de Ruta
+- [x] Crear hoja de ruta desde pedidos seleccionados
+- [x] Reordenar entregas con botones up/down
+- [x] Vista mobile-optimized
+- [x] Info por parada: cliente, dirección, productos
+- [x] Botón llamar (tel:)
+- [x] Botón WhatsApp con mensaje pre-formateado
+
+## Comandos útiles
+
+```bash
+# Lint
+npm run lint
+
+# Typecheck
+npx tsc --noEmit
+
+# Build
+npm run build
+
+# Prisma Studio (editor de DB)
+npx prisma studio
+```
+
+## Licencia
+
+MIT
