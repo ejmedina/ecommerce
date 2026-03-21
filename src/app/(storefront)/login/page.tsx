@@ -21,6 +21,7 @@ type LoginForm = z.infer<typeof loginSchema>
 
 const registerSchema = loginSchema.extend({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  phone: z.string().min(8, "El teléfono debe tener al menos 8 dígitos"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden",
@@ -42,7 +43,7 @@ export default function LoginPage() {
 
   const registerForm = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { name: "", email: "", password: "", phone: "", confirmPassword: "" },
   })
 
   async function handleLogin(data: LoginForm) {
@@ -73,6 +74,7 @@ export default function LoginPage() {
           name: data.name,
           email: data.email,
           password: data.password,
+          phone: data.phone,
         }),
       })
 
@@ -169,6 +171,18 @@ export default function LoginPage() {
                   />
                   {registerForm.formState.errors.email && (
                     <p className="text-sm text-destructive">{registerForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-phone">Teléfono</Label>
+                  <Input
+                    id="register-phone"
+                    type="tel"
+                    placeholder="11 1234 5678"
+                    {...registerForm.register("phone")}
+                  />
+                  {registerForm.formState.errors.phone && (
+                    <p className="text-sm text-destructive">{registerForm.formState.errors.phone.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">

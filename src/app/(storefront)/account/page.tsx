@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { signOut } from "@/lib/auth"
+import { ProfileForm } from "./profile-form"
 
 export default async function AccountPage() {
   const session = await auth()
@@ -13,7 +16,13 @@ export default async function AccountPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      pendingEmail: true,
+      createdAt: true,
       addresses: true,
       orders: { take: 5, orderBy: { createdAt: "desc" } },
     },
@@ -28,12 +37,12 @@ export default async function AccountPage() {
       <Card>
         <CardHeader>
           <CardTitle>Datos personales</CardTitle>
+          <CardDescription>
+            Actualizá tu información personal. Si cambiás tu email, deberás verificarlo.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <p><strong>Nombre:</strong> {user.name || "No definido"}</p>
-          <p><strong>Email:</strong> {user.email}</p>
-          <p><strong>Teléfono:</strong> {user.phone || "No definido"}</p>
-          <p><strong>Miembro desde:</strong> {new Date(user.createdAt).toLocaleDateString("es-AR")}</p>
+        <CardContent>
+          <ProfileForm user={user} />
         </CardContent>
       </Card>
 

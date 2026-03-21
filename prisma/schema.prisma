@@ -28,6 +28,7 @@ model User {
   passwordHash String?
   name         String?
   phone        String?
+  pendingEmail String?   // Email pendiente de verificación
   role         UserRole  @default(CUSTOMER)
   status       String    @default("ACTIVE") // ACTIVE | BLOCKED
   newsletter   Boolean   @default(false)

@@ -4,11 +4,18 @@ import { db } from "@/lib/db"
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json()
+    const { name, email, password, phone } = await req.json()
 
     if (!name || !email || !password) {
       return NextResponse.json(
         { message: "Todos los campos son requeridos" },
+        { status: 400 }
+      )
+    }
+
+    if (!phone) {
+      return NextResponse.json(
+        { message: "El teléfono es requerido" },
         { status: 400 }
       )
     }
@@ -38,6 +45,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         email,
+        phone,
         passwordHash,
         role: "CUSTOMER",
       },
