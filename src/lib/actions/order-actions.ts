@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
 
 export async function createOrder(formData: FormData) {
@@ -55,21 +56,35 @@ export async function createOrder(formData: FormData) {
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
-    // Get or create user - use guest user for orders without login
+    // Get user - first check NextAuth session, then fallback to cart's user
     let userId: string | null = null
-    const sessionId = (await cookies()).get("sessionId")?.value
+    
+    // Try to get logged in user from NextAuth
+    const session = await auth()
+    if (session?.user?.id) {
+      userId = session.user.id
+    }
+    
+    // If no session user, check if cart has a userId
+    if (!userId && cart.userId) {
+      userId = cart.userId
+    }
 
-    if (sessionId) {
-      const existingCart = await db.cart.findUnique({
-        where: { sessionId },
-        include: { user: true }
-      })
-      if (existingCart?.userId) {
-        userId = existingCart.userId
+    // If no userId still, check sessionId cookie
+    if (!userId) {
+      const sessionId = (await cookies()).get("sessionId")?.value
+      if (sessionId) {
+        const existingCart = await db.cart.findUnique({
+          where: { sessionId },
+          include: { user: true }
+        })
+        if (existingCart?.userId) {
+          userId = existingCart.userId
+        }
       }
     }
 
-    // If no userId, get or create a guest user
+    // If still no userId, create or use guest user
     if (!userId) {
       let guestUser = await db.user.findFirst({
         where: { email: "guest@tienda.com" }

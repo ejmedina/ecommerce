@@ -16,7 +16,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Storefront**: `(storefront)` route group with products, cart, checkout
 - **Admin**: `/admin` route for store management
 - **API**: `/api` routes for backend functionality
-- **Database**: Prisma with PostgreSQL (Neon)
+- **Database**: Prisma with PostgreSQL (local)
 - **Auth**: NextAuth.js with credentials + guest checkout
 - **Payment**: MercadoPago integration with webhooks
 - **UI**: shadcn/ui components with Tailwind CSS
@@ -27,3 +27,23 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `products/` - Product listing and detail pages
 - `account/` - User account, addresses, orders
 - `admin/` - Admin dashboard, products management
+
+## Database Setup (Local PostgreSQL)
+
+### Prerequisites
+- PostgreSQL 17+ must be installed via Homebrew: `brew install postgresql@17`
+- Start the service: `brew services start postgresql@17`
+
+### Configuration
+- The `.env` file uses: `postgresql://postgres:postgres@localhost:5432/ecommerce`
+- Make sure the `postgres` user has access to the `ecommerce` database
+- If you get permission errors, run:
+  ```sql
+  GRANT ALL PRIVILEGES ON DATABASE ecommerce TO postgres;
+  GRANT ALL ON SCHEMA public TO postgres;
+  ```
+
+### Commands
+- Generate Prisma client: `npm run db:generate`
+- Push schema to DB: `npm run db:push`
+- Seed database: `npm run db:seed`

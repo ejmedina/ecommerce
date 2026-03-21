@@ -51,8 +51,13 @@ const STEPS: { id: Step; label: string }[] = [
 
 export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState<Step>("account")
-  const [completedSteps, setCompletedSteps] = useState<Set<Step>>(new Set())
+  
+  // Si el usuario está logueado, empezar desde "shipping" y marcar "account" como completado
+  const initialStep: Step = user ? "shipping" : "account"
+  const initialCompleted: Set<Step> = user ? new Set(["account"]) : new Set()
+  
+  const [currentStep, setCurrentStep] = useState<Step>(initialStep)
+  const [completedSteps, setCompletedSteps] = useState<Set<Step>>(initialCompleted)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">("pickup")
   const [paymentMethod, setPaymentMethod] = useState<"MERCADOPAGO" | "BANK_TRANSFER" | "CASH_ON_DELIVERY">("MERCADOPAGO")
@@ -61,7 +66,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState("")
   const [loginData, setLoginData] = useState({ email: "", password: "" })
-  const [registerData, setRegisterData] = useState({ name: "", email: "", password: "" })
+  const [registerData, setRegisterData] = useState({ name: "", email: "", password: "", phone: "" })
   const [guestEmail, setGuestEmail] = useState("")
   const [guestSent, setGuestSent] = useState(false)
   
@@ -92,13 +97,17 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error al iniciar sesión")
+      // Login successful - refresh and advance to next step
       router.refresh()
+      nextStep()
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error al iniciar sesión")
     } finally {
       setIsLoading(false)
     }
   }
+
+  const [registerSent, setRegisterSent] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,7 +121,10 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error al registrar")
-      router.refresh()
+      // Show success message - don't advance yet, user needs to verify email
+      setRegisterSent(true)
+      setGuestSent(false)
+      setFormData(prev => ({ ...prev, email: registerData.email, name: registerData.name, phone: registerData.phone }))
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error al registrar")
     } finally {
@@ -133,9 +145,9 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error")
-      setGuestSent(true)
-      // Pre-fill email in form data
+      // Guest checkout successful - pre-fill email and advance
       setFormData(prev => ({ ...prev, email: guestEmail }))
+      nextStep()
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error")
     } finally {
@@ -334,43 +346,68 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
 
                   {/* Register Tab */}
                   <TabsContent value="register" className="space-y-4 pt-4 flex-1">
-                    <form onSubmit={handleRegister} className="space-y-4">
-                      <div>
-                        <Label htmlFor="register-name">Nombre</Label>
-                        <Input
-                          id="register-name"
-                          value={registerData.name}
-                          onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
-                          required
-                        />
+                    {registerSent ? (
+                      <div className="text-center py-8">
+                        <Mail className="h-12 w-12 mx-auto mb-4 text-green-600" />
+                        <h3 className="font-medium text-lg mb-2">¡Cuenta creada!</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Te enviamos un email de verificación a <strong>{registerData.email}</strong>.
+                          Por favor, hacé click en el link del email para activar tu cuenta.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Una vez verificada, podrás continuar con tu pedido.
+                        </p>
                       </div>
-                      <div>
-                        <Label htmlFor="register-email">Email</Label>
-                        <Input
-                          id="register-email"
-                          type="email"
-                          value={registerData.email}
-                          onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="register-password">Contraseña</Label>
-                        <Input
-                          id="register-password"
-                          type="password"
-                          value={registerData.password}
-                          onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
-                          required
-                          minLength={8}
-                        />
-                      </div>
-                      {authError && <p className="text-sm text-destructive">{authError}</p>}
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Crear cuenta
-                      </Button>
-                    </form>
+                    ) : (
+                      <form onSubmit={handleRegister} className="space-y-4">
+                        <div>
+                          <Label htmlFor="register-name">Nombre</Label>
+                          <Input
+                            id="register-name"
+                            value={registerData.name}
+                            onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="register-phone">Teléfono</Label>
+                          <Input
+                            id="register-phone"
+                            type="tel"
+                            value={registerData.phone}
+                            onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder="11 1234 5678"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="register-email">Email</Label>
+                          <Input
+                            id="register-email"
+                            type="email"
+                            value={registerData.email}
+                            onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="register-password">Contraseña</Label>
+                          <Input
+                            id="register-password"
+                            type="password"
+                            value={registerData.password}
+                            onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
+                            required
+                            minLength={8}
+                          />
+                        </div>
+                        {authError && <p className="text-sm text-destructive">{authError}</p>}
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Crear cuenta
+                        </Button>
+                      </form>
+                    )}
                   </TabsContent>
 
                   {/* Guest Tab */}
@@ -407,13 +444,6 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
                     </form>
                   </TabsContent>
                 </Tabs>
-
-                {/* Continue button after selecting option */}
-                <div className="mt-6 pt-4 border-t">
-                  <Button onClick={nextStep} className="w-full">
-                    Continuar <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -561,26 +591,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
                   {shippingMethod === "shipping" && (
                     <p><strong>Dirección:</strong> {formData.street} {formData.number}, {formData.city}, {formData.state}</p>
                   )}
-                  <p><strong>Pago:</strong> {paymentMethod === "MERCADOPAGO" ? "Mercado Pago" : paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" : "Efectivo"}</p>
-                </div>
-                
-                {/* Contact info input on final step */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-medium">Datos de contacto</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Nombre completo *</Label>
-                      <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Teléfono *</Label>
-                      <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} required />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="email">Email *</Label>
-                      <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
-                    </div>
-                  </div>
+                  <p><strong>Método de pago:</strong> {paymentMethod === "MERCADOPAGO" ? "Mercado Pago" : paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" : "Efectivo"}</p>
                 </div>
 
                 <div className="bg-primary/10 p-4 rounded-lg border border-primary">
