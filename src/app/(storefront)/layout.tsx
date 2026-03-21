@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { CartProvider } from "@/components/cart-context"
 import { CartButton } from "@/components/cart-button"
 import { FloatingCart } from "@/components/floating-cart"
+import { StoreLogo } from "@/components/store-logo"
 
 export default function StorefrontLayout({
   children,
@@ -19,9 +20,7 @@ export default function StorefrontLayout({
           <div className="container mx-auto px-4">
             <div className="flex h-16 items-center justify-between">
               {/* Logo */}
-              <Link href="/" className="text-xl font-bold">
-                {process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda"}
-              </Link>
+              <StoreLogo />
 
               {/* Navigation - Desktop */}
               <nav className="hidden md:flex items-center gap-6">
