@@ -14,19 +14,25 @@ export default async function AccountPage() {
     redirect("/login")
   }
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      pendingEmail: true,
-      createdAt: true,
-      addresses: true,
-      orders: { take: 5, orderBy: { createdAt: "desc" } },
-    },
-  })
+  const [user, orderCount, addressCount] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        pendingEmail: true,
+        createdAt: true,
+      },
+    }),
+    db.order.count({
+      where: { userId: session.user.id },
+    }),
+    db.address.count({
+      where: { userId: session.user.id },
+    }),
+  ])
 
   if (!user) {
     redirect("/login")
@@ -52,11 +58,11 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div className="bg-muted rounded-lg p-4">
-            <p className="text-2xl font-bold">{user.orders.length}</p>
+            <p className="text-2xl font-bold">{orderCount}</p>
             <p className="text-sm text-muted-foreground">Pedidos realizados</p>
           </div>
           <div className="bg-muted rounded-lg p-4">
-            <p className="text-2xl font-bold">{user.addresses.length}</p>
+            <p className="text-2xl font-bold">{addressCount}</p>
             <p className="text-sm text-muted-foreground">Direcciones guardadas</p>
           </div>
         </CardContent>
