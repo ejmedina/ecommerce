@@ -62,13 +62,16 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">("pickup")
   const [paymentMethod, setPaymentMethod] = useState<"MERCADOPAGO" | "BANK_TRANSFER" | "CASH_ON_DELIVERY">("MERCADOPAGO")
   
-  // Auth state
+  // Auth state - modo unificado (login/registro/guest)
+  type AuthMode = "login" | "register" | "guest"
+  const [authMode, setAuthMode] = useState<AuthMode>("guest")
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState("")
   const [loginData, setLoginData] = useState({ email: "", password: "" })
   const [registerData, setRegisterData] = useState({ name: "", email: "", password: "", phone: "" })
   const [guestEmail, setGuestEmail] = useState("")
   const [guestSent, setGuestSent] = useState(false)
+  const [registerSent, setRegisterSent] = useState(false)
   
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -106,8 +109,6 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
       setIsLoading(false)
     }
   }
-
-  const [registerSent, setRegisterSent] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()

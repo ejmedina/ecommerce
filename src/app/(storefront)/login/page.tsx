@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -28,8 +29,11 @@ const registerSchema = loginSchema.extend({
 
 type RegisterForm = z.infer<typeof registerSchema>
 
+type AuthMode = "login" | "register"
+
 export default function LoginPage() {
   const router = useRouter()
+  const [authMode, setAuthMode] = useState<AuthMode>("login")
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -90,102 +94,120 @@ export default function LoginPage() {
       <div className="max-w-md mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle>Iniciar sesión</CardTitle>
+            <CardTitle>
+              {authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </CardTitle>
             <CardDescription>
-              Ingresá a tu cuenta o create una nueva
+              {authMode === "login" 
+                ? "Ingresá a tu cuenta para hacer seguimiento de tus pedidos" 
+                : "Registrate para hacer seguimiento de tus pedidos"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-              {loginForm.formState.errors.root && (
-                <p className="text-sm text-destructive">{loginForm.formState.errors.root.message}</p>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  {...loginForm.register("email")}
-                />
-                {loginForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
+            {authMode === "login" ? (
+              <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+                {loginForm.formState.errors.root && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.root.message}</p>
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Contraseña</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  {...loginForm.register("password")}
-                />
-                {loginForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    {...loginForm.register("email")}
+                  />
+                  {loginForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Contraseña</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    {...loginForm.register("password")}
+                  />
+                  {loginForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
+                  {loginForm.formState.isSubmitting ? "Cargando..." : "Iniciar sesión"}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground pt-2">
+                  ¿No tenés cuenta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("register")}
+                    className="text-primary hover:underline"
+                  >
+                    Registrate acá
+                  </button>
+                </p>
+              </form>
+            ) : (
+              <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
+                {registerForm.formState.errors.root && (
+                  <p className="text-sm text-destructive">{registerForm.formState.errors.root.message}</p>
                 )}
-              </div>
-              <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
-                {loginForm.formState.isSubmitting ? "Cargando..." : "Iniciar sesión"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Crear cuenta</CardTitle>
-            <CardDescription>Registrate para hacer seguimiento de tus pedidos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
-              {registerForm.formState.errors.root && (
-                <p className="text-sm text-destructive">{registerForm.formState.errors.root.message}</p>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="register-name">Nombre</Label>
-                <Input
-                  id="register-name"
-                  {...registerForm.register("name")}
-                />
-                {registerForm.formState.errors.name && (
-                  <p className="text-sm text-destructive">{registerForm.formState.errors.name.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-email">Email</Label>
-                <Input
-                  id="register-email"
-                  type="email"
-                  {...registerForm.register("email")}
-                />
-                {registerForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{registerForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password">Contraseña</Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  {...registerForm.register("password")}
-                />
-                {registerForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-confirm">Confirmar contraseña</Label>
-                <Input
-                  id="register-confirm"
-                  type="password"
-                  {...registerForm.register("confirmPassword")}
-                />
-                {registerForm.formState.errors.confirmPassword && (
-                  <p className="text-sm text-destructive">{registerForm.formState.errors.confirmPassword.message}</p>
-                )}
-              </div>
-              <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting}>
-                {registerForm.formState.isSubmitting ? "Cargando..." : "Crear cuenta"}
-              </Button>
-            </form>
+                <div className="space-y-2">
+                  <Label htmlFor="register-name">Nombre</Label>
+                  <Input
+                    id="register-name"
+                    {...registerForm.register("name")}
+                  />
+                  {registerForm.formState.errors.name && (
+                    <p className="text-sm text-destructive">{registerForm.formState.errors.name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Email</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    {...registerForm.register("email")}
+                  />
+                  {registerForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">{registerForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">Contraseña</Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    {...registerForm.register("password")}
+                  />
+                  {registerForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-confirm">Confirmar contraseña</Label>
+                  <Input
+                    id="register-confirm"
+                    type="password"
+                    {...registerForm.register("confirmPassword")}
+                  />
+                  {registerForm.formState.errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{registerForm.formState.errors.confirmPassword.message}</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting}>
+                  {registerForm.formState.isSubmitting ? "Cargando..." : "Crear cuenta"}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground pt-2">
+                  ¿Ya tenés cuenta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("login")}
+                    className="text-primary hover:underline"
+                  >
+                    Iniciá sesión
+                  </button>
+                </p>
+              </form>
+            )}
           </CardContent>
         </Card>
 
