@@ -15,6 +15,20 @@ import { Check, ChevronRight } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Mail } from "lucide-react"
 
+interface SavedAddress {
+  id: string
+  label: string
+  street: string
+  number: string
+  floor?: string
+  apartment?: string
+  city: string
+  state: string
+  postalCode: string
+  instructions?: string
+  isDefault: boolean
+}
+
 interface CheckoutStepsProps {
   cart: {
     id: string
@@ -37,6 +51,7 @@ interface CheckoutStepsProps {
   }
   subtotal: number
   user?: { id: string; email?: string | null; name?: string | null } | null
+  addresses?: SavedAddress[]
 }
 
 type Step = "account" | "shipping" | "address" | "payment" | "confirm"
@@ -49,7 +64,7 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "confirm", label: "Confirmar" },
 ]
 
-export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsProps) {
+export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }: CheckoutStepsProps) {
   const router = useRouter()
   
   // Si el usuario está logueado, empezar desde "shipping" y marcar "account" como completado
@@ -61,6 +76,9 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">("pickup")
   const [paymentMethod, setPaymentMethod] = useState<"MERCADOPAGO" | "BANK_TRANSFER" | "CASH_ON_DELIVERY">("MERCADOPAGO")
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(addresses.find(a => a.isDefault)?.id || null)
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState(addresses)
   
   // Auth state - modo unificado (login/registro/guest)
   type AuthMode = "login" | "register" | "guest"
@@ -492,44 +510,107 @@ export function CheckoutSteps({ cart, settings, subtotal, user }: CheckoutStepsP
                 <CardTitle>Dirección de entrega</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col">
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-9">
-                    <Label htmlFor="street">Calle *</Label>
-                    <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
-                  </div>
-                  <div className="col-span-3">
-                    <Label htmlFor="number">Número *</Label>
-                    <Input id="number" name="number" value={formData.number} onChange={handleInputChange} required />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="floor">Piso</Label>
-                    <Input id="floor" name="floor" value={formData.floor} onChange={handleInputChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="apartment">Depto</Label>
-                    <Input id="apartment" name="apartment" value={formData.apartment} onChange={handleInputChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="postalCode">CP *</Label>
-                    <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} required />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="city">Ciudad *</Label>
-                    <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
-                  </div>
-                  <div>
-                    <Label htmlFor="state">Provincia *</Label>
-                    <Input id="state" name="state" value={formData.state} onChange={handleInputChange} required />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="instructions">Instrucciones de entrega</Label>
-                  <Textarea id="instructions" name="instructions" value={formData.instructions} onChange={handleInputChange} placeholder="Ej: timbre en el 3er piso, dejar en conserjería..." />
-                </div>
+                {/* Show saved addresses if user is logged in */}
+                {savedAddresses.length > 0 && !showNewAddressForm ? (
+                  <>
+                    <div className="space-y-2">
+                      {savedAddresses.map((address) => (
+                        <div 
+                          key={address.id}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                            selectedAddressId === address.id 
+                              ? "border-primary bg-primary/5" 
+                              : "hover:border-muted-foreground"
+                          }`}
+                          onClick={() => {
+                            setSelectedAddressId(address.id)
+                            setFormData({
+                              ...formData,
+                              street: address.street,
+                              number: address.number,
+                              floor: address.floor || "",
+                              apartment: address.apartment || "",
+                              city: address.city,
+                              state: address.state,
+                              postalCode: address.postalCode,
+                              instructions: address.instructions || "",
+                            })
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{address.label}</span>
+                            {address.isDefault && (
+                              <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                                Principal
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {address.street} {address.number}, {address.city}, {address.state}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowNewAddressForm(true)}
+                      className="w-full"
+                    >
+                      + Agregar nueva dirección
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-9">
+                        <Label htmlFor="street">Calle *</Label>
+                        <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
+                      </div>
+                      <div className="col-span-3">
+                        <Label htmlFor="number">Número *</Label>
+                        <Input id="number" name="number" value={formData.number} onChange={handleInputChange} required />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="floor">Piso</Label>
+                        <Input id="floor" name="floor" value={formData.floor} onChange={handleInputChange} />
+                      </div>
+                      <div>
+                        <Label htmlFor="apartment">Depto</Label>
+                        <Input id="apartment" name="apartment" value={formData.apartment} onChange={handleInputChange} />
+                      </div>
+                      <div>
+                        <Label htmlFor="postalCode">CP *</Label>
+                        <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} required />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="city">Ciudad *</Label>
+                        <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
+                      </div>
+                      <div>
+                        <Label htmlFor="state">Provincia *</Label>
+                        <Input id="state" name="state" value={formData.state} onChange={handleInputChange} required />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="instructions">Instrucciones de entrega</Label>
+                      <Textarea id="instructions" name="instructions" value={formData.instructions} onChange={handleInputChange} placeholder="Ej: timbre en el 3er piso, dejar en conserjería..." />
+                    </div>
+                    {/* Show back button if there are saved addresses */}
+                    {savedAddresses.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowNewAddressForm(false)}
+                        className="w-full"
+                      >
+                        ← Volver a mis direcciones
+                      </Button>
+                    )}
+                  </>
+                )}
                 <div className="mt-auto">
                   <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
                     Continuar <ChevronRight className="h-4 w-4 ml-2" />

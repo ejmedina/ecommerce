@@ -73,10 +73,23 @@ async function getSettings() {
   }
 }
 
+async function getAddresses(userId: string) {
+  const addresses = await db.address.findMany({
+    where: { userId },
+    orderBy: { isDefault: "desc" },
+  })
+  return addresses
+}
+
 export default async function CheckoutPage() {
+  const session = await auth()
   const [cart, settings] = await Promise.all([getCart(), getSettings()])
 
-  const session = await auth()
+  // Get saved addresses for logged in user
+  let addresses: Awaited<ReturnType<typeof getAddresses>> = []
+  if (session?.user?.id) {
+    addresses = await getAddresses(session.user.id)
+  }
 
   const hasCart = cart && cart.items.length > 0
   const subtotal = hasCart 
@@ -93,6 +106,7 @@ export default async function CheckoutPage() {
           settings={settings}
           subtotal={subtotal}
           user={session?.user || null}
+          addresses={addresses}
         />
       ) : (
         <div className="text-center py-12">
