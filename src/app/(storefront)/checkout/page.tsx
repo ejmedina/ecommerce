@@ -70,6 +70,7 @@ async function getSettings() {
     freeShippingMin: Number(settings.freeShippingMin),
     fixedShippingCost: Number(settings.fixedShippingCost),
     bankAccount: settings.bankAccount,
+    shippingConfig: settings.shippingConfig,
   }
 }
 

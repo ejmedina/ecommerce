@@ -308,6 +308,18 @@ model StoreSettings {
   storePhone          String?
   storeAddress        Json?
   
+  // Logo and favicon
+  logo                String?
+  logoWidth           Int?
+  logoHeight          Int?
+  favicon             String?
+  faviconWidth        Int?
+  faviconHeight       Int?
+  
+  // Shipping configuration (JSON structure for flexibility)
+  shippingConfig      Json?    // { zones: [{ id, name, provinces, cities?, cost, freeFrom, isActive }] }
+  
+  // Legacy fields (for backward compatibility)
   freeShippingMin     Decimal  @db.Decimal(10, 2) @default(0)
   fixedShippingCost   Decimal  @db.Decimal(10, 2) @default(0)
   

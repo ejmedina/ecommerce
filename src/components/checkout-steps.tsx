@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { createOrder } from "@/lib/actions/order-actions"
-import { Check, ChevronRight } from "lucide-react"
+import { Check, ChevronRight, Truck, MapPin } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Mail } from "lucide-react"
+import { 
+  ARGENTINE_PROVINCES, 
+  ProvinceId,
+  ShippingConfig,
+  calculateShipping,
+  getDefaultShippingConfig 
+} from "@/lib/shipping"
 
 interface SavedAddress {
   id: string
@@ -48,6 +55,7 @@ interface CheckoutStepsProps {
     freeShippingMin: unknown
     fixedShippingCost: unknown
     bankAccount: unknown
+    shippingConfig: ShippingConfig | null
   }
   subtotal: number
   user?: { id: string; email?: string | null; name?: string | null } | null
@@ -80,7 +88,16 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
   const [showNewAddressForm, setShowNewAddressForm] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState(addresses)
   
-  // Auth state - modo unificado (login/registro/guest)
+  // New: Province selector for shipping calculation
+  const [selectedProvince, setSelectedProvince] = useState<ProvinceId | "">("")
+  const [shippingCalculation, setShippingCalculation] = useState<{
+    cost: number
+    isFree: boolean
+    freeFrom: number | null
+    zoneName: string
+  } | null>(null)
+  
+  // Auth state
   type AuthMode = "login" | "register" | "guest"
   const [authMode, setAuthMode] = useState<AuthMode>("guest")
   const [isLoading, setIsLoading] = useState(false)
@@ -104,7 +121,98 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
     postalCode: "",
     instructions: "",
   })
+
+  // Get shipping config
+  const shippingConfig = settings.shippingConfig || getDefaultShippingConfig()
   
+  // Calculate shipping when province or city changes
+  useEffect(() => {
+    if (shippingMethod === "shipping" && selectedProvince && formData.city) {
+      const calc = calculateShipping(
+        selectedProvince as ProvinceId,
+        formData.city,
+        subtotal,
+        shippingConfig
+      )
+      if (calc) {
+        setShippingCalculation({
+          cost: calc.cost,
+          isFree: calc.isFree,
+          freeFrom: calc.freeFrom,
+          zoneName: calc.zone.name,
+        })
+      } else {
+        setShippingCalculation(null)
+      }
+    } else {
+      setShippingCalculation(null)
+    }
+  }, [selectedProvince, formData.city, subtotal, shippingConfig, shippingMethod])
+
+  const shippingCost = shippingMethod === "shipping" 
+    ? (shippingCalculation?.cost ?? 0)
+    : 0
+  const total = subtotal + shippingCost
+
+  // Determine visible steps based on settings
+  const visibleSteps = getVisibleSteps(shippingMethod)
+
+  function getVisibleSteps(currentShipping: "pickup" | "shipping"): Step[] {
+    const steps: Step[] = ["account", "shipping"]
+    
+    if (currentShipping === "shipping") {
+      steps.push("address")
+    }
+    
+    steps.push("payment", "confirm")
+    return steps
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  function handleProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setSelectedProvince(e.target.value as ProvinceId)
+  }
+
+  function goToStep(step: Step) {
+    const currentIndex = visibleSteps.indexOf(currentStep)
+    const targetIndex = visibleSteps.indexOf(step)
+    
+    if (targetIndex <= currentIndex) {
+      setCurrentStep(step)
+    }
+  }
+
+  function nextStep() {
+    setCompletedSteps(prev => new Set(prev).add(currentStep))
+    
+    const currentIndex = visibleSteps.indexOf(currentStep)
+    const nextIndex = currentIndex + 1
+    
+    if (nextIndex < visibleSteps.length) {
+      setCurrentStep(visibleSteps[nextIndex])
+    }
+  }
+
+  function canProceed(): boolean {
+    switch (currentStep) {
+      case "account":
+        return true
+      case "shipping":
+        return true
+      case "address":
+        return !!(formData.street && formData.number && formData.city && formData.state && formData.postalCode)
+      case "payment":
+        return true
+      case "confirm":
+        return true
+      default:
+        return false
+    }
+  }
+
   // Auth handlers
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,7 +226,6 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error al iniciar sesión")
-      // Login successful - refresh and advance to next step
       router.refresh()
       nextStep()
     } catch (err) {
@@ -140,7 +247,6 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error al registrar")
-      // Show success message - don't advance yet, user needs to verify email
       setRegisterSent(true)
       setGuestSent(false)
       setFormData(prev => ({ ...prev, email: registerData.email, name: registerData.name, phone: registerData.phone }))
@@ -164,78 +270,12 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error")
-      // Guest checkout successful - pre-fill email and advance
       setFormData(prev => ({ ...prev, email: guestEmail }))
       nextStep()
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error")
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const freeShippingMin = Number(settings.freeShippingMin)
-  const fixedShippingCost = Number(settings.fixedShippingCost)
-  const shippingCost = shippingMethod === "shipping" 
-    ? (subtotal >= freeShippingMin ? 0 : fixedShippingCost)
-    : 0
-  const total = subtotal + shippingCost
-
-  // Determine visible steps based on settings
-  const visibleSteps = getVisibleSteps(shippingMethod)
-
-  function getVisibleSteps(currentShipping: "pickup" | "shipping"): Step[] {
-    const steps: Step[] = ["account", "shipping"]
-    
-    if (currentShipping === "shipping") {
-      steps.push("address")
-    }
-    
-    steps.push("payment", "confirm")
-    return steps
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  function goToStep(step: Step) {
-    // Only allow going to next step or current step
-    const currentIndex = visibleSteps.indexOf(currentStep)
-    const targetIndex = visibleSteps.indexOf(step)
-    
-    if (targetIndex <= currentIndex) {
-      setCurrentStep(step)
-    }
-  }
-
-  function nextStep() {
-    // Mark current as completed
-    setCompletedSteps(prev => new Set(prev).add(currentStep))
-    
-    // Find next step
-    const currentIndex = visibleSteps.indexOf(currentStep)
-    const nextIndex = currentIndex + 1
-    
-    if (nextIndex < visibleSteps.length) {
-      setCurrentStep(visibleSteps[nextIndex])
-    }
-  }
-
-  function canProceed(): boolean {
-    switch (currentStep) {
-      case "account":
-        return true // Auth is handled separately
-      case "shipping":
-        return true
-      case "address":
-        return !!(formData.street && formData.number && formData.city && formData.state && formData.postalCode)
-      case "payment":
-        return true
-      case "confirm":
-        return true
-      default:
-        return false
     }
   }
 
@@ -314,11 +354,11 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
         })}
       </div>
 
-      {/* Step Content - using grid with matching heights */}
+      {/* Step Content */}
       <div className="grid lg:grid-cols-2 gap-8 items-stretch">
         {/* Left column - Form */}
         <div className="space-y-6 flex flex-col h-full">
-          {/* Account Step - Integrated Auth */}
+          {/* Account Step */}
           {currentStep === "account" && (
             <Card className="h-full flex flex-col">
               <CardHeader className="text-center">
@@ -332,28 +372,15 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                     <TabsTrigger value="guest">Invitado</TabsTrigger>
                   </TabsList>
 
-                  {/* Login Tab */}
                   <TabsContent value="login" className="space-y-4 pt-4 flex-1">
                     <form onSubmit={handleLogin} className="space-y-4">
                       <div>
                         <Label htmlFor="login-email">Email</Label>
-                        <Input
-                          id="login-email"
-                          type="email"
-                          value={loginData.email}
-                          onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
-                          required
-                        />
+                        <Input id="login-email" type="email" value={loginData.email} onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))} required />
                       </div>
                       <div>
                         <Label htmlFor="login-password">Contraseña</Label>
-                        <Input
-                          id="login-password"
-                          type="password"
-                          value={loginData.password}
-                          onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
-                          required
-                        />
+                        <Input id="login-password" type="password" value={loginData.password} onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))} required />
                       </div>
                       {authError && <p className="text-sm text-destructive">{authError}</p>}
                       <Button type="submit" className="w-full" disabled={isLoading}>
@@ -363,62 +390,32 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                     </form>
                   </TabsContent>
 
-                  {/* Register Tab */}
                   <TabsContent value="register" className="space-y-4 pt-4 flex-1">
                     {registerSent ? (
                       <div className="text-center py-8">
                         <Mail className="h-12 w-12 mx-auto mb-4 text-green-600" />
                         <h3 className="font-medium text-lg mb-2">¡Cuenta creada!</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Te enviamos un email de verificación a <strong>{registerData.email}</strong>.
-                          Por favor, hacé click en el link del email para activar tu cuenta.
-                        </p>
                         <p className="text-sm text-muted-foreground">
-                          Una vez verificada, podrás continuar con tu pedido.
+                          Te enviamos un email de verificación a <strong>{registerData.email}</strong>.
                         </p>
                       </div>
                     ) : (
                       <form onSubmit={handleRegister} className="space-y-4">
                         <div>
                           <Label htmlFor="register-name">Nombre</Label>
-                          <Input
-                            id="register-name"
-                            value={registerData.name}
-                            onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
-                            required
-                          />
+                          <Input id="register-name" value={registerData.name} onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))} required />
                         </div>
                         <div>
                           <Label htmlFor="register-phone">Teléfono</Label>
-                          <Input
-                            id="register-phone"
-                            type="tel"
-                            value={registerData.phone}
-                            onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}
-                            placeholder="11 1234 5678"
-                            required
-                          />
+                          <Input id="register-phone" type="tel" value={registerData.phone} onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))} required />
                         </div>
                         <div>
                           <Label htmlFor="register-email">Email</Label>
-                          <Input
-                            id="register-email"
-                            type="email"
-                            value={registerData.email}
-                            onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
-                            required
-                          />
+                          <Input id="register-email" type="email" value={registerData.email} onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))} required />
                         </div>
                         <div>
                           <Label htmlFor="register-password">Contraseña</Label>
-                          <Input
-                            id="register-password"
-                            type="password"
-                            value={registerData.password}
-                            onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
-                            required
-                            minLength={8}
-                          />
+                          <Input id="register-password" type="password" value={registerData.password} onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))} required minLength={8} />
                         </div>
                         {authError && <p className="text-sm text-destructive">{authError}</p>}
                         <Button type="submit" className="w-full" disabled={isLoading}>
@@ -429,37 +426,24 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                     )}
                   </TabsContent>
 
-                  {/* Guest Tab */}
                   <TabsContent value="guest" className="space-y-4 pt-4 flex-1">
                     <div className="text-center mb-4">
                       <Mail className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
                       <h3 className="font-medium">Checkout como invitado</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Ingresá tu email para continuar. Te enviaremos un link para crear tu contraseña después de completar el pedido.
+                        Ingresá tu email para continuar.
                       </p>
                     </div>
                     <form onSubmit={handleGuestCheckout} className="space-y-4">
                       <div>
                         <Label htmlFor="guest-email">Email</Label>
-                        <Input
-                          id="guest-email"
-                          type="email"
-                          value={guestEmail}
-                          onChange={(e) => setGuestEmail(e.target.value)}
-                          placeholder="tu@email.com"
-                          required
-                        />
+                        <Input id="guest-email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="tu@email.com" required />
                       </div>
                       {authError && <p className="text-sm text-destructive">{authError}</p>}
                       <Button type="submit" className="w-full" disabled={isLoading || guestSent}>
                         {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         {guestSent ? "¡Listo! Continuar" : "Continuar como invitado"}
                       </Button>
-                      {guestSent && (
-                        <p className="text-sm text-center text-green-600">
-                          ¡Revisá tu email! Te enviamos un link para crear tu contraseña.
-                        </p>
-                      )}
                     </form>
                   </TabsContent>
                 </Tabs>
@@ -486,14 +470,82 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                     <RadioGroupItem value="shipping" id="shipping" />
                     <Label htmlFor="shipping" className="flex-1 cursor-pointer">
                       <strong>Envío a domicilio</strong>
-                      <span className="text-muted-foreground ml-2">
-                        {freeShippingMin > 0 
-                          ? `Gratis desde ${formatCurrency(freeShippingMin)}` 
-                          : formatCurrency(fixedShippingCost)}
-                      </span>
                     </Label>
                   </div>
                 </RadioGroup>
+
+                {/* Shipping Calculator - shown when shipping is selected */}
+                {shippingMethod === "shipping" && (
+                  <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      <span className="font-medium text-sm">Calculá el costo de envío</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="province">Seleccioná tu provincia</Label>
+                      <select
+                        id="province"
+                        value={selectedProvince}
+                        onChange={handleProvinceChange}
+                        className="w-full h-10 px-3 border rounded-md bg-background"
+                      >
+                        <option value="">Seleccionar provincia...</option>
+                        {ARGENTINE_PROVINCES.map(province => (
+                          <option key={province.id} value={province.id}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedProvince && (
+                      <div className="space-y-2">
+                        <Label htmlFor="checkout-city">Tu ciudad</Label>
+                        <Input 
+                          id="checkout-city" 
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          placeholder="Ej: Mar del Plata"
+                        />
+                      </div>
+                    )}
+
+                    {shippingCalculation && selectedProvince && formData.city && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-green-800">Zona: {shippingCalculation.zoneName}</span>
+                        </div>
+                        <div className="flex items-center justify-between font-medium">
+                          <span className="text-green-800">Costo de envío:</span>
+                          <span className="text-green-800">
+                            {shippingCalculation.isFree 
+                              ? "¡GRATIS!" 
+                              : formatCurrency(shippingCalculation.cost)}
+                          </span>
+                        </div>
+                        {shippingCalculation.isFree && shippingCalculation.freeFrom && (
+                          <p className="text-xs text-green-700">
+                            ¡Con tu compra de {formatCurrency(shippingCalculation.freeFrom)} el envío es gratis!
+                          </p>
+                        )}
+                        {!shippingCalculation.isFree && shippingCalculation.freeFrom && (
+                          <p className="text-xs text-muted-foreground">
+                            Comprando {formatCurrency(shippingCalculation.freeFrom)} tenés envío gratis
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedProvince && formData.city && !shippingCalculation && (
+                      <p className="text-sm text-muted-foreground">
+                        No tenemos envío configurado para esta zona. Seleccioná otra provincia o completá tu dirección.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-auto">
                   <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
                     Continuar <ChevronRight className="h-4 w-4 ml-2" />
@@ -510,7 +562,6 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                 <CardTitle>Dirección de entrega</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col">
-                {/* Show saved addresses if user is logged in */}
                 {savedAddresses.length > 0 && !showNewAddressForm ? (
                   <>
                     <div className="space-y-2">
@@ -540,9 +591,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{address.label}</span>
                             {address.isDefault && (
-                              <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                                Principal
-                              </span>
+                              <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">Principal</span>
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -551,11 +600,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                         </div>
                       ))}
                     </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowNewAddressForm(true)}
-                      className="w-full"
-                    >
+                    <Button variant="outline" onClick={() => setShowNewAddressForm(true)} className="w-full">
                       + Agregar nueva dirección
                     </Button>
                   </>
@@ -599,13 +644,8 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                       <Label htmlFor="instructions">Instrucciones de entrega</Label>
                       <Textarea id="instructions" name="instructions" value={formData.instructions} onChange={handleInputChange} placeholder="Ej: timbre en el 3er piso, dejar en conserjería..." />
                     </div>
-                    {/* Show back button if there are saved addresses */}
                     {savedAddresses.length > 0 && (
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowNewAddressForm(false)}
-                        className="w-full"
-                      >
+                      <Button variant="outline" onClick={() => setShowNewAddressForm(false)} className="w-full">
                         ← Volver a mis direcciones
                       </Button>
                     )}
@@ -731,7 +771,13 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                 </div>
                 <div className="flex justify-between">
                   <span>Envío</span>
-                  <span>{shippingCost === 0 ? "Gratis" : formatCurrency(shippingCost)}</span>
+                  <span>
+                    {shippingCost === 0 
+                      ? shippingMethod === "pickup" 
+                        ? "Gratis" 
+                        : (shippingCalculation?.isFree ? "Gratis" : shippingCalculation ? formatCurrency(shippingCost) : "A calcular")
+                      : formatCurrency(shippingCost)}
+                  </span>
                 </div>
               </div>
 

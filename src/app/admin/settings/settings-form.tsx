@@ -1,0 +1,431 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Upload, Trash2, Plus, Save, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
+import { 
+  ARGENTINE_PROVINCES, 
+  ShippingZone, 
+  ShippingConfig,
+  getDefaultShippingConfig 
+} from "@/lib/shipping"
+import { formatCurrency } from "@/lib/utils"
+
+interface StoreSettings {
+  id: string
+  storeName: string
+  storeEmail: string | null
+  storePhone: string | null
+  storeAddress: any
+  logo: string | null
+  logoWidth: number | null
+  logoHeight: number | null
+  favicon: string | null
+  faviconWidth: number | null
+  faviconHeight: number | null
+  shippingConfig: ShippingConfig | null
+  freeShippingMin: any
+  fixedShippingCost: any
+  bankAccount: any
+}
+
+export function SettingsForm() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [settings, setSettings] = useState<StoreSettings | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
+
+  // Form state
+  const [storeName, setStoreName] = useState("")
+  const [storeEmail, setStoreEmail] = useState("")
+  const [storePhone, setStorePhone] = useState("")
+  const [logo, setLogo] = useState<string | null>(null)
+  const [favicon, setFavicon] = useState<string | null>(null)
+  const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
+
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      const res = await fetch("/api/admin/settings")
+      const data = await res.json()
+      setSettings(data)
+      
+      setStoreName(data.storeName || "")
+      setStoreEmail(data.storeEmail || "")
+      setStorePhone(data.storePhone || "")
+      setLogo(data.logo)
+      setFavicon(data.favicon)
+      
+      if (data.shippingConfig) {
+        setShippingConfig(data.shippingConfig)
+      } else {
+        setShippingConfig(getDefaultShippingConfig())
+      }
+      
+      if (data.logo) setLogoPreview(data.logo)
+      if (data.favicon) setFaviconPreview(data.favicon)
+    } catch (error) {
+      console.error("Error loading settings:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: settings?.id,
+          storeName,
+          storeEmail: storeEmail || null,
+          storePhone: storePhone || null,
+          logo,
+          favicon,
+          shippingConfig,
+        }),
+      })
+
+      if (res.ok) {
+        alert("Configuración guardada")
+      } else {
+        alert("Error al guardar")
+      }
+    } catch (error) {
+      console.error("Error saving:", error)
+      alert("Error al guardar")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "favicon") => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("type", type)
+
+    try {
+      const res = await fetch("/api/admin/settings/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      
+      if (data.url) {
+        if (type === "logo") {
+          setLogo(data.url)
+          setLogoPreview(data.url)
+        } else {
+          setFavicon(data.url)
+          setFaviconPreview(data.url)
+        }
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      alert("Error al subir imagen")
+    }
+  }
+
+  const addZone = () => {
+    const newZone: ShippingZone = {
+      id: `zone-${Date.now()}`,
+      name: "Nueva zona",
+      provinces: [],
+      cost: 5000,
+      freeFrom: null,
+      isActive: true,
+    }
+    setShippingConfig({
+      zones: [...shippingConfig.zones, newZone],
+    })
+  }
+
+  const updateZone = (index: number, updates: Partial<ShippingZone>) => {
+    const newZones = [...shippingConfig.zones]
+    newZones[index] = { ...newZones[index], ...updates }
+    setShippingConfig({ zones: newZones })
+  }
+
+  const removeZone = (index: number) => {
+    const newZones = shippingConfig.zones.filter((_, i) => i !== index)
+    setShippingConfig({ zones: newZones })
+  }
+
+  const toggleProvince = (zoneIndex: number, provinceId: string) => {
+    const zone = shippingConfig.zones[zoneIndex]
+    const provinces = zone.provinces.includes(provinceId)
+      ? zone.provinces.filter(p => p !== provinceId)
+      : [...zone.provinces, provinceId]
+    updateZone(zoneIndex, { provinces })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Configuración de la Tienda</h1>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Guardar
+        </Button>
+      </div>
+
+      {/* Basic Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Información de la tienda</CardTitle>
+          <CardDescription>Detalles generales de tu tienda</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="storeName">Nombre de la tienda</Label>
+            <Input
+              id="storeName"
+              value={storeName}
+              onChange={(e) => setStoreName(e.target.value)}
+              placeholder="Mi Tienda"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="storeEmail">Email</Label>
+            <Input
+              id="storeEmail"
+              type="email"
+              value={storeEmail}
+              onChange={(e) => setStoreEmail(e.target.value)}
+              placeholder="tienda@ejemplo.com"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="storePhone">Teléfono</Label>
+            <Input
+              id="storePhone"
+              type="tel"
+              value={storePhone}
+              onChange={(e) => setStorePhone(e.target.value)}
+              placeholder="+54 11 1234 5678"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Logo & Favicon */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo y Favicon</CardTitle>
+          <CardDescription>Imágenes de tu tienda</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Logo */}
+          <div className="space-y-2">
+            <Label>Logo</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
+                ) : (
+                  <span className="text-muted-foreground text-sm">Sin logo</span>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="logo-upload" className="cursor-pointer">
+                  <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
+                    <Upload className="h-4 w-4" />
+                    Subir logo
+                  </div>
+                </Label>
+                <Input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e, "logo")}
+                />
+                {logo && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 text-red-500"
+                    onClick={() => { setLogo(null); setLogoPreview(null); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Eliminar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Favicon */}
+          <div className="space-y-2">
+            <Label>Favicon</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                {faviconPreview ? (
+                  <img src={faviconPreview} alt="Favicon" className="max-w-full max-h-full object-contain" />
+                ) : (
+                  <span className="text-muted-foreground text-sm">Sin favicon</span>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="favicon-upload" className="cursor-pointer">
+                  <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
+                    <Upload className="h-4 w-4" />
+                    Subir favicon
+                  </div>
+                </Label>
+                <Input
+                  id="favicon-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e, "favicon")}
+                />
+                {favicon && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 text-red-500"
+                    onClick={() => { setFavicon(null); setFaviconPreview(null); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Eliminar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Shipping Zones */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Zonas de Envío</CardTitle>
+          <CardDescription>
+            Configura el costo de envío por zona. Para Buenos Aires, las ciudades se dividen automáticamente en zonas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {shippingConfig.zones.map((zone, index) => (
+            <div key={zone.id} className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={zone.isActive}
+                    onCheckedChange={(checked) => updateZone(index, { isActive: !!checked })}
+                  />
+                  <Input
+                    value={zone.name}
+                    onChange={(e) => updateZone(index, { name: e.target.value })}
+                    className="w-48 font-medium"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500"
+                  onClick={() => removeZone(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Costo de envío ($)</Label>
+                  <Input
+                    type="number"
+                    value={zone.cost}
+                    onChange={(e) => updateZone(index, { cost: Number(e.target.value) })}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Envío gratis desde ($)</Label>
+                  <Input
+                    type="number"
+                    value={zone.freeFrom || ""}
+                    onChange={(e) => updateZone(index, { freeFrom: e.target.value ? Number(e.target.value) : null })}
+                    placeholder="Vacío = no aplica"
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Provincias</Label>
+                <div className="flex flex-wrap gap-2">
+                  {ARGENTINE_PROVINCES.map((province) => (
+                    <Button
+                      key={province.id}
+                      variant={zone.provinces.includes(province.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleProvince(index, province.id)}
+                      className="text-xs"
+                    >
+                      {province.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {zone.provinces.includes("BUENOS_AIRES") && (
+                <div className="space-y-2">
+                  <Label>Ciudades específicas (opcional)</Label>
+                  <Textarea
+                    value={zone.cities?.join(", ") || ""}
+                    onChange={(e) => updateZone(index, { 
+                      cities: e.target.value ? e.target.value.split(",").map(c => c.trim()) : undefined 
+                    })}
+                    placeholder="Ciudad1, Ciudad2 (dejar vacío para toda la provincia)"
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Separa las ciudades con comas. Si está vacío, la zona aplica a toda la provincia.
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <Button variant="outline" onClick={addZone} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar zona
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
