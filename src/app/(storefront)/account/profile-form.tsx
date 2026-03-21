@@ -31,6 +31,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
     phone: user.phone || "",
   })
 
+  // Check if form has changes compared to original user data
+  const hasChanges = 
+    formData.name !== (user.name || "") ||
+    formData.email !== user.email ||
+    formData.phone !== (user.phone || "")
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
@@ -126,7 +132,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       </div>
 
       <div className="pt-2">
-        <Button type="submit" disabled={isLoading} className="w-full">
+        <Button type="submit" disabled={isLoading || !hasChanges} className="w-full">
           {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           Guardar cambios
         </Button>
