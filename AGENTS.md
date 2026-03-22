@@ -50,6 +50,18 @@ Fulfillment tracking at OrderItem level with fields:
 - `autoConfirmOrders`: If true, new orders start as CONFIRMED; if false, start as RECEIVED (requires manual confirmation)
 - `requiresPaymentToFulfill`: If true, only advance to PREPARING when paymentStatus = PAID
 
+## Development Workflow
+
+### Running the Server
+- The user runs their own Next.js development server (`npm run dev`)
+- If you need to run a server for testing, kill it before completing the task
+
+### Database Commands
+- Generate Prisma client: `npm run db:generate`
+- Push schema to DB: `npm run db:push`
+- Seed database: `npx tsx prisma/seed.ts`
+- Full reset: `npm run db:push -- --force-reset && npx tsx prisma/seed.ts`
+
 ## Database Setup (Local PostgreSQL)
 
 ### Prerequisites
@@ -64,8 +76,3 @@ Fulfillment tracking at OrderItem level with fields:
   GRANT ALL PRIVILEGES ON DATABASE ecommerce TO postgres;
   GRANT ALL ON SCHEMA public TO postgres;
   ```
-
-### Commands
-- Generate Prisma client: `npm run db:generate`
-- Push schema to DB: `npm run db:push`
-- Seed database: `npm run db:seed`
