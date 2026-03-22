@@ -24,9 +24,31 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Key Components
 - `checkout-steps.tsx` - Multi-step checkout form with grid layout
 - `cart-context.tsx` - Client-side cart state management
+- `order-status-manager.tsx` - Order status management with 2 independent axes
 - `products/` - Product listing and detail pages
 - `account/` - User account, addresses, orders
 - `admin/` - Admin dashboard, products management
+
+## Order Status Model (Simplified - 2 Axes)
+
+### Axis 1: OrderStatus
+States: RECEIVED → CONFIRMED → PREPARING → READY_FOR_DELIVERY → OUT_FOR_DELIVERY → DELIVERED
+Also: NOT_DELIVERED, CANCELLED
+
+### Axis 2: PaymentStatus
+States: PENDING → AUTHORIZED → PAID
+Also: PARTIALLY_REFUNDED, REFUNDED, FAILED, VOIDED
+
+### OrderItem Fulfillment
+Fulfillment tracking at OrderItem level with fields:
+- `quantityOrdered` - Original quantity
+- `quantityFulfilled` - Actually prepared
+- `quantityMissing` - Shortage count
+- `missingReason` - Optional reason
+
+### Store Settings
+- `autoConfirmOrders`: If true, new orders start as CONFIRMED; if false, start as RECEIVED (requires manual confirmation)
+- `requiresPaymentToFulfill`: If true, only advance to PREPARING when paymentStatus = PAID
 
 ## Database Setup (Local PostgreSQL)
 
