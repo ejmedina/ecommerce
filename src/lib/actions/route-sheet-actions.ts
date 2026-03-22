@@ -24,7 +24,7 @@ export async function createRouteSheet(
     } else {
       // Buscar un usuario admin para usar como fallback
       const adminUser = await db.user.findFirst({
-        where: { role: { in: ["ADMIN", "OWNER", "SUPERADMIN"] } }
+        where: { email: "admin@tienda.com" }
       })
       if (adminUser) {
         createdById = adminUser.id
