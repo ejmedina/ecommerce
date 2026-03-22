@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, FileText, Users, Settings, LayoutDashboard } from "lucide-react"
+import { Package, FileText, Users, Settings, LayoutDashboard, Truck } from "lucide-react"
 
 export default function AdminLayout({
   children,
@@ -43,6 +43,13 @@ export default function AdminLayout({
           >
             <Users className="h-4 w-4" />
             Clientes
+          </Link>
+          <Link
+            href="/admin/shipping-zones"
+            className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+          >
+            <Truck className="h-4 w-4" />
+            Zonas de Entrega
           </Link>
           <Link
             href="/admin/settings"

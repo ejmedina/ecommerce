@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,6 +35,9 @@ type AuthMode = "login" | "register"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnUrl = searchParams.get("returnUrl") || "/account"
+  const { toast } = useToast()
   const [authMode, setAuthMode] = useState<AuthMode>("login")
 
   const loginForm = useForm<LoginForm>({
@@ -45,6 +49,69 @@ export default function LoginPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "", phone: "", confirmPassword: "" },
   })
+
+  // Effect para procesar acción pendiente después del login
+  useEffect(() => {
+    const processPendingAction = async () => {
+      const pendingActionStr = sessionStorage.getItem("pendingAction")
+      if (!pendingActionStr) return
+
+      try {
+        const pendingAction = JSON.parse(pendingActionStr)
+        
+        // Verificar si el usuario tiene permisos de admin
+        const response = await fetch("/api/auth/check-admin")
+        const { isAdmin } = await response.json()
+
+        if (!isAdmin) {
+          // No tiene permisos, limpiar y redirigir a home
+          sessionStorage.removeItem("pendingAction")
+          toast({
+            title: "Acceso denegado",
+            description: "No tienes permisos para realizar esta acción",
+            variant: "destructive",
+          })
+          router.push("/")
+          return
+        }
+
+        // Tiene permisos, ejecutar la acción
+        if (pendingAction.action === "createRouteSheet") {
+          const result = await fetch("/api/admin/route-sheet/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: pendingAction.routeName,
+              orderIds: pendingAction.orderIds,
+              date: pendingAction.routeDate,
+            }),
+          })
+          
+          const data = await result.json()
+          
+          if (data.routeSheet) {
+            sessionStorage.removeItem("pendingAction")
+            router.push(`/admin/routes/${data.routeSheet.id}`)
+          } else {
+            toast({
+              title: "Error",
+              description: data.error || "Error al crear la hoja de ruta",
+              variant: "destructive",
+            })
+            router.push(returnUrl)
+          }
+        }
+      } catch (error) {
+        console.error("Error processing pending action:", error)
+        router.push(returnUrl)
+      }
+    }
+
+    // Solo procesar si hay un returnUrl de admin
+    if (returnUrl.includes("/admin")) {
+      processPendingAction()
+    }
+  }, [returnUrl, router, toast])
 
   async function handleLogin(data: LoginForm) {
     const result = await signIn("credentials", {
@@ -60,7 +127,7 @@ export default function LoginPage() {
 
     // Small delay to ensure session is set
     setTimeout(() => {
-      router.push("/account")
+      router.push(returnUrl)
       router.refresh()
     }, 100)
   }

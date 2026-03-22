@@ -3,6 +3,65 @@
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
+import { revalidatePath } from "next/cache"
+import { OrderStatus, PaymentStatus } from "@prisma/client"
+
+// ============================================
+// UPDATE ORDERS STATUS (MASIVO)
+// ============================================
+
+export async function updateOrdersStatus(
+  orderIds: string[],
+  orderStatus?: OrderStatus,
+  paymentStatus?: PaymentStatus
+) {
+  try {
+    // Verificar autenticación
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { error: "AUTH_REQUIRED", message: "Debes iniciar sesión" }
+    }
+    
+    // Verificar rol de admin
+    const userRole = (session.user as any).role
+    if (!userRole || !["ADMIN", "OWNER", "SUPERADMIN"].includes(userRole)) {
+      return { error: "UNAUTHORIZED", message: "No tienes permisos" }
+    }
+    
+    if (orderIds.length === 0) {
+      return { error: "No hay pedidos seleccionados" }
+    }
+
+    // Actualizar pedidos
+    const updateData: any = {}
+    if (orderStatus) {
+      updateData.orderStatus = orderStatus
+      // Si se cancela, guardar fecha de cancelación
+      if (orderStatus === "CANCELLED") {
+        updateData.cancelledAt = new Date()
+      }
+    }
+    if (paymentStatus) {
+      updateData.paymentStatus = paymentStatus
+    }
+
+    await db.order.updateMany({
+      where: { id: { in: orderIds } },
+      data: updateData,
+    })
+
+    revalidatePath("/admin/orders")
+
+    return { success: true, count: orderIds.length }
+  } catch (error) {
+    console.error("Update orders status error:", error)
+    return { error: "Error al actualizar los pedidos" }
+  }
+}
+
+// ============================================
+// CREATE ORDER
+// ============================================
 
 export async function createOrder(formData: FormData) {
   try {

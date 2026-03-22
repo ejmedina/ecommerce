@@ -1,12 +1,10 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getRouteSheet } from "@/lib/actions/route-sheet-actions"
+import { db } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { formatCurrency } from "@/lib/utils"
 import { RouteSheetActions } from "./route-sheet-actions"
 import { OrderCard } from "./order-card"
 
@@ -21,6 +19,10 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
   if (!routeSheet) {
     notFound()
   }
+
+  // Obtener settings para el mensaje de WhatsApp
+  const settings = await db.storeSettings.findFirst()
+  const whatsappMessage = settings?.whatsappPreArrivalMessage || ""
 
   const statusLabels: Record<string, string> = {
     DRAFT: "Borrador",
@@ -132,6 +134,8 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
                 index={index}
                 mode="preparation"
                 totalItems={routeSheet.items.length}
+                whatsappMessage={whatsappMessage}
+                storeName={settings?.storeName || "Mi Tienda"}
               />
             ))}
           </div>
@@ -150,6 +154,8 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
                 index={0}
                 mode="delivery"
                 totalItems={0}
+                whatsappMessage={whatsappMessage}
+                storeName={settings?.storeName || "Mi Tienda"}
               />
             ))}
           </div>

@@ -381,6 +381,11 @@ model StoreSettings {
   // false = avanzar aunque paymentStatus = PENDING (contra entrega)
   requiresPaymentToFulfill Boolean @default(false)
   
+  // === CONFIGURACIÓN DE WHATSAPP ===
+  // Mensaje personalizado para notificar al cliente cuando el pedido está por llegar
+  // Usa %s para el nombre de la tienda (se reemplaza automáticamente)
+  whatsappPreArrivalMessage String? @db.Text
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

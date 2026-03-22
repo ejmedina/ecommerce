@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Upload, Trash2, Plus, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ interface StoreSettings {
   bankAccount: any
   autoConfirmOrders: boolean
   requiresPaymentToFulfill: boolean
+  whatsappPreArrivalMessage: string | null
 }
 
 export function SettingsForm() {
@@ -54,6 +56,7 @@ export function SettingsForm() {
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
   const [autoConfirmOrders, setAutoConfirmOrders] = useState(true)
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
+  const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
 
   useEffect(() => {
     loadSettings()
@@ -72,6 +75,7 @@ export function SettingsForm() {
       setFavicon(data.favicon)
       setAutoConfirmOrders(data.autoConfirmOrders ?? true)
       setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
+      setWhatsappPreArrivalMessage(data.whatsappPreArrivalMessage || "")
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -104,6 +108,7 @@ export function SettingsForm() {
           shippingConfig,
           autoConfirmOrders,
           requiresPaymentToFulfill,
+          whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
         }),
       })
 
@@ -381,101 +386,45 @@ export function SettingsForm() {
         </CardContent>
       </Card>
 
-      {/* Shipping Zones */}
+      {/* Link to Shipping Zones */}
       <Card>
         <CardHeader>
           <CardTitle>Zonas de Envío</CardTitle>
           <CardDescription>
-            Configura el costo de envío por zona. Para Buenos Aires, las ciudades se dividen automáticamente en zonas.
+            Las zonas de envío ahora se configuran en una página dedicada.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href="/admin/shipping-zones">
+              Administrar Zonas de Entrega →
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Mensaje de WhatsApp</CardTitle>
+          <CardDescription>
+            Personaliza el mensaje que se envía cuando un pedido está por llegar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {shippingConfig.zones.map((zone, index) => (
-            <div key={zone.id} className="border rounded-lg p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={zone.isActive}
-                    onCheckedChange={(checked) => updateZone(index, { isActive: !!checked })}
-                  />
-                  <Input
-                    value={zone.name}
-                    onChange={(e) => updateZone(index, { name: e.target.value })}
-                    className="w-48 font-medium"
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500"
-                  onClick={() => removeZone(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Costo de envío ($)</Label>
-                  <Input
-                    type="number"
-                    value={zone.cost}
-                    onChange={(e) => updateZone(index, { cost: Number(e.target.value) })}
-                    min={0}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Envío gratis desde ($)</Label>
-                  <Input
-                    type="number"
-                    value={zone.freeFrom || ""}
-                    onChange={(e) => updateZone(index, { freeFrom: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="Vacío = no aplica"
-                    min={0}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Provincias</Label>
-                <div className="flex flex-wrap gap-2">
-                  {ARGENTINE_PROVINCES.map((province) => (
-                    <Button
-                      key={province.id}
-                      variant={zone.provinces.includes(province.id) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => toggleProvince(index, province.id)}
-                      className="text-xs"
-                    >
-                      {province.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {zone.provinces.includes("BUENOS_AIRES") && (
-                <div className="space-y-2">
-                  <Label>Ciudades específicas (opcional)</Label>
-                  <Textarea
-                    value={zone.cities?.join(", ") || ""}
-                    onChange={(e) => updateZone(index, { 
-                      cities: e.target.value ? e.target.value.split(",").map(c => c.trim()) : undefined 
-                    })}
-                    placeholder="Ciudad1, Ciudad2 (dejar vacío para toda la provincia)"
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Separa las ciudades con comas. Si está vacío, la zona aplica a toda la provincia.
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
-
-          <Button variant="outline" onClick={addZone} className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar zona
-          </Button>
+          <div className="space-y-2">
+            <Label htmlFor="whatsappMessage">Mensaje pre-venta</Label>
+            <Textarea
+              id="whatsappMessage"
+              value={whatsappPreArrivalMessage}
+              onChange={(e) => setWhatsappPreArrivalMessage(e.target.value)}
+              placeholder="Hola, nos comunicamos desde [Nombre de la tienda] para avisarte que tu pedido está por llegar. Llegamos en menos de 10 minutos."
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">
+              Usa [NOMBRE_TIENDA] para insertar automáticamente el nombre de tu tienda.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

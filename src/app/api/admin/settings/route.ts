@@ -41,7 +41,10 @@ export async function PUT(req: NextRequest) {
       shippingConfig,
       freeShippingMin,
       fixedShippingCost,
-      bankAccount
+      bankAccount,
+      whatsappPreArrivalMessage,
+      autoConfirmOrders,
+      requiresPaymentToFulfill,
     } = body
 
     // Get existing settings to check if shippingConfig needs default
@@ -58,6 +61,9 @@ export async function PUT(req: NextRequest) {
       freeShippingMin,
       fixedShippingCost,
       bankAccount,
+      autoConfirmOrders,
+      requiresPaymentToFulfill,
+      whatsappPreArrivalMessage,
     }
 
     // Only update logo/favicon if provided

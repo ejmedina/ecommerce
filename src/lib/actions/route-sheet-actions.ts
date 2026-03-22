@@ -6,6 +6,39 @@ import { revalidatePath } from "next/cache"
 import { Prisma } from "@prisma/client"
 
 // ============================================
+// Helper para serializar route sheet (convertir Decimal a number)
+// ============================================
+
+function serializeRouteSheet(rs: any) {
+  return {
+    ...rs,
+    date: rs.date.toISOString(),
+    createdAt: rs.createdAt.toISOString(),
+    updatedAt: rs.updatedAt.toISOString(),
+    items: rs.items.map((item: any) => ({
+      ...item,
+      order: {
+        ...item.order,
+        total: Number(item.order.total),
+        subtotal: Number(item.order.subtotal),
+        shippingCost: Number(item.order.shippingCost),
+        taxAmount: Number(item.order.taxAmount),
+        discountAmount: Number(item.order.discountAmount),
+        createdAt: item.order.createdAt.toISOString(),
+        updatedAt: item.order.updatedAt.toISOString(),
+        paidAt: item.order.paidAt?.toISOString() || null,
+        cancelledAt: item.order.cancelledAt?.toISOString() || null,
+        items: item.order.items.map((oi: any) => ({
+          ...oi,
+          price: Number(oi.price),
+          unitTotal: Number(oi.unitTotal),
+        })),
+      },
+    })),
+  }
+}
+
+// ============================================
 // CREATE ROUTE SHEET
 // ============================================
 
@@ -17,19 +50,19 @@ export async function createRouteSheet(
   try {
     // Obtener usuario de la sesión
     const session = await auth()
-    let createdById = "system"
     
-    if (session?.user?.id) {
-      createdById = session.user.id
-    } else {
-      // Buscar un usuario admin para usar como fallback
-      const adminUser = await db.user.findFirst({
-        where: { email: "admin@tienda.com" }
-      })
-      if (adminUser) {
-        createdById = adminUser.id
-      }
+    // Verificar que hay sesión activa
+    if (!session?.user?.id) {
+      return { error: "AUTH_REQUIRED", message: "Debes iniciar sesión para crear una hoja de ruta" }
     }
+    
+    // Verificar que el usuario tiene rol de admin
+    const userRole = (session.user as any).role
+    if (!userRole || !["ADMIN", "OWNER", "SUPERADMIN"].includes(userRole)) {
+      return { error: "UNAUTHORIZED", message: "No tienes permisos para crear hojas de ruta" }
+    }
+    
+    const createdById = session.user.id
 
     // Obtener pedidos - el operador decide cuáles incluir (sin filtro de estado)
     const orders = await db.order.findMany({
@@ -60,6 +93,7 @@ export async function createRouteSheet(
             order: {
               include: {
                 user: { select: { name: true, phone: true } },
+                items: true,
               },
             },
           },
@@ -71,7 +105,10 @@ export async function createRouteSheet(
     revalidatePath("/admin/routes")
     revalidatePath(`/admin/routes/${routeSheet.id}`)
 
-    return { routeSheet }
+    // Serializar para evitar errores de Decimal en el cliente
+    const serializedRouteSheet = serializeRouteSheet(routeSheet)
+
+    return { routeSheet: serializedRouteSheet }
   } catch (error) {
     console.error("Create route sheet error:", error)
     return { error: "Error al crear la hoja de ruta" }
@@ -347,39 +384,6 @@ export async function setDeliveryOutcome(
   } catch (error) {
     console.error("Set delivery outcome error:", error)
     return { error: "Error al registrar resultado de entrega" }
-  }
-}
-
-// ============================================
-// Helper para serializar route sheet (convertir Decimal a number)
-// ============================================
-
-function serializeRouteSheet(rs: any) {
-  return {
-    ...rs,
-    date: rs.date.toISOString(),
-    createdAt: rs.createdAt.toISOString(),
-    updatedAt: rs.updatedAt.toISOString(),
-    items: rs.items.map((item: any) => ({
-      ...item,
-      order: {
-        ...item.order,
-        total: Number(item.order.total),
-        subtotal: Number(item.order.subtotal),
-        shippingCost: Number(item.order.shippingCost),
-        taxAmount: Number(item.order.taxAmount),
-        discountAmount: Number(item.order.discountAmount),
-        createdAt: item.order.createdAt.toISOString(),
-        updatedAt: item.order.updatedAt.toISOString(),
-        paidAt: item.order.paidAt?.toISOString() || null,
-        cancelledAt: item.order.cancelledAt?.toISOString() || null,
-        items: item.order.items.map((oi: any) => ({
-          ...oi,
-          price: Number(oi.price),
-          unitTotal: Number(oi.unitTotal),
-        })),
-      },
-    })),
   }
 }
 

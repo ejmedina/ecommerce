@@ -72,6 +72,8 @@ interface OrderCardProps {
   index: number
   mode: "preparation" | "delivery"
   totalItems: number
+  whatsappMessage?: string
+  storeName?: string
 }
 
 const failureReasons = [
@@ -82,7 +84,7 @@ const failureReasons = [
   { value: "OTHER", label: "Otro" },
 ]
 
-export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
+export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName }: OrderCardProps) {
   const router = useRouter()
   const shippingAddress = item.order.shippingAddress as any
   const phone = item.order.user.phone || shippingAddress?.phone
@@ -94,6 +96,14 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
   const [failureReason, setFailureReason] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Generar mensaje de WhatsApp personalizado
+  const getWhatsAppMessage = () => {
+    if (!whatsappMessage) return "Hola, llegamos en menos de 10 minutos."
+    return whatsappMessage.replace(/\[NOMBRE_TIENDA\]/g, storeName || "la tienda")
+  }
+
+  const encodedMessage = encodeURIComponent(getWhatsAppMessage())
 
   const handleReorder = async (direction: "up" | "down") => {
     if ((direction === "up" && index === 0) || (direction === "down" && index === totalItems - 1)) {
@@ -175,13 +185,13 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
                       </Button>
                     </a>
                     <a 
-                      href={`https://wa.me/${phone.replace(/\D/g, "")}?text=Hola,%20llegamos%20en%20menos%20de%2010%20minutos.`} 
+                      href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodedMessage}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
                       <Button size="sm" variant="secondary">
                         <MessageCircle className="w-4 h-4 mr-1" />
-                        10min
+                        Notificar
                       </Button>
                     </a>
                   </>
