@@ -1,12 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
+import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { UpdateOrderStatus } from "./update-order-status"
+import { OrderStatusManager } from "@/components/order-status-manager"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -31,48 +30,70 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     notFound()
   }
 
-  function getStatusBadge(status: string) {
-    const variants: Record<string, "default" | "success" | "warning" | "destructive" | "secondary"> = {
-      PENDING: "warning",
-      PAID: "success",
-      PROCESSING: "default",
-      SHIPPED: "secondary",
+  function getOrderStatusBadge(status: string) {
+    const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
+      RECEIVED: "secondary",
+      CONFIRMED: "default",
+      PREPARING: "warning",
+      READY_FOR_DELIVERY: "warning",
+      OUT_FOR_DELIVERY: "default",
       DELIVERED: "success",
+      NOT_DELIVERED: "destructive",
       CANCELLED: "destructive",
-      REFUNDED: "destructive",
     }
     const labels: Record<string, string> = {
-      PENDING: "Pendiente",
-      PAID: "Pagado",
-      PROCESSING: "Procesando",
-      SHIPPED: "Enviado",
+      RECEIVED: "Recibido",
+      CONFIRMED: "Confirmado",
+      PREPARING: "En preparación",
+      READY_FOR_DELIVERY: "Listo para entregar",
+      OUT_FOR_DELIVERY: "En reparto",
       DELIVERED: "Entregado",
+      NOT_DELIVERED: "No entregado",
       CANCELLED: "Cancelado",
-      REFUNDED: "Reembolsado",
     }
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
   }
 
-  function getPaymentBadge(status: string) {
+  function getPaymentStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
       PENDING: "warning",
-      APPROVED: "success",
-      REJECTED: "destructive",
+      AUTHORIZED: "default",
+      PAID: "success",
+      PARTIALLY_REFUNDED: "warning",
       REFUNDED: "destructive",
-      CANCELLED: "destructive",
+      FAILED: "destructive",
+      VOIDED: "secondary",
     }
     const labels: Record<string, string> = {
       PENDING: "Pendiente",
-      APPROVED: "Aprobado",
-      REJECTED: "Rechazado",
+      AUTHORIZED: "Autorizado",
+      PAID: "Pagado",
+      PARTIALLY_REFUNDED: "Reembolso parcial",
       REFUNDED: "Reembolsado",
-      CANCELLED: "Cancelado",
+      FAILED: "Fallido",
+      VOIDED: "Anulado",
     }
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
+  }
+
+  function getPaymentMethodLabel(method: string) {
+    const labels: Record<string, string> = {
+      ONLINE_CARD: "Tarjeta online",
+      BANK_TRANSFER: "Transferencia",
+      DIGITAL_WALLET: "Wallet digital",
+      CASH_ON_DELIVERY: "Efectivo al entregar",
+      CARD_ON_DELIVERY: "Tarjeta al entregar",
+      TRANSFER_ON_DELIVERY: "Transferencia al entregar",
+    }
+    return labels[method] || method
   }
 
   const shippingAddress = order.shippingAddress as any
-  const billingAddress = order.billingAddress as any
+
+  // Check for partial fulfillment (faltantes)
+  const hasFaltantes = order.items.some(
+    item => (item.quantityFulfilled ?? 0) !== (item.quantityOrdered ?? item.quantity)
+  )
 
   return (
     <div className="space-y-6">
@@ -83,18 +104,49 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           </Link>
           <h1 className="text-2xl font-semibold mt-2">Pedido #{order.orderNumber}</h1>
         </div>
-        <div className="flex items-center gap-4">
-          {getStatusBadge(order.status)}
-          <UpdateOrderStatus orderId={order.id} currentStatus={order.status} />
-        </div>
+        
+        {/* Simplified 2-axis status manager */}
+        <OrderStatusManager
+          orderId={order.id}
+          orderStatus={order.orderStatus}
+          paymentStatus={order.paymentStatus}
+          paymentMethod={order.paymentMethod}
+        />
+      </div>
+
+      {/* Status summary cards - 2 axes only */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Estado del Pedido</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              {getOrderStatusBadge(order.orderStatus)}
+              {order.orderStatus === "PREPARING" && hasFaltantes && (
+                <span className="text-xs text-orange-600">⚠️ Con faltantes</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Estado del Pago</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              {getPaymentStatusBadge(order.paymentStatus)}
+              <span className="text-xs text-muted-foreground">{getPaymentMethodLabel(order.paymentMethod)}</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 text-sm text-muted-foreground">
         <div className="flex flex-wrap gap-4">
           <span>Creado: {formatDateTime(order.createdAt)}</span>
           {order.paidAt && <span>Pagado: {formatDateTime(order.paidAt)}</span>}
-          {order.shippedAt && <span>Enviado: {formatDateTime(order.shippedAt)}</span>}
-          {order.deliveredAt && <span>Entregado: {formatDateTime(order.deliveredAt)}</span>}
           {order.cancelledAt && <span>Cancelado: {formatDateTime(order.cancelledAt)}</span>}
         </div>
       </div>
@@ -141,13 +193,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <CardTitle className="text-lg">Información de pago</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div><strong>Método de pago:</strong> {
-              order.paymentMethod === "MERCADOPAGO" ? "Mercado Pago" :
-              order.paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" :
-              order.paymentMethod === "CASH_ON_DELIVERY" ? "Efectivo contra entrega" :
-              order.paymentMethod
-            }</div>
-            <div className="flex items-center gap-2"><strong>Estado del pago:</strong> {getPaymentBadge(order.paymentStatus)}</div>
+            <div><strong>Método de pago:</strong> {getPaymentMethodLabel(order.paymentMethod)}</div>
+            <div className="flex items-center gap-2"><strong>Estado:</strong> {getPaymentStatusBadge(order.paymentStatus)}</div>
             {order.mercadopagoId && (
               <p className="text-sm text-muted-foreground"><strong>MP ID:</strong> {order.mercadopagoId}</p>
             )}
@@ -178,24 +225,45 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </Card>
       )}
 
-      {/* Items */}
+      {/* Items with faltantes info */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Productos</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Cantidad: {item.quantity} {item.sku && `• SKU: ${item.sku}`}
-                  </p>
+            {order.items.map((item) => {
+              const quantityOrdered = item.quantityOrdered ?? item.quantity
+              const quantityFulfilled = item.quantityFulfilled ?? quantityOrdered
+              const hasFaltante = quantityFulfilled < quantityOrdered
+              
+              return (
+                <div key={item.id} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.sku && `SKU: ${item.sku}`}
+                    </p>
+                    {/* Faltante info */}
+                    {hasFaltante && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-sm">
+                          <span className="text-orange-600 font-medium">{quantityFulfilled}</span>
+                          <span className="text-muted-foreground"> / {quantityOrdered}</span>
+                        </span>
+                        <Badge variant="warning" className="text-xs">Faltante</Badge>
+                        {item.missingReason && (
+                          <span className="text-xs text-muted-foreground">({item.missingReason})</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
+                  </div>
                 </div>
-                <p className="font-medium">{formatCurrency(Number(item.total))}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <Separator className="my-4" />
@@ -205,6 +273,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <span>Subtotal</span>
               <span>{formatCurrency(Number(order.subtotal))}</span>
             </div>
+            {order.fulfilledTotal && Number(order.fulfilledTotal) !== Number(order.total) && (
+              <div className="flex justify-between text-orange-600">
+                <span>Total preparado</span>
+                <span>{formatCurrency(Number(order.fulfilledTotal))}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Envío</span>
               <span>{Number(order.shippingCost) === 0 ? "Gratis" : formatCurrency(Number(order.shippingCost))}</span>
@@ -229,6 +303,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <span>Total</span>
             <span>{formatCurrency(Number(order.total))}</span>
           </div>
+          {order.fulfilledTotal && Number(order.fulfilledTotal) !== Number(order.total) && (
+            <div className="flex justify-between text-sm text-orange-600">
+              <span>Total a cobrar:</span>
+              <span className="font-medium">{formatCurrency(Number(order.fulfilledTotal) + Number(order.shippingCost))}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 

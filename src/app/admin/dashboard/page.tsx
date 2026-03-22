@@ -10,7 +10,7 @@ export default async function DashboardPage() {
     db.user.count({ where: { role: "CUSTOMER" } }),
     db.order.aggregate({
       _sum: { total: true },
-      where: { paymentStatus: "APPROVED" },
+      where: { paymentStatus: "PAID" }, // Usar PAID en vez de APPROVED
     }),
   ])
 
@@ -20,6 +20,18 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "desc" },
     include: { user: { select: { name: true, email: true } } },
   })
+
+  // Status labels
+  const orderStatusLabels: Record<string, string> = {
+    RECEIVED: "Recibido",
+    CONFIRMED: "Confirmado",
+    PREPARING: "Preparando",
+    READY_FOR_DELIVERY: "Listo",
+    OUT_FOR_DELIVERY: "En reparto",
+    DELIVERED: "Entregado",
+    NOT_DELIVERED: "No entregado",
+    CANCELLED: "Cancelado",
+  }
 
   return (
     <div className="space-y-6">
@@ -61,7 +73,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${Number(totalSales._sum.total || 0).toLocaleString("es-AR")}
+              ${Number(totalSales._sum?.total || 0).toLocaleString("es-AR")}
             </div>
           </CardContent>
         </Card>
@@ -87,7 +99,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">${Number(order.total).toLocaleString("es-AR")}</p>
-                    <p className="text-sm text-muted-foreground">{order.status}</p>
+                    <p className="text-sm text-muted-foreground">{orderStatusLabels[order.orderStatus] || order.orderStatus}</p>
                   </div>
                 </div>
               ))}

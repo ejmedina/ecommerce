@@ -19,24 +19,26 @@ export default async function OrdersPage() {
     orderBy: { createdAt: "desc" },
   })
 
-  function getStatusBadge(status: string) {
+  function getOrderStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
-      PENDING: "warning",
-      PAID: "success",
-      PROCESSING: "default",
-      SHIPPED: "default",
+      RECEIVED: "warning",
+      CONFIRMED: "default",
+      PREPARING: "warning",
+      READY_FOR_DELIVERY: "warning",
+      OUT_FOR_DELIVERY: "default",
       DELIVERED: "success",
+      NOT_DELIVERED: "destructive",
       CANCELLED: "destructive",
-      REFUNDED: "destructive",
     }
     const labels: Record<string, string> = {
-      PENDING: "Pendiente",
-      PAID: "Pagado",
-      PROCESSING: "Procesando",
-      SHIPPED: "Enviado",
+      RECEIVED: "Recibido",
+      CONFIRMED: "Confirmado",
+      PREPARING: "En preparación",
+      READY_FOR_DELIVERY: "Listo para entregar",
+      OUT_FOR_DELIVERY: "En reparto",
       DELIVERED: "Entregado",
+      NOT_DELIVERED: "No entregado",
       CANCELLED: "Cancelado",
-      REFUNDED: "Reembolsado",
     }
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
   }
@@ -63,7 +65,7 @@ export default async function OrdersPage() {
               <CardTitle className="text-lg">
                 Pedido #{order.orderNumber}
               </CardTitle>
-              {getStatusBadge(order.status)}
+              {getOrderStatusBadge(order.orderStatus)}
             </div>
             <p className="text-sm text-muted-foreground">
               {formatDate(order.createdAt)}

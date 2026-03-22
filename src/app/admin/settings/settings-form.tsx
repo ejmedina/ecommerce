@@ -16,7 +16,6 @@ import {
   ShippingConfig,
   getDefaultShippingConfig 
 } from "@/lib/shipping"
-import { formatCurrency } from "@/lib/utils"
 
 interface StoreSettings {
   id: string
@@ -34,6 +33,8 @@ interface StoreSettings {
   freeShippingMin: any
   fixedShippingCost: any
   bankAccount: any
+  autoConfirmOrders: boolean
+  requiresPaymentToFulfill: boolean
 }
 
 export function SettingsForm() {
@@ -51,6 +52,8 @@ export function SettingsForm() {
   const [logo, setLogo] = useState<string | null>(null)
   const [favicon, setFavicon] = useState<string | null>(null)
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
+  const [autoConfirmOrders, setAutoConfirmOrders] = useState(true)
+  const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
 
   useEffect(() => {
     loadSettings()
@@ -67,6 +70,8 @@ export function SettingsForm() {
       setStorePhone(data.storePhone || "")
       setLogo(data.logo)
       setFavicon(data.favicon)
+      setAutoConfirmOrders(data.autoConfirmOrders ?? true)
+      setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -97,6 +102,8 @@ export function SettingsForm() {
           logo,
           favicon,
           shippingConfig,
+          autoConfirmOrders,
+          requiresPaymentToFulfill,
         }),
       })
 
@@ -234,6 +241,51 @@ export function SettingsForm() {
               onChange={(e) => setStorePhone(e.target.value)}
               placeholder="+54 11 1234 5678"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Order Flow Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Flujo de Pedidos</CardTitle>
+          <CardDescription>Configura cómo se procesan los nuevos pedidos</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="autoConfirmOrders"
+              checked={autoConfirmOrders}
+              onCheckedChange={(checked) => setAutoConfirmOrders(!!checked)}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="autoConfirmOrders" className="font-medium cursor-pointer">
+                Confirmación automática de pedidos
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Los pedidos nuevos pasan directamente a "Confirmado" sin necesidad de revisión manual. 
+                Si está desactivado, los pedidos quedan en "Recibido" y requieren confirmación del operador.
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="requiresPaymentToFulfill"
+              checked={requiresPaymentToFulfill}
+              onCheckedChange={(checked) => setRequiresPaymentToFulfill(!!checked)}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="requiresPaymentToFulfill" className="font-medium cursor-pointer">
+                Requerir pago para preparar
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Solo avanzar con la preparación del pedido cuando el pago esté confirmado. 
+                Si está desactivado, se puede preparar pedidos con pago pendiente (contra entrega).
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

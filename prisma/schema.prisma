@@ -136,7 +136,6 @@ model Product {
 
   cartItems       CartItem[]
   orderItems      OrderItem[]
-  routeSheetItemMissing RouteSheetItemMissing[]
 
   @@map("products")
 }
@@ -182,31 +181,40 @@ model CartItem {
 }
 
 // ============================================
-// ORDERS
+// ORDERS - Simplified Status Model with 2 Axes
 // ============================================
 
+// Eje 1: Estado de Negocio/Operativo
 enum OrderStatus {
-  PENDING
-  PAID
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
+  RECEIVED              // Pedido recibido
+  CONFIRMED            // Confirmado
+  PREPARING           // En preparación
+  READY_FOR_DELIVERY   // Listo para entregar/repartir
+  OUT_FOR_DELIVERY    // En reparto
+  DELIVERED           // Entregado
+  NOT_DELIVERED       // No entregado (requiere motivo)
+  CANCELLED           // Cancelado
 }
 
+// Eje 2: Modalidad de Pago
 enum PaymentMethod {
-  MERCADOPAGO
-  BANK_TRANSFER
-  CASH_ON_DELIVERY
+  ONLINE_CARD          // Tarjeta online (MercadoPago, Stripe)
+  BANK_TRANSFER        // Transferencia bancaria
+  DIGITAL_WALLET       // Wallet digital (MercadoPago, etc.)
+  CASH_ON_DELIVERY    // Efectivo al entregar
+  CARD_ON_DELIVERY    // Tarjeta al entregar
+  TRANSFER_ON_DELIVERY // Transferencia al entregar
 }
 
+// Eje 3: Estado del Cobro
 enum PaymentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  REFUNDED
-  CANCELLED
+  PENDING              // Pendiente de cobro
+  AUTHORIZED          // Reservado/autorizado
+  PAID                // Cobrado
+  PARTIALLY_REFUNDED  // Reembolso parcial
+  REFUNDED            // Reembolsado completamente
+  FAILED              // Falló el cobro
+  VOIDED              // Anulado/sin efecto
 }
 
 model Order {
@@ -216,52 +224,66 @@ model Order {
   userId          String
   user            User          @relation(fields: [userId], references: [id])
 
-  status          OrderStatus   @default(PENDING)
+  // === ESTADO DE NEGOCIO (Eje 1) ===
+  orderStatus     OrderStatus   @default(RECEIVED)
 
-  items           OrderItem[]
-
-  subtotal        Decimal       @db.Decimal(10, 2)
-  shippingCost    Decimal       @db.Decimal(10, 2) @default(0)
-  taxAmount       Decimal       @db.Decimal(10, 2) @default(0)
-  discountAmount  Decimal       @db.Decimal(10, 2) @default(0)
-  total           Decimal       @db.Decimal(10, 2)
-
-  shippingMethod  String
-  shippingAddress Json
-  billingAddress  Json?
-
+  // === ESTADO DE PAGO (Eje 2 y 3) ===
   paymentMethod   PaymentMethod
   paymentStatus   PaymentStatus @default(PENDING)
-  mercadopagoId   String?
-  mercadopagoData Json?
 
-  customerNotes   String?
-  adminNotes      String?
+  items              OrderItem[]
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  paidAt          DateTime?
-  shippedAt       DateTime?
-  deliveredAt     DateTime?
-  cancelledAt     DateTime?
+  subtotal           Decimal       @db.Decimal(10, 2)
+  shippingCost       Decimal       @db.Decimal(10, 2) @default(0)
+  taxAmount          Decimal       @db.Decimal(10, 2) @default(0)
+  discountAmount     Decimal       @db.Decimal(10, 2) @default(0)
+  total              Decimal       @db.Decimal(10, 2)
+  
+  // Total según lo preparado (para faltantes)
+  fulfilledTotal     Decimal?      @db.Decimal(10, 2)
 
-  routeSheetItems RouteSheetItem[]
+  shippingMethod     String
+  shippingAddress    Json
+  billingAddress     Json?
+
+  mercadopagoId      String?
+  mercadopagoData    Json?
+
+  customerNotes      String?
+  adminNotes         String?
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+
+  routeSheetItems    RouteSheetItem[]
 
   @@map("orders")
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
 
-  name      String
-  sku       String?
-  price     Decimal  @db.Decimal(10, 2)
-  quantity  Int
-  total     Decimal  @db.Decimal(10, 2)
+  name            String
+  sku             String?
+  price           Decimal  @db.Decimal(10, 2)
+  
+  // Cantidad ordenada originalmente
+  quantityOrdered  Int
+  
+  // Precio unitario (era "total" en el modelo old, ahora es price * quantityOrdered)
+  unitTotal       Decimal  @db.Decimal(10, 2)
+
+  // === CAMPOS PARA FALTANTES ===
+  quantityFulfilled Int?    @default(0)   // Cantidad realmente preparada
+  quantityMissing   Int?    @default(0)   // Cantidad faltante
+  missingReason     String?              // Motivo opcional
+  fulfilledAt       DateTime?            // Cuándo se marcó como preparado
 
   @@map("order_items")
 }
@@ -282,6 +304,8 @@ enum DeliveryFailureReason {
   CUSTOMER_NOT_HOME
   WRONG_ADDRESS
   INACCESSIBLE_LOCATION
+  CUSTOMER_REFUSED
+  OTHER
 }
 
 model RouteSheet {
@@ -309,37 +333,14 @@ model RouteSheetItem {
   position     Int
   notes        String?
 
-  missingItems    RouteSheetItemMissing[]
-  deliveryResult  DeliveryResult?
+  // Outcome de entrega (reemplaza DeliveryResult)
+  deliveryOutcome        String?                // DELIVERED | NOT_DELIVERED
+  deliveryFailureReason  DeliveryFailureReason?
+  deliveryNotes         String?
+  deliveredAt          DateTime?
 
   @@unique([routeSheetId, orderId])
   @@map("route_sheet_items")
-}
-
-model RouteSheetItemMissing {
-  id              String         @id @default(cuid())
-  routeSheetItemId String
-  routeSheetItem  RouteSheetItem @relation(fields: [routeSheetItemId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product        @relation(fields: [productId], references: [id])
-  quantityMissing Int
-  notes           String?
-  markedAt        DateTime       @default(now())
-
-  @@unique([routeSheetItemId, productId])
-  @@map("route_sheet_item_missing")
-}
-
-model DeliveryResult {
-  id                String                @id @default(cuid())
-  routeSheetItemId  String               @unique
-  routeSheetItem    RouteSheetItem        @relation(fields: [routeSheetItemId], references: [id], onDelete: Cascade)
-  status            String                // DELIVERED | NOT_DELIVERED
-  failureReason     DeliveryFailureReason?
-  notes             String?
-  deliveredAt       DateTime?
-
-  @@map("delivery_results")
 }
 
 // ============================================
@@ -369,6 +370,16 @@ model StoreSettings {
   fixedShippingCost   Decimal  @db.Decimal(10, 2) @default(0)
   
   bankAccount         Json?    // {bank, cbu, alias, name}
+
+  // === CONFIGURACIÓN DE FLUJO DE PEDIDOS ===
+  // true = al crear un pedido pasa directamente a CONFIRMED
+  // false = el pedido queda en RECEIVED y requiere confirmación manual
+  autoConfirmOrders   Boolean  @default(true)
+  
+  // === CONFIGURACIÓN DE FLUJO DE PAGO ===
+  // true = solo avanzar fulfillment si paymentStatus = PAID
+  // false = avanzar aunque paymentStatus = PENDING (contra entrega)
+  requiresPaymentToFulfill Boolean @default(false)
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

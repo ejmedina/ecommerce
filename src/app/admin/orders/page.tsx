@@ -7,6 +7,11 @@ export default async function OrdersPage() {
   const orders = await db.order.findMany({
     include: {
       user: { select: { name: true, email: true } },
+      items: {
+        include: {
+          product: { select: { name: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   })
@@ -15,7 +20,8 @@ export default async function OrdersPage() {
   const ordersData = orders.map((order) => ({
     id: order.id,
     orderNumber: order.orderNumber,
-    status: order.status,
+    orderStatus: order.orderStatus,
+    fulfillmentStatus: order.fulfillmentStatus,
     total: Number(order.total),
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
@@ -24,11 +30,27 @@ export default async function OrdersPage() {
       name: order.user.name,
       email: order.user.email,
     },
+    items: order.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      name: item.name,
+      quantity: item.quantityOrdered ?? item.quantity,
+    })),
   }))
 
-  // Obtener pedidos válidos para crear hoja de ruta (cualquier pedido pagado)
+  // Obtener pedidos válidos para crear hoja de ruta
+  // Para pago contra entrega: cualquier pedido confirmado
+  // Para pago prepago: pedido con paymentStatus = PAID
   const validOrdersForRouteSheet = orders
-    .filter((order) => order.paymentStatus === "APPROVED")
+    .filter((order) => {
+      // Para pago contra entrega: CONFIRMED o posterior
+      const isCashOnDelivery = ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"].includes(order.paymentMethod)
+      if (isCashOnDelivery) {
+        return ["CONFIRMED", "PREPARING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY"].includes(order.orderStatus)
+      }
+      // Para pago prepago: necesita estar pagado
+      return order.paymentStatus === "PAID"
+    })
     .map((order) => ({ id: order.id, orderNumber: order.orderNumber }))
 
   return (

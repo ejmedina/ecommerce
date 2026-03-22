@@ -38,26 +38,62 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     )
   }
 
-  function getStatusBadge(status: string) {
+  function getOrderStatusBadge(status: string) {
+    const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
+      RECEIVED: "warning",
+      CONFIRMED: "default",
+      PREPARING: "warning",
+      READY_FOR_DELIVERY: "warning",
+      OUT_FOR_DELIVERY: "default",
+      DELIVERED: "success",
+      NOT_DELIVERED: "destructive",
+      CANCELLED: "destructive",
+    }
+    const labels: Record<string, string> = {
+      RECEIVED: "Recibido",
+      CONFIRMED: "Confirmado",
+      PREPARING: "En preparación",
+      READY_FOR_DELIVERY: "Listo para entregar",
+      OUT_FOR_DELIVERY: "En reparto",
+      DELIVERED: "Entregado",
+      NOT_DELIVERED: "No entregado",
+      CANCELLED: "Cancelado",
+    }
+    return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
+  }
+
+  function getPaymentStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
       PENDING: "warning",
+      AUTHORIZED: "default",
       PAID: "success",
-      PROCESSING: "default",
-      SHIPPED: "default",
-      DELIVERED: "success",
-      CANCELLED: "destructive",
+      PARTIALLY_REFUNDED: "warning",
       REFUNDED: "destructive",
+      FAILED: "destructive",
+      VOIDED: "default",
     }
     const labels: Record<string, string> = {
       PENDING: "Pendiente",
+      AUTHORIZED: "Autorizado",
       PAID: "Pagado",
-      PROCESSING: "Procesando",
-      SHIPPED: "Enviado",
-      DELIVERED: "Entregado",
-      CANCELLED: "Cancelado",
+      PARTIALLY_REFUNDED: "Reembolso parcial",
       REFUNDED: "Reembolsado",
+      FAILED: "Fallido",
+      VOIDED: "Anulado",
     }
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
+  }
+
+  function getPaymentMethodLabel(method: string) {
+    const labels: Record<string, string> = {
+      ONLINE_CARD: "Tarjeta online",
+      BANK_TRANSFER: "Transferencia",
+      DIGITAL_WALLET: "Wallet digital",
+      CASH_ON_DELIVERY: "Efectivo al entregar",
+      CARD_ON_DELIVERY: "Tarjeta al entregar",
+      TRANSFER_ON_DELIVERY: "Transferencia al entregar",
+    }
+    return labels[method] || method
   }
 
   const shippingAddress = order.shippingAddress as any
@@ -71,7 +107,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           </Link>
           <h1 className="text-2xl font-semibold mt-2">Pedido #{order.orderNumber}</h1>
         </div>
-        {getStatusBadge(order.status)}
+        <div className="flex gap-2">
+          {getOrderStatusBadge(order.orderStatus)}
+        </div>
       </div>
 
       <div className="text-sm text-muted-foreground">
@@ -107,12 +145,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <CardTitle className="text-lg">Información de pago</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p><strong>Método de pago:</strong> {
-              order.paymentMethod === "MERCADOPAGO" ? "Mercado Pago" :
-              order.paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" :
-              "Efectivo"
-            }</p>
-            <p><strong>Estado:</strong> {getStatusBadge(order.paymentStatus)}</p>
+            <p><strong>Método de pago:</strong> {getPaymentMethodLabel(order.paymentMethod)}</p>
+            <p><strong>Estado:</strong> {getPaymentStatusBadge(order.paymentStatus)}</p>
           </CardContent>
         </Card>
       </div>
@@ -124,17 +158,20 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Cantidad: {item.quantity} {item.sku && `• SKU: ${item.sku}`}
-                  </p>
+            {order.items.map((item) => {
+              const quantityOrdered = item.quantityOrdered ?? item.quantity
+              return (
+                <div key={item.id} className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Cantidad: {quantityOrdered} {item.sku && `• SKU: ${item.sku}`}
+                    </p>
+                  </div>
+                  <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
                 </div>
-                <p className="font-medium">{formatCurrency(Number(item.total))}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <Separator className="my-4" />
