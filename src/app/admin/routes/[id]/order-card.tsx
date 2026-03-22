@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { 
   reorderRouteSheetItem, 
-  registerMissingItem, 
-  removeMissingItem,
-  setDeliveryResult 
+  setDeliveryOutcome 
 } from "@/lib/actions/route-sheet-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,18 +31,22 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { Trash2, ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X } from "lucide-react"
 
 interface OrderCardProps {
   item: {
     id: string
     position: number
     notes: string | null
+    deliveryOutcome: string | null
+    deliveryFailureReason: string | null
+    deliveryNotes: string | null
+    deliveredAt: string | null
     order: {
       id: string
       orderNumber: string
       total: any
-      status: string
+      orderStatus: string
       shippingAddress: any
       user: {
         name: string | null
@@ -54,8 +56,11 @@ interface OrderCardProps {
       items: {
         id: string
         name: string
-        quantity: number
-        total: any
+        quantityOrdered: number | null
+        quantity: number | null
+        quantityMissing: number | null
+        quantityFulfilled: number | null
+        missingReason: string | null
         product: {
           id: string
           name: string
@@ -63,19 +68,6 @@ interface OrderCardProps {
         }
       }[]
     }
-    missingItems: {
-      id: string
-      productId: string
-      quantityMissing: number
-      notes: string | null
-    }[]
-    deliveryResult: {
-      id: string
-      status: string
-      failureReason: string | null
-      notes: string | null
-      deliveredAt: Date | null
-    } | null
   }
   index: number
   mode: "preparation" | "delivery"
@@ -86,20 +78,18 @@ const failureReasons = [
   { value: "CUSTOMER_NOT_HOME", label: "No estaba el cliente" },
   { value: "WRONG_ADDRESS", label: "Domicilio incorrecto" },
   { value: "INACCESSIBLE_LOCATION", label: "Lugar inaccesible" },
+  { value: "CUSTOMER_REFUSED", label: "Cliente rechazó" },
+  { value: "OTHER", label: "Otro" },
 ]
 
 export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
   const router = useRouter()
   const shippingAddress = item.order.shippingAddress as any
   const phone = item.order.user.phone || shippingAddress?.phone
-  const isDelivered = item.deliveryResult?.status === "DELIVERED"
-  const isNotDelivered = item.deliveryResult?.status === "NOT_DELIVERED"
+  const isDelivered = item.deliveryOutcome === "DELIVERED"
+  const isNotDelivered = item.deliveryOutcome === "NOT_DELIVERED"
 
-  const [missingDialogOpen, setMissingDialogOpen] = useState(false)
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
-  const [selectedProductId, setSelectedProductId] = useState("")
-  const [missingQuantity, setMissingQuantity] = useState(1)
-  const [missingNotes, setMissingNotes] = useState("")
   const [deliveryStatus, setDeliveryStatus] = useState<"DELIVERED" | "NOT_DELIVERED">("DELIVERED")
   const [failureReason, setFailureReason] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
@@ -113,27 +103,10 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
     router.refresh()
   }
 
-  const handleRegisterMissing = async () => {
-    if (!selectedProductId || missingQuantity < 1) return
-    setIsLoading(true)
-    await registerMissingItem(item.id, selectedProductId, missingQuantity, missingNotes || undefined)
-    setIsLoading(false)
-    setMissingDialogOpen(false)
-    setSelectedProductId("")
-    setMissingQuantity(1)
-    setMissingNotes("")
-    router.refresh()
-  }
-
-  const handleRemoveMissing = async (missingId: string) => {
-    await removeMissingItem(missingId)
-    router.refresh()
-  }
-
-  const handleSetDeliveryResult = async () => {
+  const handleSetDeliveryOutcome = async () => {
     if (deliveryStatus === "NOT_DELIVERED" && !failureReason) return
     setIsLoading(true)
-    await setDeliveryResult(
+    await setDeliveryOutcome(
       item.id,
       deliveryStatus,
       deliveryStatus === "NOT_DELIVERED" ? failureReason as any : undefined,
@@ -142,6 +115,16 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
     setIsLoading(false)
     setDeliveryDialogOpen(false)
     router.refresh()
+  }
+
+  // Helper para obtener cantidad total del item (usa quantityOrdered o fallback a quantity)
+  const getQuantity = (orderItem: any) => {
+    return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
+  }
+
+  // Helper para verificar si tiene faltantes
+  const hasMissing = (orderItem: any) => {
+    return (orderItem.quantityMissing ?? 0) > 0
   }
 
   // VISTA DE REPARTO - Formato práctica
@@ -176,7 +159,7 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
           <div className="space-y-1">
             <p className="font-medium text-sm">{displayAddress}</p>
             {phone && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <a href={`tel:${phone}`}>
                   <Button size="sm" variant="outline">
                     <Phone className="w-4 h-4 mr-1" />
@@ -213,12 +196,14 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
           <div className="space-y-1">
             <p className="text-sm font-medium">Productos:</p>
             {item.order.items.map((orderItem) => {
-              const missing = item.missingItems.find(m => m.productId === orderItem.product.id)
+              const qty = getQuantity(orderItem)
+              const missing = orderItem.quantityMissing ?? 0
+              const hasFaltante = missing > 0
               return (
                 <div key={orderItem.id} className="flex justify-between text-sm">
                   <span>
-                    {orderItem.quantity}x {orderItem.name}
-                    {missing && <span className="text-red-500 ml-1">(Faltante: {missing.quantityMissing})</span>}
+                    {qty}x {orderItem.name}
+                    {hasFaltante && <span className="text-red-500 ml-1">(Faltante: {missing})</span>}
                   </span>
                 </div>
               )
@@ -291,7 +276,7 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
                     Cancelar
                   </Button>
                   <Button 
-                    onClick={handleSetDeliveryResult} 
+                    onClick={handleSetDeliveryOutcome} 
                     disabled={isLoading || (deliveryStatus === "NOT_DELIVERED" && !failureReason)}
                   >
                     Guardar
@@ -305,8 +290,8 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
           {isNotDelivered && (
             <div className="text-sm text-red-600">
               <p className="font-medium">No entregado</p>
-              <p>{failureReasons.find(r => r.value === item.deliveryResult?.failureReason)?.label}</p>
-              {item.deliveryResult?.notes && <p className="text-muted-foreground">{item.deliveryResult.notes}</p>}
+              <p>{failureReasons.find(r => r.value === item.deliveryFailureReason)?.label}</p>
+              {item.deliveryNotes && <p className="text-muted-foreground">{item.deliveryNotes}</p>}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -406,90 +391,37 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
           <p className="text-sm font-medium mb-2">Productos:</p>
           <div className="space-y-2">
             {item.order.items.map((orderItem) => {
-              const missing = item.missingItems.find(m => m.productId === orderItem.product.id)
+              const qty = getQuantity(orderItem)
+              const missing = orderItem.quantityMissing ?? 0
+              const hasFaltante = missing > 0
               return (
                 <div 
                   key={orderItem.id} 
                   className={`
                     flex justify-between items-center text-sm p-2 rounded
-                    ${missing ? "bg-red-50 border border-red-200" : "bg-muted/50"}
+                    ${hasFaltante ? "bg-red-50 border border-red-200" : "bg-muted/50"}
                   `}
                 >
                   <div className="flex items-center gap-2">
-                    {missing ? (
+                    {hasFaltante ? (
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                     ) : (
-                      <Checkbox checked={!missing} disabled />
+                      <Checkbox checked={true} disabled />
                     )}
                     <span>
-                      {orderItem.quantity}x {orderItem.name}
+                      {qty}x {orderItem.name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {missing ? (
-                      <>
-                        <span className="text-red-500 font-medium">
-                          Faltante: {missing.quantityMissing}
-                        </span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="h-6 w-6 text-red-500"
-                          onClick={() => handleRemoveMissing(missing.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </>
+                    {hasFaltante ? (
+                      <span className="text-red-500 font-medium">
+                        Faltante: {missing}
+                        {orderItem.missingReason && (
+                          <span className="text-xs ml-1">({orderItem.missingReason})</span>
+                        )}
+                      </span>
                     ) : (
-                      <Dialog open={missingDialogOpen} onOpenChange={setMissingDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setSelectedProductId(orderItem.product.id)}
-                          >
-                            <AlertTriangle className="w-4 h-4 mr-1" />
-                            Marcar faltante
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Registrar Faltante</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label>Producto</Label>
-                              <p className="font-medium">{orderItem.name}</p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Cantidad faltante</Label>
-                              <Input 
-                                type="number" 
-                                min="1" 
-                                max={orderItem.quantity}
-                                value={missingQuantity}
-                                onChange={(e) => setMissingQuantity(parseInt(e.target.value) || 1)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Notas</Label>
-                              <Textarea 
-                                value={missingNotes}
-                                onChange={(e) => setMissingNotes(e.target.value)}
-                                placeholder="Observaciones..."
-                              />
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setMissingDialogOpen(false)}>
-                              Cancelar
-                            </Button>
-                            <Button onClick={handleRegisterMissing} disabled={isLoading}>
-                              Guardar
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <span className="text-green-600 text-sm">Completo</span>
                     )}
                   </div>
                 </div>
@@ -499,30 +431,33 @@ export function OrderCard({ item, index, mode, totalItems }: OrderCardProps) {
         </div>
 
         {/* Missing items summary */}
-        {item.missingItems.length > 0 && (
+        {item.order.items.some(oi => (oi.quantityMissing ?? 0) > 0) && (
           <div className="bg-red-50 border border-red-200 rounded p-3">
             <p className="text-sm font-medium text-red-600">
-              ⚠️ Faltantes registrados: {item.missingItems.length}
+              ⚠️ Tiene productos con faltantes
             </p>
           </div>
         )}
 
         {/* Delivery result for preparation mode */}
-        {item.deliveryResult && (
+        {item.deliveryOutcome && (
           <div className={`
             p-3 rounded
             ${isDelivered ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}
           `}>
             <p className="text-sm font-medium">
               {isDelivered ? "✓ Entregado" : "✗ No entregado"}
-              {item.deliveryResult.deliveredAt && (
-                <> • {new Date(item.deliveryResult.deliveredAt).toLocaleString("es-AR")}</>
+              {item.deliveredAt && (
+                <> • {new Date(item.deliveredAt).toLocaleString("es-AR")}</>
               )}
             </p>
-            {item.deliveryResult.failureReason && (
+            {item.deliveryFailureReason && (
               <p className="text-sm text-muted-foreground">
-                {failureReasons.find(r => r.value === item.deliveryResult?.failureReason)?.label}
+                {failureReasons.find(r => r.value === item.deliveryFailureReason)?.label}
               </p>
+            )}
+            {item.deliveryNotes && (
+              <p className="text-sm text-muted-foreground">{item.deliveryNotes}</p>
             )}
           </div>
         )}

@@ -260,7 +260,8 @@ export async function reorderRouteSheetItem(itemId: string, direction: "up" | "d
 }
 
 // ============================================
-// REGISTER MISSING ITEM (FALTANTE)
+// REGISTER MISSING ITEM (FALTANTE) - Simplified
+// Now using OrderItem fields directly
 // ============================================
 
 export async function registerMissingItem(
@@ -279,30 +280,23 @@ export async function registerMissingItem(
       return { error: "Item de hoja de ruta no encontrado" }
     }
 
-    // Crear o actualizar faltante
-    const missing = await db.routeSheetItemMissing.upsert({
+    // Actualizar el OrderItem directamente con los campos de faltante
+    const orderItem = await db.orderItem.updateMany({
       where: {
-        routeSheetItemId_productId: {
-          routeSheetItemId,
-          productId,
-        },
+        orderId: item.orderId,
+        productId: productId,
       },
-      update: {
-        quantityMissing,
-        notes,
-        markedAt: new Date(),
-      },
-      create: {
-        routeSheetItemId,
-        productId,
-        quantityMissing,
-        notes,
+      data: {
+        quantityMissing: quantityMissing,
+        missingReason: notes || null,
+        // Si hay faltante, quantityFulfilled es la diferencia
+        quantityFulfilled: undefined, // Se calcula en base a quantityOrdered - quantityMissing
       },
     })
 
     revalidatePath(`/admin/routes/${item.routeSheetId}`)
 
-    return { missing }
+    return { success: true }
   } catch (error) {
     console.error("Register missing item error:", error)
     return { error: "Error al registrar faltante" }
@@ -310,41 +304,14 @@ export async function registerMissingItem(
 }
 
 // ============================================
-// REMOVE MISSING ITEM
+// MARK ORDER AS DELIVERED/NOT DELIVERED - Simplified
+// Now using RouteSheetItem deliveryOutcome field
 // ============================================
 
-export async function removeMissingItem(missingId: string) {
-  try {
-    const missing = await db.routeSheetItemMissing.findUnique({
-      where: { id: missingId },
-      include: { routeSheetItem: true },
-    })
-
-    if (!missing) {
-      return { error: "Faltante no encontrado" }
-    }
-
-    await db.routeSheetItemMissing.delete({
-      where: { id: missingId },
-    })
-
-    revalidatePath(`/admin/routes/${missing.routeSheetItem.routeSheetId}`)
-
-    return { success: true }
-  } catch (error) {
-    console.error("Remove missing item error:", error)
-    return { error: "Error al remover faltante" }
-  }
-}
-
-// ============================================
-// SET DELIVERY RESULT
-// ============================================
-
-export async function setDeliveryResult(
+export async function setDeliveryOutcome(
   routeSheetItemId: string,
-  status: "DELIVERED" | "NOT_DELIVERED",
-  failureReason?: "CUSTOMER_NOT_HOME" | "WRONG_ADDRESS" | "INACCESSIBLE_LOCATION",
+  outcome: "DELIVERED" | "NOT_DELIVERED",
+  failureReason?: "CUSTOMER_NOT_HOME" | "WRONG_ADDRESS" | "INACCESSIBLE_LOCATION" | "CUSTOMER_REFUSED" | "OTHER",
   notes?: string
 ) {
   try {
@@ -356,29 +323,29 @@ export async function setDeliveryResult(
       return { error: "Item de hoja de ruta no encontrado" }
     }
 
-    // Crear o actualizar resultado de entrega
-    const result = await db.deliveryResult.upsert({
-      where: { routeSheetItemId },
-      update: {
-        status,
-        failureReason: status === "NOT_DELIVERED" ? failureReason : null,
-        notes,
-        deliveredAt: status === "DELIVERED" ? new Date() : null,
+    // Actualizar el RouteSheetItem con el resultado de entrega
+    await db.routeSheetItem.update({
+      where: { id: routeSheetItemId },
+      data: {
+        deliveryOutcome: outcome,
+        deliveryFailureReason: outcome === "NOT_DELIVERED" ? failureReason : null,
+        deliveryNotes: notes,
+        deliveredAt: outcome === "DELIVERED" ? new Date() : null,
       },
-      create: {
-        routeSheetItemId,
-        status,
-        failureReason: status === "NOT_DELIVERED" ? failureReason : null,
-        notes,
-        deliveredAt: status === "DELIVERED" ? new Date() : null,
-      },
+    })
+
+    // También actualizar el OrderStatus si es necesario
+    const orderStatus = outcome === "DELIVERED" ? "DELIVERED" : "NOT_DELIVERED"
+    await db.order.update({
+      where: { id: item.orderId },
+      data: { orderStatus },
     })
 
     revalidatePath(`/admin/routes/${item.routeSheetId}`)
 
-    return { result }
+    return { success: true }
   } catch (error) {
-    console.error("Set delivery result error:", error)
+    console.error("Set delivery outcome error:", error)
     return { error: "Error al registrar resultado de entrega" }
   }
 }
@@ -405,19 +372,13 @@ function serializeRouteSheet(rs: any) {
         createdAt: item.order.createdAt.toISOString(),
         updatedAt: item.order.updatedAt.toISOString(),
         paidAt: item.order.paidAt?.toISOString() || null,
-        shippedAt: item.order.shippedAt?.toISOString() || null,
-        deliveredAt: item.order.deliveredAt?.toISOString() || null,
         cancelledAt: item.order.cancelledAt?.toISOString() || null,
         items: item.order.items.map((oi: any) => ({
           ...oi,
           price: Number(oi.price),
-          total: Number(oi.total),
+          unitTotal: Number(oi.unitTotal),
         })),
       },
-      deliveryResult: item.deliveryResult ? {
-        ...item.deliveryResult,
-        deliveredAt: item.deliveryResult.deliveredAt?.toISOString() || null,
-      } : null,
     })),
   }
 }
@@ -445,8 +406,6 @@ export async function getRouteSheet(routeSheetId: string) {
                 },
               },
             },
-            missingItems: true,
-            deliveryResult: true,
           },
         },
       },
@@ -470,11 +429,7 @@ export async function getRouteSheets() {
     const routeSheets = await db.routeSheet.findMany({
       include: {
         createdBy: { select: { name: true } },
-        items: {
-          include: {
-            deliveryResult: true,
-          },
-        },
+        items: true,
       },
       orderBy: { createdAt: "desc" },
     })
