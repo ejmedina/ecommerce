@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,7 +91,11 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
       const result = await createOrder(formDataObj)
       
       if (result.error) {
-        alert(result.error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
         return
       }
 
@@ -101,7 +106,11 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
       }
     } catch (error) {
       console.error("Checkout error:", error)
-      alert("Error al procesar el pedido")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al procesar el pedido",
+      })
     } finally {
       setIsSubmitting(false)
     }

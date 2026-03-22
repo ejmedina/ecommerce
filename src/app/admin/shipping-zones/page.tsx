@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/components/ui/use-toast"
 import { 
   ARGENTINE_PROVINCES, 
   ShippingZone, 
@@ -63,13 +64,25 @@ export default function ShippingZonesPage() {
       })
 
       if (saveRes.ok) {
-        alert("Zonas de envío guardadas")
+        toast({
+          variant: "success",
+          title: "Éxito",
+          description: "Zonas de envío guardadas",
+        })
       } else {
-        alert("Error al guardar")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Error al guardar",
+        })
       }
     } catch (error) {
       console.error("Error saving:", error)
-      alert("Error al guardar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al guardar",
+      })
     } finally {
       setSaving(false)
     }

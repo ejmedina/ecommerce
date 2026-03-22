@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { Upload, Trash2, Plus, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -113,13 +114,25 @@ export function SettingsForm() {
       })
 
       if (res.ok) {
-        alert("Configuración guardada")
+        toast({
+          variant: "success",
+          title: "Éxito",
+          description: "Configuración guardada",
+        })
       } else {
-        alert("Error al guardar")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Error al guardar",
+        })
       }
     } catch (error) {
       console.error("Error saving:", error)
-      alert("Error al guardar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al guardar",
+      })
     } finally {
       setSaving(false)
     }
@@ -152,7 +165,11 @@ export function SettingsForm() {
       }
     } catch (error) {
       console.error("Upload error:", error)
-      alert("Error al subir imagen")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al subir imagen",
+      })
     }
   }
 

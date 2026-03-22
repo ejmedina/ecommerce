@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { createProduct, updateProduct, deleteProduct } from "@/lib/actions/product-actions"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
 
 interface Category {
   id: string
@@ -114,14 +115,22 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       }
 
       if (result.error) {
-        alert(result.error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
       } else {
         router.push("/admin/products")
         router.refresh()
       }
     } catch (error) {
       console.error("Save error:", error)
-      alert("Error al guardar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al guardar",
+      })
     } finally {
       setSaving(false)
     }
@@ -133,14 +142,22 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
     try {
       const result = await deleteProduct(product.id)
       if (result.error) {
-        alert(result.error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
       } else {
         router.push("/admin/products")
         router.refresh()
       }
     } catch (error) {
       console.error("Delete error:", error)
-      alert("Error al eliminar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al eliminar",
+      })
     } finally {
       setDeleting(false)
       setShowDeleteConfirm(false)
@@ -170,7 +187,11 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       }
     } catch (error) {
       console.error("Upload error:", error)
-      alert("Error al subir imagen")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al subir imagen",
+      })
     } finally {
       setUploading(false)
     }
@@ -200,11 +221,19 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
         setNewCategoryName("")
         setShowNewCategory(false)
       } else {
-        alert(data.error || "Error al crear categoría")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Error al crear categoría",
+        })
       }
     } catch (error) {
       console.error("Create category error:", error)
-      alert("Error al crear categoría")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al crear categoría",
+      })
     } finally {
       setCreatingCategory(false)
     }
@@ -230,11 +259,19 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
         setNewBrandName("")
         setShowNewBrand(false)
       } else {
-        alert(data.error || "Error al crear marca")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Error al crear marca",
+        })
       }
     } catch (error) {
       console.error("Create brand error:", error)
-      alert("Error al crear marca")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al crear marca",
+      })
     } finally {
       setCreatingBrand(false)
     }

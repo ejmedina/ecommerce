@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { toast } from "@/components/ui/use-toast"
 
 interface Category {
   id: string
@@ -86,11 +87,19 @@ export default function CategoriesPage() {
         loadCategories()
       } else {
         const data = await res.json()
-        alert(data.error || "Error al guardar")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Error al guardar",
+        })
       }
     } catch (error) {
       console.error("Save error:", error)
-      alert("Error al guardar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al guardar",
+      })
     } finally {
       setSaving(false)
     }
@@ -108,11 +117,19 @@ export default function CategoriesPage() {
         loadCategories()
       } else {
         const data = await res.json()
-        alert(data.error || "Error al eliminar")
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Error al eliminar",
+        })
       }
     } catch (error) {
       console.error("Delete error:", error)
-      alert("Error al eliminar")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al eliminar",
+      })
     }
   }
 

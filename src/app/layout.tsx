@@ -1,6 +1,7 @@
 import "./globals.css"
 import type { Metadata } from "next"
 import { db } from "@/lib/db"
+import { Toaster } from "@/components/toaster-client"
 
 export async function generateMetadata() {
   const settings = await db.storeSettings.findFirst()
@@ -21,7 +22,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+  {children}
+  <Toaster />
+</body>
     </html>
   )
 }
