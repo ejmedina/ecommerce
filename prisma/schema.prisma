@@ -136,6 +136,7 @@ model Product {
 
   cartItems       CartItem[]
   orderItems      OrderItem[]
+  routeSheetItemMissing RouteSheetItemMissing[]
 
   @@map("products")
 }
@@ -269,11 +270,26 @@ model OrderItem {
 // ROUTE SHEET
 // ============================================
 
+enum RouteSheetStatus {
+  DRAFT
+  IN_PREPARATION
+  IN_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryFailureReason {
+  CUSTOMER_NOT_HOME
+  WRONG_ADDRESS
+  INACCESSIBLE_LOCATION
+}
+
 model RouteSheet {
   id          String            @id @default(cuid())
   name        String
   date        DateTime          @db.Date
   notes       String?
+  status      RouteSheetStatus @default(DRAFT)
   createdById String
   createdBy   User              @relation(fields: [createdById], references: [id])
   createdAt   DateTime          @default(now())
@@ -293,8 +309,37 @@ model RouteSheetItem {
   position     Int
   notes        String?
 
+  missingItems    RouteSheetItemMissing[]
+  deliveryResult  DeliveryResult?
+
   @@unique([routeSheetId, orderId])
   @@map("route_sheet_items")
+}
+
+model RouteSheetItemMissing {
+  id              String         @id @default(cuid())
+  routeSheetItemId String
+  routeSheetItem  RouteSheetItem @relation(fields: [routeSheetItemId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  quantityMissing Int
+  notes           String?
+  markedAt        DateTime       @default(now())
+
+  @@unique([routeSheetItemId, productId])
+  @@map("route_sheet_item_missing")
+}
+
+model DeliveryResult {
+  id                String                @id @default(cuid())
+  routeSheetItemId  String               @unique
+  routeSheetItem    RouteSheetItem        @relation(fields: [routeSheetItemId], references: [id], onDelete: Cascade)
+  status            String                // DELIVERED | NOT_DELIVERED
+  failureReason     DeliveryFailureReason?
+  notes             String?
+  deliveredAt       DateTime?
+
+  @@map("delivery_results")
 }
 
 // ============================================

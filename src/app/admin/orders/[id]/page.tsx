@@ -141,13 +141,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <CardTitle className="text-lg">Información de pago</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p><strong>Método de pago:</strong> {
+            <div><strong>Método de pago:</strong> {
               order.paymentMethod === "MERCADOPAGO" ? "Mercado Pago" :
               order.paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" :
               order.paymentMethod === "CASH_ON_DELIVERY" ? "Efectivo contra entrega" :
               order.paymentMethod
-            }</p>
-            <p><strong>Estado del pago:</strong> {getPaymentBadge(order.paymentStatus)}</p>
+            }</div>
+            <div className="flex items-center gap-2"><strong>Estado del pago:</strong> {getPaymentBadge(order.paymentStatus)}</div>
             {order.mercadopagoId && (
               <p className="text-sm text-muted-foreground"><strong>MP ID:</strong> {order.mercadopagoId}</p>
             )}

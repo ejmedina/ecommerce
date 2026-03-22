@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { db } from "@/lib/db"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { OrdersTable } from "./orders-table"
 
 export default async function OrdersPage() {
   const orders = await db.order.findMany({
@@ -10,9 +11,38 @@ export default async function OrdersPage() {
     orderBy: { createdAt: "desc" },
   })
 
+  // Convertir a tipos primitivos para pasar al componente cliente
+  const ordersData = orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    total: Number(order.total),
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    createdAt: order.createdAt.toISOString(),
+    user: {
+      name: order.user.name,
+      email: order.user.email,
+    },
+  }))
+
+  // Obtener pedidos válidos para crear hoja de ruta (cualquier pedido pagado)
+  const validOrdersForRouteSheet = orders
+    .filter((order) => order.paymentStatus === "APPROVED")
+    .map((order) => ({ id: order.id, orderNumber: order.orderNumber }))
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Pedidos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Pedidos</h1>
+        <Link href="/admin/routes">
+          <Card className="hover:bg-muted/50 cursor-pointer">
+            <CardContent className="py-2 px-4">
+              <span className="text-sm">Ver Hojas de Ruta →</span>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
 
       {orders.length === 0 ? (
         <Card>
@@ -21,44 +51,21 @@ export default async function OrdersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Link key={order.id} href={`/admin/orders/${order.id}`}>
-              <Card className="hover:bg-muted/50 cursor-pointer">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{order.orderNumber}</CardTitle>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      order.status === "DELIVERED" ? "bg-green-100 text-green-800" :
-                      order.status === "SHIPPED" ? "bg-blue-100 text-blue-800" :
-                      order.status === "PROCESSING" ? "bg-yellow-100 text-yellow-800" :
-                      order.status === "CANCELLED" ? "bg-red-100 text-red-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="text-muted-foreground">
-                        {order.user.name || order.user.email}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("es-AR")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">${Number(order.total).toLocaleString("es-AR")}</p>
-                      <p className="text-muted-foreground">{order.paymentStatus}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <>
+          {/* Info about valid orders for route sheet */}
+          {validOrdersForRouteSheet.length > 0 && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="py-3">
+                <p className="text-sm text-blue-800">
+                  💡 Hay <strong>{validOrdersForRouteSheet.length}</strong> pedidos listos para preparar/repartir.
+                  Selecciona los pedidos y crea una hoja de ruta.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <OrdersTable orders={ordersData} validOrdersForRouteSheet={validOrdersForRouteSheet} />
+        </>
       )}
     </div>
   )
