@@ -6,10 +6,10 @@ import { AddToCartButton } from "@/components/add-to-cart-button"
 export const dynamic = "force-dynamic"
 
 interface Props {
-  searchParams: Promise<{ category?: string; brand?: string; q?: string }>
+  searchParams: Promise<{ category?: string; brand?: string; s?: string }>
 }
 
-async function getProducts(params: { category?: string; brand?: string; q?: string }) {
+async function getProducts(params: { category?: string; brand?: string; s?: string }) {
   const where: Record<string, unknown> = { isActive: true }
 
   if (params.category) {
@@ -18,10 +18,10 @@ async function getProducts(params: { category?: string; brand?: string; q?: stri
   if (params.brand) {
     where.brand = { slug: params.brand }
   }
-  if (params.q) {
+  if (params.s) {
     where.OR = [
-      { name: { contains: params.q, mode: "insensitive" } },
-      { description: { contains: params.q, mode: "insensitive" } },
+      { name: { contains: params.s, mode: "insensitive" } },
+      { description: { contains: params.s, mode: "insensitive" } },
     ]
   }
 
@@ -97,9 +97,9 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* Products Grid */}
         <div className="flex-1">
-          {params.q && (
+          {params.s && (
             <p className="text-muted-foreground mb-4">
-              Resultados para "{params.q}"
+              Resultados para "{params.s}"
             </p>
           )}
           

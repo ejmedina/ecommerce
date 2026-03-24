@@ -10,29 +10,38 @@ async function getOrCreateCart() {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("cart_session_id")?.value
 
+  // Check if user exists in database before creating cart with userId
   if (session?.user?.id) {
-    // Logged in user - use their cart
-    let cart = await db.cart.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        items: {
-          include: { product: { include: { images: { take: 1, orderBy: { order: "asc" } } } } },
-        },
-      },
+    const userExists = await db.user.findUnique({ 
+      where: { id: session.user.id },
+      select: { id: true }
     })
-
-    if (!cart) {
-      cart = await db.cart.create({
-        data: { userId: session.user.id },
+    
+    if (userExists) {
+      // Logged in user with valid account - use their cart
+      let cart = await db.cart.findUnique({
+        where: { userId: session.user.id },
         include: {
           items: {
-            include: { product: { include: { images: true } } },
+            include: { product: { include: { images: { take: 1, orderBy: { order: "asc" } } } } },
           },
         },
       })
-    }
 
-    return cart
+      if (!cart) {
+        cart = await db.cart.create({
+          data: { userId: session.user.id },
+          include: {
+            items: {
+              include: { product: { include: { images: true } } },
+            },
+          },
+        })
+      }
+
+      return cart
+    }
+    // User doesn't exist in DB, fall through to guest cart
   }
 
   // Guest user - use session cart

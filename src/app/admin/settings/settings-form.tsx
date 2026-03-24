@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
-import { useRouter } from "next/navigation"
-import { Upload, Trash2, Plus, Save, Loader2 } from "lucide-react"
+import { Upload, Trash2, Save, Loader2, Palette } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,12 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { 
-  ARGENTINE_PROVINCES, 
-  ShippingZone, 
-  ShippingConfig,
-  getDefaultShippingConfig 
-} from "@/lib/shipping"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ShippingZone, ShippingConfig, getDefaultShippingConfig } from "@/lib/shipping"
+import { ColorPicker, ThemePreview } from "@/components/admin/color-picker"
+import { ThemeColors, defaultColors } from "@/components/theme-provider"
 
 interface StoreSettings {
   id: string
@@ -38,10 +35,10 @@ interface StoreSettings {
   autoConfirmOrders: boolean
   requiresPaymentToFulfill: boolean
   whatsappPreArrivalMessage: string | null
+  themeColors: ThemeColors | null
 }
 
 export function SettingsForm() {
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<StoreSettings | null>(null)
@@ -58,6 +55,9 @@ export function SettingsForm() {
   const [autoConfirmOrders, setAutoConfirmOrders] = useState(true)
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
   const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
+
+  // Theme colors state
+  const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
 
   useEffect(() => {
     loadSettings()
@@ -86,6 +86,11 @@ export function SettingsForm() {
       
       if (data.logo) setLogoPreview(data.logo)
       if (data.favicon) setFaviconPreview(data.favicon)
+
+      // Load theme colors
+      if (data.themeColors) {
+        setThemeColors(data.themeColors)
+      }
     } catch (error) {
       console.error("Error loading settings:", error)
     } finally {
@@ -110,6 +115,7 @@ export function SettingsForm() {
           autoConfirmOrders,
           requiresPaymentToFulfill,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
+          themeColors,
         }),
       })
 
@@ -206,6 +212,19 @@ export function SettingsForm() {
     updateZone(zoneIndex, { provinces })
   }
 
+  const updateThemeColor = (key: keyof ThemeColors, value: string) => {
+    setThemeColors(prev => ({ ...prev, [key]: value }))
+  }
+
+  const resetThemeColors = () => {
+    setThemeColors(defaultColors)
+    toast({
+      variant: "success",
+      title: "Colores reseteados",
+      description: "Los colores han vuelto a los valores por defecto",
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -228,222 +247,381 @@ export function SettingsForm() {
         </Button>
       </div>
 
-      {/* Basic Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Información de la tienda</CardTitle>
-          <CardDescription>Detalles generales de tu tienda</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="storeName">Nombre de la tienda</Label>
-            <Input
-              id="storeName"
-              value={storeName}
-              onChange={(e) => setStoreName(e.target.value)}
-              placeholder="Mi Tienda"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="storeEmail">Email</Label>
-            <Input
-              id="storeEmail"
-              type="email"
-              value={storeEmail}
-              onChange={(e) => setStoreEmail(e.target.value)}
-              placeholder="tienda@ejemplo.com"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="storePhone">Teléfono</Label>
-            <Input
-              id="storePhone"
-              type="tel"
-              value={storePhone}
-              onChange={(e) => setStorePhone(e.target.value)}
-              placeholder="+54 11 1234 5678"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="colors">Colores</TabsTrigger>
+          <TabsTrigger value="orders">Pedidos</TabsTrigger>
+          <TabsTrigger value="media">Logos</TabsTrigger>
+        </TabsList>
 
-      {/* Order Flow Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Flujo de Pedidos</CardTitle>
-          <CardDescription>Configura cómo se procesan los nuevos pedidos</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start space-x-3">
-            <Checkbox
-              id="autoConfirmOrders"
-              checked={autoConfirmOrders}
-              onCheckedChange={(checked) => setAutoConfirmOrders(!!checked)}
-            />
-            <div className="space-y-1">
-              <Label htmlFor="autoConfirmOrders" className="font-medium cursor-pointer">
-                Confirmación automática de pedidos
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Los pedidos nuevos pasan directamente a "Confirmado" sin necesidad de revisión manual. 
-                Si está desactivado, los pedidos quedan en "Recibido" y requieren confirmación del operador.
-              </p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-start space-x-3">
-            <Checkbox
-              id="requiresPaymentToFulfill"
-              checked={requiresPaymentToFulfill}
-              onCheckedChange={(checked) => setRequiresPaymentToFulfill(!!checked)}
-            />
-            <div className="space-y-1">
-              <Label htmlFor="requiresPaymentToFulfill" className="font-medium cursor-pointer">
-                Requerir pago para preparar
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Solo avanzar con la preparación del pedido cuando el pago esté confirmado. 
-                Si está desactivado, se puede preparar pedidos con pago pendiente (contra entrega).
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Logo & Favicon */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logo y Favicon</CardTitle>
-          <CardDescription>Imágenes de tu tienda</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Logo */}
-          <div className="space-y-2">
-            <Label>Logo</Label>
-            <div className="flex items-center gap-4">
-              <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
-                ) : (
-                  <span className="text-muted-foreground text-sm">Sin logo</span>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="logo-upload" className="cursor-pointer">
-                  <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
-                    <Upload className="h-4 w-4" />
-                    Subir logo
-                  </div>
-                </Label>
+        <TabsContent value="general" className="space-y-6 mt-6">
+          {/* Basic Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Información de la tienda</CardTitle>
+              <CardDescription>Detalles generales de tu tienda</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="storeName">Nombre de la tienda</Label>
                 <Input
-                  id="logo-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleImageUpload(e, "logo")}
+                  id="storeName"
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  placeholder="Mi Tienda"
                 />
-                {logo && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-2 text-red-500"
-                    onClick={() => { setLogo(null); setLogoPreview(null); }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Eliminar
-                  </Button>
-                )}
               </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Favicon */}
-          <div className="space-y-2">
-            <Label>Favicon</Label>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
-                {faviconPreview ? (
-                  <img src={faviconPreview} alt="Favicon" className="max-w-full max-h-full object-contain" />
-                ) : (
-                  <span className="text-muted-foreground text-sm">Sin favicon</span>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="favicon-upload" className="cursor-pointer">
-                  <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
-                    <Upload className="h-4 w-4" />
-                    Subir favicon
-                  </div>
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="storeEmail">Email</Label>
                 <Input
-                  id="favicon-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleImageUpload(e, "favicon")}
+                  id="storeEmail"
+                  type="email"
+                  value={storeEmail}
+                  onChange={(e) => setStoreEmail(e.target.value)}
+                  placeholder="tienda@ejemplo.com"
                 />
-                {favicon && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-2 text-red-500"
-                    onClick={() => { setFavicon(null); setFaviconPreview(null); }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Eliminar
-                  </Button>
-                )}
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="grid gap-2">
+                <Label htmlFor="storePhone">Teléfono</Label>
+                <Input
+                  id="storePhone"
+                  type="tel"
+                  value={storePhone}
+                  onChange={(e) => setStorePhone(e.target.value)}
+                  placeholder="+54 11 1234 5678"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Link to Shipping Zones */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Zonas de Envío</CardTitle>
-          <CardDescription>
-            Las zonas de envío ahora se configuran en una página dedicada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/admin/shipping-zones">
-              Administrar Zonas de Entrega →
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+          {/* WhatsApp Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mensaje de WhatsApp</CardTitle>
+              <CardDescription>
+                Personaliza el mensaje que se envía cuando un pedido está por llegar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsappMessage">Mensaje pre-venta</Label>
+                <Textarea
+                  id="whatsappMessage"
+                  value={whatsappPreArrivalMessage}
+                  onChange={(e) => setWhatsappPreArrivalMessage(e.target.value)}
+                  placeholder="Hola, nos comunicamos desde [Nombre de la tienda] para avisarte que tu pedido está por llegar. Llegamos en menos de 10 minutos."
+                  rows={4}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usa [NOMBRE_TIENDA] para insertar automáticamente el nombre de tu tienda.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* WhatsApp Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Mensaje de WhatsApp</CardTitle>
-          <CardDescription>
-            Personaliza el mensaje que se envía cuando un pedido está por llegar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="whatsappMessage">Mensaje pre-venta</Label>
-            <Textarea
-              id="whatsappMessage"
-              value={whatsappPreArrivalMessage}
-              onChange={(e) => setWhatsappPreArrivalMessage(e.target.value)}
-              placeholder="Hola, nos comunicamos desde [Nombre de la tienda] para avisarte que tu pedido está por llegar. Llegamos en menos de 10 minutos."
-              rows={4}
-            />
-            <p className="text-xs text-muted-foreground">
-              Usa [NOMBRE_TIENDA] para insertar automáticamente el nombre de tu tienda.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        <TabsContent value="colors" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5" />
+                    Colores del Sitio
+                  </CardTitle>
+                  <CardDescription>
+                    Personaliza los colores de tu tienda. Los cambios se aplican instantáneamente.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={resetThemeColors}>
+                  Resetear valores
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Color Pickers */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-medium mb-4">Colores Principales</h3>
+                    <div className="grid gap-4">
+                      <ColorPicker
+                        label="Primario"
+                        value={themeColors.primary}
+                        onChange={(c) => updateThemeColor("primary", c)}
+                        description="Color principal de botones y elementos destacados"
+                      />
+                      <ColorPicker
+                        label="Texto sobre primario"
+                        value={themeColors.primaryForeground}
+                        onChange={(c) => updateThemeColor("primaryForeground", c)}
+                        description="Color del texto sobre fondos primarios"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-sm font-medium mb-4">Colores Secundarios</h3>
+                    <div className="grid gap-4">
+                      <ColorPicker
+                        label="Secundario"
+                        value={themeColors.secondary}
+                        onChange={(c) => updateThemeColor("secondary", c)}
+                        description="Color para elementos secundarios"
+                      />
+                      <ColorPicker
+                        label="Texto sobre secundario"
+                        value={themeColors.secondaryForeground}
+                        onChange={(c) => updateThemeColor("secondaryForeground", c)}
+                        description="Color del texto sobre fondos secundarios"
+                      />
+                      <ColorPicker
+                        label="Acento"
+                        value={themeColors.accent}
+                        onChange={(c) => updateThemeColor("accent", c)}
+                        description="Color para destacados y énfasis"
+                      />
+                      <ColorPicker
+                        label="Texto sobre acento"
+                        value={themeColors.accentForeground}
+                        onChange={(c) => updateThemeColor("accentForeground", c)}
+                        description="Color del texto sobre fondos de acento"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-sm font-medium mb-4">Colores Base</h3>
+                    <div className="grid gap-4">
+                      <ColorPicker
+                        label="Fondo"
+                        value={themeColors.background}
+                        onChange={(c) => updateThemeColor("background", c)}
+                        description="Color de fondo del sitio"
+                      />
+                      <ColorPicker
+                        label="Texto principal"
+                        value={themeColors.foreground}
+                        onChange={(c) => updateThemeColor("foreground", c)}
+                        description="Color del texto principal"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-sm font-medium mb-4">Colores de UI</h3>
+                    <div className="grid gap-4">
+                      <ColorPicker
+                        label="Bordes"
+                        value={themeColors.border}
+                        onChange={(c) => updateThemeColor("border", c)}
+                        description="Color de bordes y separadores"
+                      />
+                      <ColorPicker
+                        label="Muted"
+                        value={themeColors.muted}
+                        onChange={(c) => updateThemeColor("muted", c)}
+                        description="Color de fondo para elementos apagados"
+                      />
+                      <ColorPicker
+                        label="Texto muted"
+                        value={themeColors.mutedForeground}
+                        onChange={(c) => updateThemeColor("mutedForeground", c)}
+                        description="Color de texto secundario"
+                      />
+                      <ColorPicker
+                        label="Error/Destructivo"
+                        value={themeColors.destructive}
+                        onChange={(c) => updateThemeColor("destructive", c)}
+                        description="Color para errores y acciones peligrosas"
+                      />
+                      <ColorPicker
+                        label="Texto sobre error"
+                        value={themeColors.destructiveForeground}
+                        onChange={(c) => updateThemeColor("destructiveForeground", c)}
+                        description="Color del texto sobre fondos de error"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                <div>
+                  <h3 className="text-sm font-medium mb-4">Vista Previa en Tiempo Real</h3>
+                  <ThemePreview colors={themeColors} />
+                  <p className="text-xs text-muted-foreground mt-4 text-center">
+                    Esta es una representación aproximada. Verifica el resultado en tu sitio.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="orders" className="space-y-6 mt-6">
+          {/* Order Flow Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Flujo de Pedidos</CardTitle>
+              <CardDescription>Configura cómo se procesan los nuevos pedidos</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="autoConfirmOrders"
+                  checked={autoConfirmOrders}
+                  onCheckedChange={(checked) => setAutoConfirmOrders(!!checked)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="autoConfirmOrders" className="font-medium cursor-pointer">
+                    Confirmación automática de pedidos
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Los pedidos nuevos pasan directamente a "Confirmado" sin necesidad de revisión manual. 
+                    Si está desactivado, los pedidos quedan en "Recibido" y requieren confirmación del operador.
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="requiresPaymentToFulfill"
+                  checked={requiresPaymentToFulfill}
+                  onCheckedChange={(checked) => setRequiresPaymentToFulfill(!!checked)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="requiresPaymentToFulfill" className="font-medium cursor-pointer">
+                    Requerir pago para preparar
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Solo avanzar con la preparación del pedido cuando el pago esté confirmado. 
+                    Si está desactivado, se puede preparar pedidos con pago pendiente (contra entrega).
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Link to Shipping Zones */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Zonas de Envío</CardTitle>
+              <CardDescription>
+                Las zonas de envío ahora se configuran en una página dedicada.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/admin/shipping-zones">
+                  Administrar Zonas de Entrega →
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="media" className="space-y-6 mt-6">
+          {/* Logo & Favicon */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Logo y Favicon</CardTitle>
+              <CardDescription>Imágenes de tu tienda</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Logo */}
+              <div className="space-y-2">
+                <Label>Logo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Sin logo</span>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="logo-upload" className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
+                        <Upload className="h-4 w-4" />
+                        Subir logo
+                      </div>
+                    </Label>
+                    <Input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e, "logo")}
+                    />
+                    {logo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-red-500"
+                        onClick={() => { setLogo(null); setLogoPreview(null); }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Favicon */}
+              <div className="space-y-2">
+                <Label>Favicon</Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                    {faviconPreview ? (
+                      <img src={faviconPreview} alt="Favicon" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Sin favicon</span>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="favicon-upload" className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted">
+                        <Upload className="h-4 w-4" />
+                        Subir favicon
+                      </div>
+                    </Label>
+                    <Input
+                      id="favicon-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e, "favicon")}
+                    />
+                    {favicon && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-red-500"
+                        onClick={() => { setFavicon(null); setFaviconPreview(null); }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

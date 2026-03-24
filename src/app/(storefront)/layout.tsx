@@ -1,45 +1,67 @@
 import Link from "next/link"
-import { User, Menu } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/toaster"
 import { CartProvider } from "@/components/cart-context"
 import { CartButton } from "@/components/cart-button"
 import { FloatingCart } from "@/components/floating-cart"
 import { StoreLogo } from "@/components/store-logo"
+import { StorefrontNav } from "@/components/storefront-nav"
+import { db } from "@/lib/db"
 
-export default function StorefrontLayout({
+export default async function StorefrontLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Fetch categories for the navigation
+  const categories = await db.category.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+    orderBy: { order: "asc" },
+  })
+
   return (
     <CartProvider>
       <div className="min-h-screen flex flex-col">
         {/* Header */}
-        <header className="border-b">
-          <div className="container mx-auto px-4">
-            <div className="flex h-16 items-center justify-between">
+        <header className="bg-white shadow-sm sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
               {/* Logo */}
               <StoreLogo />
 
-              {/* Navigation - Desktop */}
-              <nav className="hidden md:flex items-center gap-6">
-                <Link href="/products" className="text-sm hover:underline">
-                  Productos
-                </Link>
-              </nav>
+              {/* Navigation */}
+              <StorefrontNav categories={categories} />
 
-              {/* Actions */}
+              {/* Search Bar */}
+              <div className="flex-1 max-w-xl mx-4">
+                <form action="/products" method="get" className="flex">
+                  <input
+                    type="text"
+                    name="s"
+                    placeholder="Buscar productos..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-r-full hover:opacity-90 transition-opacity"
+                  >
+                    Buscar
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Icons */}
               <div className="flex items-center gap-2">
+                <Link href="/account" className="p-2 text-gray-600 hover:text-primary transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </Link>
                 <CartButton />
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href="/account">
-                    <User className="h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-5 w-5" />
-                </Button>
               </div>
             </div>
           </div>
@@ -47,13 +69,6 @@ export default function StorefrontLayout({
 
         {/* Main Content */}
         <main className="flex-1">{children}</main>
-
-        {/* Footer */}
-        <footer className="border-t py-8 mt-12">
-          <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} {process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda"}. Todos los derechos reservados.</p>
-          </div>
-        </footer>
 
         <Toaster />
         <FloatingCart />

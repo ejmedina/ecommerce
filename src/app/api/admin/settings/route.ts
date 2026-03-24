@@ -45,6 +45,17 @@ export async function PUT(req: NextRequest) {
       whatsappPreArrivalMessage,
       autoConfirmOrders,
       requiresPaymentToFulfill,
+      // Home page fields
+      heroSliderEnabled,
+      heroSlides,
+      categoryCardsEnabled,
+      categoryCards,
+      bestSellersEnabled,
+      bestSellersLimit,
+      infoCardsEnabled,
+      infoCards,
+      // Theme colors
+      themeColors,
     } = body
 
     // Get existing settings to check if shippingConfig needs default
@@ -78,6 +89,19 @@ export async function PUT(req: NextRequest) {
     if (finalShippingConfig) {
       updateData.shippingConfig = finalShippingConfig
     }
+
+    // Update home page fields if provided
+    if (heroSliderEnabled !== undefined) updateData.heroSliderEnabled = heroSliderEnabled
+    if (heroSlides !== undefined) updateData.heroSlides = heroSlides
+    if (categoryCardsEnabled !== undefined) updateData.categoryCardsEnabled = categoryCardsEnabled
+    if (categoryCards !== undefined) updateData.categoryCards = categoryCards
+    if (bestSellersEnabled !== undefined) updateData.bestSellersEnabled = bestSellersEnabled
+    if (bestSellersLimit !== undefined) updateData.bestSellersLimit = bestSellersLimit
+    if (infoCardsEnabled !== undefined) updateData.infoCardsEnabled = infoCardsEnabled
+    if (infoCards !== undefined) updateData.infoCards = infoCards
+
+    // Update theme colors if provided
+    if (themeColors !== undefined) updateData.themeColors = themeColors
 
     await db.storeSettings.update({
       where: { id },
