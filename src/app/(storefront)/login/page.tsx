@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CheckCircle2, Mail } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -39,6 +40,7 @@ export default function LoginPage() {
   const returnUrl = searchParams.get("returnUrl") || "/account"
   const { toast } = useToast()
   const [authMode, setAuthMode] = useState<AuthMode>("login")
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -151,8 +153,9 @@ export default function LoginPage() {
         return
       }
 
-      // Auto login after register
-      await handleLogin({ email: data.email, password: data.password })
+      // Show success message instead of auto-login
+      setRegisteredEmail(data.email)
+      registerForm.reset()
     } catch {
       registerForm.setError("root", { message: "Error al registrarse" })
     }
@@ -173,6 +176,36 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Success message after registration */}
+            {registeredEmail && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-green-800">¡Cuenta creada!</h3>
+                    <p className="text-sm text-green-700 mt-1">
+                      Te enviamos un email de verificación a <strong>{registeredEmail}</strong>.
+                    </p>
+                    <p className="text-sm text-green-700 mt-2">
+                      Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
+                    </p>
+                    <Button
+                      variant="link"
+                      className="text-green-700 p-0 h-auto mt-3"
+                      onClick={() => {
+                        setRegisteredEmail(null)
+                        setAuthMode("login")
+                        loginForm.setValue("email", registeredEmail)
+                      }}
+                    >
+                      <Mail className="h-4 w-4 mr-1" />
+                      Ir a iniciar sesión
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {authMode === "login" ? (
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                 {loginForm.formState.errors.root && (
