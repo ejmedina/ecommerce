@@ -12,12 +12,12 @@ interface Address {
   label: string
   street: string
   number: string
-  floor?: string
-  apartment?: string
+  floor?: string | null
+  apartment?: string | null
   city: string
   state: string
   postalCode: string
-  instructions?: string
+  instructions?: string | null
   isDefault: boolean
 }
 
