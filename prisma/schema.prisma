@@ -389,7 +389,7 @@ model StoreSettings {
   // === CONFIGURACIÓN DE COLORES DEL TEMA ===
   // Colores personalizables de la tienda
   // Estructura: { primary, secondary, accent, background, foreground, border, muted, destructive, ... }
-  themeColors         Json?    @default("{\"primary\":\"#0a0a0a\",\"primaryForeground\":\"#ffffff\",\"secondary\":\"#f5f5f5\",\"secondaryForeground\":\"#0a0a0a\",\"accent\":\"#f5f5f5\",\"accentForeground\":\"#0a0a0a\",\"background\":\"#ffffff\",\"foreground\":\"#0a0a0a\",\"muted\":\"#f5f5f5\",\"mutedForeground\":\"#737373\",\"border\":\"#e5e5e5\",\"input\":\"#e5e5e5\",\"ring\":\"#0a0a0a\",\"destructive\":\"#dc2626\",\"destructiveForeground\":\"#ffffff\"}")
+  themeColors         Json?    @default("{\"primary\":\"#0a0a0a\",\"primaryForeground\":\"#ffffff\",\"secondary\":\"#f5f5f5\",\"secondaryForeground\":\"#0a0a0a\",\"accent\":\"#f5f5f5\",\"accentForeground\":\"#0a0a0a\",\"background\":\"#ffffff\",\"foreground\":\"#0a0a0a\",\"muted\":\"#f5f5f5\",\"mutedForeground\":\"#737373\",\"border\":\"#e5e5e5\",\"input\":\"#e5e5e5\",\"ring\":\"#0a0a0a\",\"destructive\":\"#dc2626\",\"destructiveForeground\":\"#ffffff\",\"card\":\"#ffffff\",\"cardForeground\":\"#0a0a0a\",\"popover\":\"#ffffff\",\"popoverForeground\":\"#0a0a0a\"}")
 
   // === CONFIGURACIÓN DE LA HOME PAGE ===
   // Hero/Slider de la home
