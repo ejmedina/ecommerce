@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
-import { getImageDimensions } from "@/lib/image-utils"
+import { uploadToBlob } from "@/lib/blob"
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File | null
-    const type = formData.get("type") as string | null // "logo" or "favicon"
+    const type = formData.get("type") as string | null // "logo", "favicon", etc.
 
     if (!file || !type) {
       return NextResponse.json(
@@ -37,29 +35,16 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Get image dimensions
-    const dimensions = await getImageDimensions(buffer)
-
-    // Create upload directory
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "store")
-    await mkdir(uploadDir, { recursive: true })
-
-    // Generate filename
+    // Generate filename with type and timestamp
     const ext = file.name.split(".").pop() || "png"
     const filename = `${type}-${Date.now()}.${ext}`
-    const filepath = path.join(uploadDir, filename)
 
-    // Save file
-    await writeFile(filepath, buffer)
-
-    // Return the public URL
-    const url = `/uploads/store/${filename}`
+    // Upload to Vercel Blob
+    const result = await uploadToBlob(buffer, filename, file.type)
 
     return NextResponse.json({
-      url,
-      width: dimensions.width,
-      height: dimensions.height,
-      format: dimensions.format,
+      url: result.url,
+      pathname: result.pathname,
     })
   } catch (error) {
     console.error("Upload error:", error)

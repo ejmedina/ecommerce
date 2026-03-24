@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { randomBytes } from "crypto"
+import { sendVerificationEmail } from "@/lib/email"
 
 export async function GET(req: NextRequest) {
   try {
@@ -104,8 +105,13 @@ export async function PUT(req: NextRequest) {
         },
       })
 
-      // TODO: Send verification email with the token
-      // For now, just return success with pending email flag
+      // Send verification email
+      await sendVerificationEmail({
+        to: email,
+        token,
+        type: "email_change",
+      })
+
       return NextResponse.json({
         message: "Se envió un email de verificación al nuevo correo",
         pendingEmail: email,

@@ -365,7 +365,6 @@ async function main() {
         orderStatus: orderData.orderStatus as any,
         paymentMethod: orderData.paymentMethod as any,
         paymentStatus: orderData.paymentStatus as any,
-        fulfillmentStatus: orderData.fulfillmentStatus as any,
         subtotal: orderData.subtotal,
         shippingCost: orderData.shippingCost,
         taxAmount: orderData.taxAmount,
@@ -412,7 +411,6 @@ async function main() {
           price: item.price,
           quantityOrdered: item.quantity,
           unitTotal: item.price * item.quantity,
-          quantityFulfilled: orderData.fulfillmentStatus === "FULFILLED" ? item.quantity : null,
         },
       })
     }

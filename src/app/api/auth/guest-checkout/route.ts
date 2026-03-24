@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { cookies } from "next/headers"
+import { sendVerificationEmail } from "@/lib/email"
 
 export async function POST(request: Request) {
   try {
@@ -50,9 +51,12 @@ export async function POST(request: Request) {
       },
     })
 
-    // TODO: Send email with the link
-    // For now, log the token
-    console.log(`Password setup link: ${process.env.NEXT_PUBLIC_APP_URL}/auth/set-password?token=${token}`)
+    // Send verification email
+    await sendVerificationEmail({
+      to: email,
+      token,
+      type: "guest_checkout",
+    })
 
     return NextResponse.json({
       success: true,
