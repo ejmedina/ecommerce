@@ -1,99 +1,27 @@
 import { db } from "@/lib/db"
 import { HeroSlider, CategoryCards, BestSellers, InfoCards } from "@/components/home"
 
-// Default data for when no settings exist
-const defaultHeroSlides = [
-  {
-    image: "/uploads/store/slide-default.jpg",
-    title: "Artesano",
-    subtitle: "Si es rico solo, es rico con todo.",
-    ctaText: "Comprar",
-    ctaLink: "/products",
-  },
-]
-
-const defaultCategoryCards = [
-  {
-    image: "/uploads/store/category-panificados.jpg",
-    title: "Panificados",
-    subtitle: "Disfrutá del sabor casero.",
-    ctaText: "Comprar ahora",
-    ctaLink: "/products?category=panificados",
-  },
-  {
-    image: "/uploads/store/category-dulces.jpg",
-    title: "Dulces",
-    subtitle: "El sabor que alegra tus tardes.",
-    ctaText: "Comprar ahora",
-    ctaLink: "/products?category=dulces",
-  },
-  {
-    image: "/uploads/store/category-salados.jpg",
-    title: "Salados",
-    subtitle: "Opciones para picar en cualquier momento.",
-    ctaText: "Comprar ahora",
-    ctaLink: "/products?category=salados",
-  },
-  {
-    image: "/uploads/store/category-snacks.jpg",
-    title: "Snacks",
-    subtitle: "Snackeá sin parar.",
-    ctaText: "Comprar ahora",
-    ctaLink: "/products?category=snacks",
-  },
-]
-
-const defaultInfoCards = [
-  {
-    icon: "quality",
-    title: "La mejor calidad, en casa",
-    description: "Una cuidada selección de productos premium, con entrega directa a tu hogar.",
-  },
-  {
-    icon: "price",
-    title: "Lo rico, a buen precio",
-    description: "Directo desde la fábrica a tu hogar. La mejor calidad, precios que hacen bien.",
-  },
-  {
-    icon: "delivery",
-    title: "Lo pedís, te lo llevamos",
-    description: "Pedí fácil y recibilo sin cargo en Zona Norte. Para compras mínimas de $40.000.",
-  },
-]
-
 export default async function HomePage() {
   // Get settings from database
-  let settings = await db.storeSettings.findFirst()
+  const settings = await db.storeSettings.findFirst()
   
-  // Create default settings if none exist
+  // If no settings exist, show empty page (all disabled)
   if (!settings) {
-    settings = await db.storeSettings.create({
-      data: {
-        storeName: "Mi Tienda",
-        heroSliderEnabled: true,
-        heroSlides: defaultHeroSlides,
-        categoryCardsEnabled: true,
-        categoryCards: defaultCategoryCards,
-        bestSellersEnabled: true,
-        bestSellersLimit: 6,
-        infoCardsEnabled: true,
-        infoCards: defaultInfoCards,
-      },
-    })
+    return (
+      <>
+        {/* No settings - all sections disabled by default */}
+        <HeroSlider slides={[]} enabled={false} />
+        <CategoryCards cards={[]} enabled={false} />
+        <BestSellers products={[]} enabled={false} />
+        <InfoCards cards={[]} enabled={false} />
+      </>
+    )
   }
 
-  // Parse JSON fields
-  const heroSlides = Array.isArray(settings.heroSlides) 
-    ? settings.heroSlides 
-    : defaultHeroSlides
-    
-  const categoryCards = Array.isArray(settings.categoryCards) 
-    ? settings.categoryCards 
-    : defaultCategoryCards
-    
-  const infoCards = Array.isArray(settings.infoCards) 
-    ? settings.infoCards 
-    : defaultInfoCards
+  // Parse JSON fields with empty defaults
+  const heroSlides = Array.isArray(settings.heroSlides) ? settings.heroSlides : []
+  const categoryCards = Array.isArray(settings.categoryCards) ? settings.categoryCards : []
+  const infoCards = Array.isArray(settings.infoCards) ? settings.infoCards : []
 
   // Get best sellers products
   const bestSellers = await db.product.findMany({
@@ -113,13 +41,13 @@ export default async function HomePage() {
       {/* Hero Slider */}
       <HeroSlider 
         slides={heroSlides} 
-        enabled={settings.heroSliderEnabled ?? true} 
+        enabled={settings.heroSliderEnabled ?? false} 
       />
 
       {/* Category Cards */}
       <CategoryCards 
         cards={categoryCards} 
-        enabled={settings.categoryCardsEnabled ?? true} 
+        enabled={settings.categoryCardsEnabled ?? false} 
       />
 
       {/* Best Sellers */}
@@ -131,13 +59,13 @@ export default async function HomePage() {
           price: p.price.toString(),
           images: p.images,
         }))}
-        enabled={settings.bestSellersEnabled ?? true}
+        enabled={settings.bestSellersEnabled ?? false}
       />
 
       {/* Info Cards */}
       <InfoCards 
         cards={infoCards} 
-        enabled={settings.infoCardsEnabled ?? true} 
+        enabled={settings.infoCardsEnabled ?? false} 
       />
     </>
   )

@@ -2,6 +2,10 @@ import Link from "next/link"
 import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { db } from "@/lib/db"
+import { initAdmin } from "@/lib/admin-setup"
+
+// Initialize admin user on first admin page load
+initAdmin()
 
 export default async function AdminLayout({
   children,
