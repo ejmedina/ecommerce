@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { uploadToBlob } from "@/lib/blob"
+import { requireAuth } from "@/lib/admin-auth"
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File | null

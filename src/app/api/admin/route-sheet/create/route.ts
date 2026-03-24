@@ -1,7 +1,11 @@
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { NextResponse } from "next/server"
+import { requireAuth } from "@/lib/admin-auth"
 
 export async function POST(request: Request) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const body = await request.json()
     const { name, orderIds, date } = body

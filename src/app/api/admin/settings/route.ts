@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getDefaultShippingConfig } from "@/lib/shipping"
+import { requireAuth } from "@/lib/admin-auth"
 
 export async function GET() {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     let settings = await db.storeSettings.findFirst()
 
@@ -24,6 +28,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const body = await req.json()
     const { 

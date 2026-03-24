@@ -1,7 +1,9 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { db } from "@/lib/db"
+import { auth, canAccessAdmin } from "@/lib/auth"
 import { initAdmin } from "@/lib/admin-setup"
 
 // Initialize admin user on first admin page load
@@ -12,6 +14,17 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Check authentication and authorization
+  const session = await auth()
+  
+  if (!session?.user) {
+    redirect("/login?returnUrl=/admin")
+  }
+  
+  if (!canAccessAdmin(session.user.role)) {
+    redirect("/?error=unauthorized")
+  }
+
   // Get settings for theme colors
   const settings = await db.storeSettings.findFirst()
   let themeColors = null

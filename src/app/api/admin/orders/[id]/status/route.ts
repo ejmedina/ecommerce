@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { requireAuth } from "@/lib/admin-auth"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -17,6 +18,9 @@ const validPaymentStatuses = [
 ]
 
 export async function PATCH(request: Request, { params }: RouteParams) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const { id } = await params
     const body = await request.json()
