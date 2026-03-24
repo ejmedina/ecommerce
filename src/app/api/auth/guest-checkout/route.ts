@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         email,
         passwordHash,
         name: "Guest",
-        role: "GUEST",
+        role: "CUSTOMER",
         status: "PENDING",
       },
     })

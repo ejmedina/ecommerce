@@ -192,8 +192,8 @@ export async function createOrder(formData: FormData) {
             name: item.product.name,
             sku: item.product.sku,
             price: item.product.price,
-            quantity: item.quantity,
-            total: Number(item.product.price) * item.quantity,
+            quantityOrdered: item.quantity,
+            unitTotal: item.product.price * item.quantity,
           }))
         }
       }
