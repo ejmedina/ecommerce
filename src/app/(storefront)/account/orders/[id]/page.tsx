@@ -159,7 +159,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         <CardContent>
           <div className="space-y-4">
             {order.items.map((item) => {
-              const quantityOrdered = item.quantityOrdered ?? item.quantity
+              const quantityOrdered = item.quantityOrdered
               return (
                 <div key={item.id} className="flex justify-between items-center">
                   <div>
