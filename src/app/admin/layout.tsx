@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home } from "lucide-react"
+import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, LogOut } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { db } from "@/lib/db"
-import { auth, canAccessAdmin } from "@/lib/auth"
+import { auth, canAccessAdmin, signOut } from "@/lib/auth"
 import { initAdmin } from "@/lib/admin-setup"
+import { Button } from "@/components/ui/button"
 
 // Initialize admin user on first admin page load
 initAdmin()
@@ -105,9 +106,22 @@ export default async function AdminLayout({
         <div className="flex-1">
           <header className="border-b p-4 flex items-center justify-between">
             <h1 className="text-lg font-semibold">Panel de Administración</h1>
-            <Link href="/" className="text-sm text-muted-foreground hover:underline">
-              Ver tienda
-            </Link>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {session.user.email}
+              </span>
+              <form
+                action={async () => {
+                  "use server"
+                  await signOut({ redirectTo: "/" })
+                }}
+              >
+                <Button variant="ghost" size="sm" type="submit">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Cerrar sesión</span>
+                </Button>
+              </form>
+            </div>
           </header>
           <main className="p-6">{children}</main>
         </div>
