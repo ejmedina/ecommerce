@@ -38,7 +38,7 @@ export async function sendVerificationEmail({
 }: {
   to: string
   token: string
-  type: "email_change" | "guest_checkout"
+  type: "email_change" | "guest_checkout" | "email_verification"
 }) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   let verifyUrl: string
@@ -49,10 +49,15 @@ export async function sendVerificationEmail({
     verifyUrl = `${baseUrl}/auth/verify-email-change?token=${token}`
     subject = "Verificá tu nuevo email"
     description = "Hacé clic en el enlace para confirmar tu nuevo email."
-  } else {
+  } else if (type === "guest_checkout") {
     verifyUrl = `${baseUrl}/auth/set-password?token=${token}`
     subject = "Completá tu registro"
     description = "Hacé clic en el enlace para configurar tu contraseña."
+  } else {
+    // email_verification - new user registration
+    verifyUrl = `${baseUrl}/auth/verify-email?token=${token}`
+    subject = "Verificá tu cuenta"
+    description = "Hacé clic en el enlace para activar tu cuenta y completar el registro."
   }
 
   const html = `

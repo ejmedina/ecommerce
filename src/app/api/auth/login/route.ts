@@ -13,6 +13,26 @@ export async function POST(request: Request) {
       )
     }
 
+    // Check if user exists and is active before attempting signIn
+    const user = await db.user.findUnique({
+      where: { email },
+      select: { isActive: true, passwordHash: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Credenciales inválidas" },
+        { status: 401 }
+      )
+    }
+
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: "Tu cuenta no está activa. Por favor verificá tu email para activar tu cuenta." },
+        { status: 401 }
+      )
+    }
+
     // Use NextAuth signIn
     const result = await signIn("credentials", {
       email,
