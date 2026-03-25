@@ -127,11 +127,9 @@ export default function LoginPage() {
       return
     }
 
-    // Small delay to ensure session is set
-    setTimeout(() => {
-      router.push(returnUrl)
-      router.refresh()
-    }, 100)
+    // Usamos window.location.href para forzar la recarga de toda la aplicación
+    // y asegurarnos de que la nueva sesión se lea correctamente en todas partes.
+    window.location.href = returnUrl
   }
 
   async function handleRegister(data: RegisterForm) {
