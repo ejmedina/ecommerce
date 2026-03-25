@@ -52,6 +52,26 @@ export default function LoginPage() {
     defaultValues: { name: "", email: "", password: "", phone: "", confirmPassword: "" },
   })
 
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session")
+        const session = await res.json()
+        if (session && Object.keys(session).length > 0) {
+          router.replace(returnUrl)
+        }
+      } catch (e) {
+        // Ignorar errores de red
+      }
+    }
+    
+    // No redirigir si el usuario acaba de registrarse (queremos mostrar el mensaje de éxito)
+    if (!registeredEmail) {
+      checkSession()
+    }
+  }, [router, returnUrl, registeredEmail])
+
   // Effect para procesar acción pendiente después del login
   useEffect(() => {
     const processPendingAction = async () => {
@@ -116,20 +136,26 @@ export default function LoginPage() {
   }, [returnUrl, router, toast])
 
   async function handleLogin(data: LoginForm) {
-    const result = await signIn("credentials", {
+    const result = await (signIn("credentials", {
       email: data.email,
       password: data.password,
       redirect: false,
-    })
+    }) as Promise<{ error: string | null; url: string | null }>)
 
     if (result?.error) {
       loginForm.setError("root", { message: "Email o contraseña incorrectos" })
       return
     }
 
-    // Usamos window.location.href para forzar la recarga de toda la aplicación
-    // y asegurarnos de que la nueva sesión se lea correctamente en todas partes.
-    window.location.href = returnUrl
+    // Aseguramos que el returnUrl sea válido y no apunte de nuevo al login
+    const target = (returnUrl && !returnUrl.includes("/login")) ? returnUrl : "/account"
+    
+    // Forzamos un refresco completo para asegurar la sesión
+    window.location.href = target
+    
+    // Retraso opcional para evitar que el botón se desbloquee inmediatamente
+    // mientras el navegador procesa la nueva petición.
+    await new Promise(resolve => setTimeout(resolve, 500))
   }
 
   async function handleRegister(data: RegisterForm) {
