@@ -6,12 +6,16 @@ import { FloatingCart } from "@/components/floating-cart"
 import { StoreLogo } from "@/components/store-logo"
 import { StorefrontNav } from "@/components/storefront-nav"
 import { db } from "@/lib/db"
+import { auth, canAccessAdmin } from "@/lib/auth"
+import { LayoutDashboard } from "lucide-react"
 
 export default async function StorefrontLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth()
+  const isAdmin = session?.user?.role ? canAccessAdmin(session.user.role) : false
   // Fetch categories for the navigation
   const categories = await db.category.findMany({
     where: { isActive: true },
@@ -57,6 +61,16 @@ export default async function StorefrontLayout({
 
               {/* Right Icons */}
               <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Link 
+                    href="/admin/dashboard" 
+                    className="p-2 text-gray-600 hover:text-primary transition-colors flex items-center gap-1"
+                    title="Panel de Administración"
+                  >
+                    <LayoutDashboard className="h-6 w-6" />
+                    <span className="hidden lg:inline text-sm font-medium">Panel</span>
+                  </Link>
+                )}
                 <Link href="/account" className="p-2 text-gray-600 hover:text-primary transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
