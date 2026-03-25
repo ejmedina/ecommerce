@@ -126,8 +126,8 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
             <CardTitle>Datos de contacto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
                 <Label htmlFor="name">Nombre completo *</Label>
                 <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
               </div>
@@ -180,16 +180,16 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-9">
+                <div className="col-span-8 sm:col-span-9">
                   <Label htmlFor="street">Calle *</Label>
                   <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-4 sm:col-span-3">
                   <Label htmlFor="number">Número *</Label>
                   <Input id="number" name="number" value={formData.number} onChange={handleInputChange} required />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="floor">Piso</Label>
                   <Input id="floor" name="floor" value={formData.floor} onChange={handleInputChange} />
@@ -198,12 +198,12 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
                   <Label htmlFor="apartment">Depto</Label>
                   <Input id="apartment" name="apartment" value={formData.apartment} onChange={handleInputChange} />
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <Label htmlFor="postalCode">CP *</Label>
                   <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="city">Ciudad *</Label>
                   <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />

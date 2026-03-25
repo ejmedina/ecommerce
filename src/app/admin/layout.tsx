@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { auth, canAccessAdmin, signOut } from "@/lib/auth"
 import { initAdmin } from "@/lib/admin-setup"
 import { Button } from "@/components/ui/button"
+import { AdminMobileNav } from "@/components/admin/admin-mobile-nav"
 
 // Initialize admin user on first admin page load
 initAdmin()
@@ -103,11 +104,14 @@ export default async function AdminLayout({
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <header className="border-b p-4 flex items-center justify-between">
-            <h1 className="text-lg font-semibold">Panel de Administración</h1>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+              <AdminMobileNav />
+              <h1 className="text-lg font-semibold truncate">Panel de Administración</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground hidden sm:inline truncate max-w-[150px]">
                 {session.user.email}
               </span>
               <form

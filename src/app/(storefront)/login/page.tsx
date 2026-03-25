@@ -66,11 +66,11 @@ export default function LoginPage() {
       }
     }
     
-    // No redirigir si el usuario acaba de registrarse (queremos mostrar el mensaje de éxito)
-    if (!registeredEmail) {
+    // No redirigir si el usuario acaba de registrarse o hay un error de sesión
+    if (!registeredEmail && searchParams.get("error") !== "SessionExpired") {
       checkSession()
     }
-  }, [router, returnUrl, registeredEmail])
+  }, [router, returnUrl, registeredEmail, searchParams])
 
   // Effect para procesar acción pendiente después del login
   useEffect(() => {

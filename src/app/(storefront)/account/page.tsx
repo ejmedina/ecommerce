@@ -35,7 +35,7 @@ export default async function AccountPage() {
   ])
 
   if (!user) {
-    redirect("/login")
+    redirect("/login?error=SessionExpired")
   }
 
   return (
@@ -56,7 +56,7 @@ export default async function AccountPage() {
         <CardHeader>
           <CardTitle>Resumen</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-muted rounded-lg p-4">
             <p className="text-2xl font-bold">{orderCount}</p>
             <p className="text-sm text-muted-foreground">Pedidos realizados</p>

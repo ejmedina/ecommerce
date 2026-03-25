@@ -30,14 +30,15 @@ export default async function StorefrontLayout({
         <header className="bg-white shadow-sm sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              {/* Logo */}
-              <StoreLogo />
+              
+              {/* Mobile Menu & Logo */}
+              <div className="flex items-center gap-2 md:gap-4">
+                <StorefrontNav categories={categories} />
+                <StoreLogo />
+              </div>
 
-              {/* Navigation */}
-              <StorefrontNav categories={categories} />
-
-              {/* Search Bar */}
-              <div className="flex-1 max-w-xl mx-4">
+              {/* Search Bar (Desktop only) */}
+              <div className="hidden md:block flex-1 max-w-xl mx-4">
                 <form action="/products" method="get" className="flex">
                   <input
                     type="text"
@@ -63,6 +64,24 @@ export default async function StorefrontLayout({
                 </Link>
                 <CartButton />
               </div>
+            </div>
+            
+            {/* Search Bar (Mobile only) */}
+            <div className="md:hidden pb-3">
+              <form action="/products" method="get" className="flex">
+                <input
+                  type="text"
+                  name="s"
+                  placeholder="Buscar productos..."
+                  className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm bg-primary text-primary-foreground font-medium rounded-r-full hover:opacity-90 transition-opacity"
+                >
+                  Buscar
+                </button>
+              </form>
             </div>
           </div>
         </header>
