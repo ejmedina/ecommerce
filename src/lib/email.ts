@@ -1,9 +1,34 @@
 import { Resend } from "resend"
+import { db } from "@/lib/db"
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
 
 const FROM_EMAIL = process.env.EMAIL_FROM || "Tienda <noreply@resend.dev>"
+
+/**
+ * Get the store URL from database settings, environment variable, or default
+ * Priority: 1. StoreSettings.storeUrl (DB) > 2. NEXT_PUBLIC_APP_URL (env) > 3. localhost:3000
+ */
+export async function getStoreUrl(): Promise<string> {
+  try {
+    // 1. Try store settings from database
+    const settings = await db.storeSettings.findFirst()
+    if (settings?.storeUrl) {
+      return settings.storeUrl
+    }
+  } catch (error) {
+    console.warn("Failed to get storeUrl from database, falling back to env:", error)
+  }
+
+  // 2. Try environment variable
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL
+  }
+
+  // 3. Default to localhost
+  return "http://localhost:3000"
+}
 
 interface EmailOptions {
   to: string
@@ -40,7 +65,7 @@ export async function sendVerificationEmail({
   token: string
   type: "email_change" | "guest_checkout" | "email_verification"
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  const baseUrl = await getStoreUrl()
   let verifyUrl: string
   let subject: string
   let description: string

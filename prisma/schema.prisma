@@ -408,6 +408,11 @@ model StoreSettings {
   infoCardsEnabled     Boolean  @default(true)
   infoCards           Json?    // [{ icon, title, description }]
   
+  // === CONFIGURACIÓN DEL DOMINIO ===
+  // URL base de la tienda (ej: https://mi-tienda.com)
+  // Se usa para generar enlaces en emails, etc.
+  storeUrl            String?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

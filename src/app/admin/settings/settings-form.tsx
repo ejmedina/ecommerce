@@ -49,6 +49,7 @@ export function SettingsForm() {
   const [storeName, setStoreName] = useState("")
   const [storeEmail, setStoreEmail] = useState("")
   const [storePhone, setStorePhone] = useState("")
+  const [storeUrl, setStoreUrl] = useState("")
   const [logo, setLogo] = useState<string | null>(null)
   const [favicon, setFavicon] = useState<string | null>(null)
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
@@ -72,6 +73,7 @@ export function SettingsForm() {
       setStoreName(data.storeName || "")
       setStoreEmail(data.storeEmail || "")
       setStorePhone(data.storePhone || "")
+      setStoreUrl(data.storeUrl || "")
       setLogo(data.logo)
       setFavicon(data.favicon)
       setAutoConfirmOrders(data.autoConfirmOrders ?? true)
@@ -116,6 +118,7 @@ export function SettingsForm() {
           requiresPaymentToFulfill,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
           themeColors,
+          storeUrl: storeUrl || null,
         }),
       })
 
@@ -291,6 +294,19 @@ export function SettingsForm() {
                   onChange={(e) => setStorePhone(e.target.value)}
                   placeholder="+54 11 1234 5678"
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="storeUrl">URL de la tienda</Label>
+                <Input
+                  id="storeUrl"
+                  type="url"
+                  value={storeUrl}
+                  onChange={(e) => setStoreUrl(e.target.value)}
+                  placeholder="https://mi-tienda.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dominio de tu tienda. Se usa para generar enlaces en emails.
+                </p>
               </div>
             </CardContent>
           </Card>

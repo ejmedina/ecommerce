@@ -52,6 +52,7 @@ export async function PUT(req: NextRequest) {
       whatsappPreArrivalMessage,
       autoConfirmOrders,
       requiresPaymentToFulfill,
+      storeUrl,
       // Home page fields
       heroSliderEnabled,
       heroSlides,
@@ -109,6 +110,9 @@ export async function PUT(req: NextRequest) {
 
     // Update theme colors if provided
     if (themeColors !== undefined) updateData.themeColors = themeColors
+
+    // Update store URL if provided
+    if (storeUrl !== undefined) updateData.storeUrl = storeUrl
 
     await db.storeSettings.update({
       where: { id },
