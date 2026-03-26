@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { cookies } from "next/headers"
 import { sendVerificationEmail } from "@/lib/email"
+import { hash } from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
@@ -25,8 +25,9 @@ export async function POST(request: Request) {
     }
 
     // Create a pending guest user
+    // Generate a random temporary password
     const tempPassword = crypto.randomUUID()
-    const passwordHash = await hashPassword(tempPassword)
+    const passwordHash = await hash(tempPassword, 10)
 
     const user = await db.user.create({
       data: {
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
         name: "Guest",
         role: "CUSTOMER",
         status: "PENDING",
+        isActive: false, // Start as inactive until they set their password
       },
     })
 
@@ -71,11 +73,3 @@ export async function POST(request: Request) {
   }
 }
 
-// Simple password hash function (in production, use bcrypt)
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password + process.env.AUTH_SECRET || "secret")
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("")
-}
