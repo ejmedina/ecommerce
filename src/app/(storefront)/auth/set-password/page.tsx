@@ -3,12 +3,13 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, CheckCircle, XCircle, UserPlus, Lock, User, Phone } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, UserPlus, Lock, User, Phone, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { signIn } from "next-auth/react"
 
 function SetPasswordForm() {
   const searchParams = useSearchParams()
@@ -23,6 +24,7 @@ function SetPasswordForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [message, setMessage] = useState("")
+  const [countdown, setCountdown] = useState(5)
 
   // Initial verification of the token
   useEffect(() => {
@@ -52,6 +54,17 @@ function SetPasswordForm() {
 
     verifyToken()
   }, [token])
+
+  // Countdown effect for redirect
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (status === "success" && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+    } else if (status === "success" && countdown === 0) {
+      window.location.href = "/"
+    }
+    return () => clearTimeout(timer)
+  }, [status, countdown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,11 +99,25 @@ function SetPasswordForm() {
       const data = await response.json()
 
       if (response.ok) {
-        setStatus("success")
-        toast({
-          title: "¡Éxito!",
-          description: "Tu registro se ha completado correctamente",
+        // Auto-login the user
+        const loginResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
         })
+
+        if (loginResult?.error) {
+          console.error("Auto-login error:", loginResult.error)
+          // Still show success for registration, but maybe different message
+          setStatus("success")
+          setMessage("Registro exitoso, pero no pudimos iniciar sesión automáticamente. Por favor hacelo manualmente.")
+        } else {
+          setStatus("success")
+          toast({
+            title: "¡Éxito!",
+            description: "Tu registro se ha completado correctamente e iniciamos tu sesión",
+          })
+        }
       } else {
         setStatus("loading") // Back to form
         toast({
@@ -144,7 +171,7 @@ function SetPasswordForm() {
               </div>
               <CardTitle className="text-green-600">¡Registro completo!</CardTitle>
               <CardDescription>
-                Tu cuenta ha sido activada correctamente con tu nueva contraseña.
+                Tu cuenta ha sido activada y ya iniciamos tu sesión.
               </CardDescription>
             </>
           )}
@@ -234,12 +261,23 @@ function SetPasswordForm() {
           )}
           
           {status === "success" && (
-            <div className="space-y-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Ahora podés iniciar sesión para realizar pedidos y gestionar tu cuenta.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/login">Ir a Iniciar Sesión</Link>
+            <div className="space-y-6 text-center">
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm font-medium">
+                  Redirigiendo al inicio en {countdown} segundos...
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                  <div 
+                    className="bg-green-600 h-1.5 rounded-full transition-all duration-1000" 
+                    style={{ width: `${(countdown / 5) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <Button asChild className="w-full" variant="outline">
+                <Link href="/">
+                  Ir al inicio ahora <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
           )}
