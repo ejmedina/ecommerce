@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, Package, FileText, Users, Settings, LayoutDashboard, Truck, Home } from "lucide-react"
+import { Menu, Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
 
 const routes = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/profile", label: "Perfil", icon: User },
   { href: "/admin/products", label: "Productos", icon: Package },
   { href: "/admin/orders", label: "Pedidos", icon: FileText },
   { href: "/admin/customers", label: "Clientes", icon: Users },

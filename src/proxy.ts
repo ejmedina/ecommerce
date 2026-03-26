@@ -11,6 +11,7 @@ export const proxy = auth((req) => {
   const isLoginRoute = pathname.startsWith("/login")
   
   const role = session?.user?.role
+  const isAdminSession = ["SUPERADMIN", "OWNER", "ADMIN"].includes(role ?? "")
 
   // Handle redirect loop by allowing login page if specifically requested
   if (isLoginRoute && isLoggedIn) {
@@ -28,7 +29,7 @@ export const proxy = auth((req) => {
       loginUrl.searchParams.set("returnUrl", pathname)
       return NextResponse.redirect(loginUrl)
     }
-    if (!["SUPERADMIN", "OWNER", "ADMIN"].includes(role ?? "")) {
+    if (!isAdminSession) {
       return NextResponse.redirect(new URL("/", nextUrl))
     }
   }
@@ -40,7 +41,10 @@ export const proxy = auth((req) => {
       loginUrl.searchParams.set("returnUrl", pathname)
       return NextResponse.redirect(loginUrl)
     }
-    // Allow any logged in user to see /account (customer or admin)
+    // Redirect admins away from customer account area
+    if (isAdminSession) {
+      return NextResponse.redirect(new URL("/admin/profile", nextUrl))
+    }
   }
 
   return NextResponse.next()

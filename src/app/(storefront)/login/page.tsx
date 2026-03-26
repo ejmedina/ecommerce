@@ -59,7 +59,13 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/session")
         const session = await res.json()
         if (session && Object.keys(session).length > 0) {
-          router.replace(returnUrl)
+          const isAdmin = ["SUPERADMIN", "OWNER", "ADMIN"].includes(session.user?.role)
+          
+          if (isAdmin && (returnUrl === "/account" || returnUrl === "/")) {
+            router.replace("/admin/dashboard")
+          } else {
+            router.replace(returnUrl)
+          }
         }
       } catch (e) {
         // Ignorar errores de red
@@ -147,8 +153,18 @@ export default function LoginPage() {
       return
     }
 
-    // Aseguramos que el returnUrl sea válido y no apunte de nuevo al login
-    const target = (returnUrl && !returnUrl.includes("/login")) ? returnUrl : "/account"
+    // Check role before redirecting
+    let target = (returnUrl && !returnUrl.includes("/login")) ? returnUrl : "/account"
+    try {
+      const res = await fetch("/api/auth/session")
+      const session = await res.json()
+      const isAdmin = ["SUPERADMIN", "OWNER", "ADMIN"].includes(session?.user?.role)
+      if (isAdmin && target === "/account") {
+        target = "/admin/dashboard"
+      }
+    } catch (e) {
+      console.error("Failed to fetch session before redirect")
+    }
     
     // Forzamos un refresco completo para asegurar la sesión
     window.location.href = target
