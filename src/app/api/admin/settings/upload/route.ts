@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { uploadToBlob } from "@/lib/blob"
 import { requireAuth } from "@/lib/admin-auth"
+import sharp from "sharp"
 
 export async function POST(req: NextRequest) {
   const authError = await requireAuth()
@@ -27,10 +28,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB original)
+    if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
-        { error: "El archivo es demasiado grande (máx 5MB)" },
+        { error: "El archivo original es demasiado grande (máx 10MB)" },
         { status: 400 }
       )
     }
@@ -39,12 +40,39 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
+    let processedBuffer: any = buffer
+    let finalType = file.type
+    let ext = file.name.split(".").pop() || "png"
+
+    // Process image with sharp (except SVG)
+    if (file.type.startsWith("image/") && file.type !== "image/svg+xml") {
+      try {
+        const image = sharp(buffer)
+        const metadata = await image.metadata()
+        
+        // Resize to max 1920px width
+        if (metadata.width && metadata.width > 2000) {
+          image.resize(2000, undefined, { withoutEnlargement: true, fit: "inside" })
+        }
+        
+        // Convert to WebP for better compression
+        processedBuffer = await image
+          .webp({ quality: 80 })
+          .toBuffer()
+        
+        finalType = "image/webp"
+        ext = "webp"
+      } catch (sharpError) {
+        console.error("Sharp processing error, using original buffer:", sharpError)
+        // Fallback to original buffer if processing fails
+      }
+    }
+
     // Generate filename with type and timestamp
-    const ext = file.name.split(".").pop() || "png"
     const filename = `${type}-${Date.now()}.${ext}`
 
     // Upload to Vercel Blob
-    const result = await uploadToBlob(buffer, filename, file.type)
+    const result = await uploadToBlob(processedBuffer as any, filename, finalType)
 
     return NextResponse.json({
       url: result.url,
