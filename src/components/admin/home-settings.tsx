@@ -175,7 +175,9 @@ export function HomeSettings({ data, onChange, onImageUpload }: HomeSettingsProp
                           <img 
                             src={slide.image} 
                             alt="Slide preview" 
-                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/200x200?text=Sin+imagen';
+                            }}
                           />
                         </div>
                       )}
@@ -299,7 +301,9 @@ export function HomeSettings({ data, onChange, onImageUpload }: HomeSettingsProp
                           <img 
                             src={card.image} 
                             alt="Category preview" 
-                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/200x200?text=Sin+imagen';
+                            }}
                           />
                         </div>
                       )}
