@@ -93,6 +93,12 @@ export default function CategoriesPage() {
           title: "Imagen subida",
           description: "La imagen se ha cargado correctamente",
         })
+      } else if (data.error) {
+        toast({
+          variant: "destructive",
+          title: "Error del Servidor",
+          description: data.error,
+        })
       }
     } catch (error) {
       console.error("Upload error:", error)

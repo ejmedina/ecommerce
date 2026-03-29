@@ -188,6 +188,12 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
             title: "Imagen subida",
             description: "Imagen cargada y optimizada correctamente",
           })
+        } else if (data.error) {
+          toast({
+            variant: "destructive",
+            title: "Error del Servidor",
+            description: data.error,
+          })
         }
       }
     } catch (error) {
