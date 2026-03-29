@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Edit, Trash2, Loader2, X } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, X, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,8 +32,10 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    image: "",
     isActive: true,
   })
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     loadCategories()
@@ -53,7 +55,7 @@ export default function CategoriesPage() {
 
   const openCreateModal = () => {
     setEditingCategory(null)
-    setFormData({ name: "", description: "", isActive: true })
+    setFormData({ name: "", description: "", image: "", isActive: true })
     setShowModal(true)
   }
 
@@ -62,9 +64,41 @@ export default function CategoriesPage() {
     setFormData({
       name: category.name,
       description: category.description || "",
+      image: category.image || "",
       isActive: category.isActive,
     })
     setShowModal(true)
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("type", "category")
+
+      const res = await fetch("/api/admin/settings/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (data.url) {
+        setFormData(prev => ({ ...prev, image: data.url }))
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al subir imagen",
+      })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSave = async () => {
@@ -162,21 +196,34 @@ export default function CategoriesPage() {
           {categories.map((category) => (
             <Card key={category.id}>
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-base">{category.name}</CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openEditModal(category)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => handleDelete(category)}
-                      disabled={category._count.products > 0}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                <div className="flex gap-4">
+                  {category.image && (
+                    <div className="w-12 h-12 border rounded overflow-hidden flex-shrink-0 bg-muted">
+                      <img 
+                        src={category.image} 
+                        alt={category.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base">{category.name}</CardTitle>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal(category)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleDelete(category)}
+                          disabled={category._count.products > 0}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -217,6 +264,42 @@ export default function CategoriesPage() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ej: Remeras"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Imagen</Label>
+              <div className="flex gap-4 items-start">
+                <div className="w-24 h-24 border rounded overflow-hidden bg-muted flex items-center justify-center">
+                  {formData.image ? (
+                    <img 
+                      src={formData.image} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground text-center p-2">Sin imagen</span>
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Input
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="URL de la imagen"
+                  />
+                  <div className="relative">
+                    <Button variant="outline" size="sm" className="w-full" disabled={uploading}>
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                      Subir imagen
+                    </Button>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Descripción</Label>

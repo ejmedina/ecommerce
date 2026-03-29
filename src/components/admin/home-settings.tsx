@@ -169,29 +169,45 @@ export function HomeSettings({ data, onChange, onImageUpload }: HomeSettingsProp
                     </Button>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="text-xs">Imagen</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={slide.image}
-                        onChange={(e) => updateHeroSlide(index, "image", e.target.value)}
-                        placeholder="/uploads/slide.jpg"
-                        className="flex-1"
-                      />
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        className="w-auto"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            const url = await onImageUpload(file)
-                            if (url) updateHeroSlide(index, "image", url)
-                          }
-                        }}
-                      />
+                    <div className="flex gap-4 items-start">
+                      {slide.image && (
+                        <div className="w-20 h-20 border rounded overflow-hidden flex-shrink-0 bg-muted">
+                          <img 
+                            src={slide.image} 
+                            alt="Slide preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={slide.image}
+                            onChange={(e) => updateHeroSlide(index, "image", e.target.value)}
+                            placeholder="/uploads/slide.jpg"
+                            className="flex-1"
+                          />
+                          <div className="relative">
+                            <Button variant="outline" size="sm" className="h-10">
+                              <Upload className="h-4 w-4 mr-2" />
+                              Subir
+                            </Button>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  const url = await onImageUpload(file)
+                                  if (url) updateHeroSlide(index, "image", url)
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -277,29 +293,45 @@ export function HomeSettings({ data, onChange, onImageUpload }: HomeSettingsProp
                     </Button>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="text-xs">Imagen</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={card.image}
-                        onChange={(e) => updateCategoryCard(index, "image", e.target.value)}
-                        placeholder="/uploads/category.jpg"
-                        className="flex-1"
-                      />
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        className="w-auto"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            const url = await onImageUpload(file)
-                            if (url) updateCategoryCard(index, "image", url)
-                          }
-                        }}
-                      />
+                    <div className="flex gap-4 items-start">
+                      {card.image && (
+                        <div className="w-20 h-20 border rounded overflow-hidden flex-shrink-0 bg-muted">
+                          <img 
+                            src={card.image} 
+                            alt="Category preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={card.image}
+                            onChange={(e) => updateCategoryCard(index, "image", e.target.value)}
+                            placeholder="/uploads/category.jpg"
+                            className="flex-1"
+                          />
+                          <div className="relative">
+                            <Button variant="outline" size="sm" className="h-10">
+                              <Upload className="h-4 w-4 mr-2" />
+                              Subir
+                            </Button>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  const url = await onImageUpload(file)
+                                  if (url) updateCategoryCard(index, "image", url)
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
                   
                   <div className="space-y-1">
                     <Label className="text-xs">Título</Label>
