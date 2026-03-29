@@ -88,6 +88,11 @@ export default function CategoriesPage() {
       const data = await res.json()
       if (data.url) {
         setFormData(prev => ({ ...prev, image: data.url }))
+        toast({
+          variant: "success",
+          title: "Imagen subida",
+          description: "La imagen se ha cargado correctamente",
+        })
       }
     } catch (error) {
       console.error("Upload error:", error)

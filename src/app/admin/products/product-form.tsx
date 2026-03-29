@@ -183,6 +183,11 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
         const data = await res.json()
         if (data.url) {
           setImages(prev => [...prev, { url: data.url, alt: name || "" }])
+          toast({
+            variant: "success",
+            title: "Imagen subida",
+            description: "Imagen cargada y optimizada correctamente",
+          })
         }
       }
     } catch (error) {
