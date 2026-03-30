@@ -116,18 +116,8 @@ export async function createOrder(formData: FormData) {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
     // Get user - first check NextAuth session, then fallback to cart's user
-    let userId: string | null = null
-    
-    // Try to get logged in user from NextAuth
     const session = await auth()
-    if (session?.user?.id) {
-      userId = session.user.id
-    }
-    
-    // If no session user, check if cart has a userId
-    if (!userId && cart.userId) {
-      userId = cart.userId
-    }
+    let userId = session?.user?.id || cart.userId
 
     // If no userId still, check sessionId cookie
     if (!userId) {
@@ -135,11 +125,9 @@ export async function createOrder(formData: FormData) {
       if (sessionId) {
         const existingCart = await db.cart.findUnique({
           where: { sessionId },
-          include: { user: true }
+          select: { userId: true }
         })
-        if (existingCart?.userId) {
-          userId = existingCart.userId
-        }
+        userId = existingCart?.userId || null
       }
     }
 
@@ -160,12 +148,15 @@ export async function createOrder(formData: FormData) {
       userId = guestUser.id
     }
 
+    // Determine initial status based on settings
+    const initialStatus: OrderStatus = settings?.autoConfirmOrders ? "CONFIRMED" : "RECEIVED"
+
     // Create order
     const order = await db.order.create({
       data: {
         orderNumber,
-        userId,
-        status: "PENDING",
+        userId: userId!,
+        orderStatus: initialStatus,
         subtotal,
         shippingCost,
         taxAmount: 0,
@@ -193,7 +184,7 @@ export async function createOrder(formData: FormData) {
             sku: item.product.sku,
             price: item.product.price,
             quantityOrdered: item.quantity,
-            unitTotal: item.product.price * item.quantity,
+            unitTotal: Number(item.product.price) * item.quantity,
           }))
         }
       }
