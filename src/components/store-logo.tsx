@@ -1,24 +1,15 @@
-"use client"
-
-import { useEffect, useState } from "react"
 import Link from "next/link"
+import { db } from "@/lib/db"
 
-interface StoreSettings {
-  logo: string | null
-  logoWidth: number | null
-  logoHeight: number | null
-  storeName: string
-}
-
-export function StoreLogo() {
-  const [settings, setSettings] = useState<StoreSettings | null>(null)
-
-  useEffect(() => {
-    fetch("/api/admin/settings")
-      .then(res => res.json())
-      .then(data => setSettings(data))
-      .catch(console.error)
-  }, [])
+export async function StoreLogo() {
+  const settings = await db.storeSettings.findFirst({
+    select: {
+      logo: true,
+      logoWidth: true,
+      logoHeight: true,
+      storeName: true
+    }
+  })
 
   const storeName = settings?.storeName || process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda"
 

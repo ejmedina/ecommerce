@@ -37,8 +37,12 @@ export default async function StorefrontLayout({
               
               {/* Mobile Menu & Logo */}
               <div className="flex items-center gap-2 md:gap-4">
-                <StorefrontNav categories={categories} />
-                <StoreLogo />
+                <div className="flex items-center md:order-2">
+                  <StorefrontNav categories={categories} />
+                </div>
+                <div className="flex items-center md:order-1">
+                  <StoreLogo />
+                </div>
               </div>
 
               {/* Search Bar (Desktop only) */}
