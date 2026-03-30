@@ -148,6 +148,11 @@ export async function createOrder(formData: FormData) {
       userId = guestUser.id
     }
 
+    let finalPaymentMethod = paymentMethod
+    if (finalPaymentMethod === "MERCADOPAGO") {
+      finalPaymentMethod = "ONLINE_CARD"
+    }
+
     // Determine initial status based on settings
     const initialStatus: OrderStatus = settings?.autoConfirmOrders ? "CONFIRMED" : "RECEIVED"
 
@@ -175,7 +180,7 @@ export async function createOrder(formData: FormData) {
           postalCode,
           instructions: instructions || null,
         },
-        paymentMethod: paymentMethod as any,
+        paymentMethod: finalPaymentMethod as any,
         paymentStatus: "PENDING",
         items: {
           create: cart.items.map((item) => ({
@@ -196,7 +201,7 @@ export async function createOrder(formData: FormData) {
     })
 
     // For demo: return success (in production, would integrate with payment gateway)
-    return { orderId: order.id }
+    return { orderId: order.id, paymentUrl: undefined }
   } catch (error) {
     console.error("Order creation error:", error)
     return { error: "Error al procesar el pedido. Intentalo de nuevo." }

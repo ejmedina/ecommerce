@@ -370,6 +370,10 @@ model StoreSettings {
   fixedShippingCost   Decimal  @db.Decimal(10, 2) @default(0)
   
   bankAccount         Json?    // {bank, cbu, alias, name}
+  
+  // === CONFIGURACIÓN DE MEDIOS DE PAGO ===
+  // {"CASH_ON_DELIVERY": {isActive: true}, "BANK_TRANSFER": {isActive: true}, ...}
+  paymentMethods      Json?
 
   // === CONFIGURACIÓN DE FLUJO DE PEDIDOS ===
   // true = al crear un pedido pasa directamente a CONFIRMED

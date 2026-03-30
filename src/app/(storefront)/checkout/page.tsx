@@ -71,6 +71,7 @@ async function getSettings() {
     fixedShippingCost: Number(settings.fixedShippingCost),
     bankAccount: settings.bankAccount,
     shippingConfig: settings.shippingConfig,
+    paymentMethods: settings.paymentMethods as any,
   }
 }
 

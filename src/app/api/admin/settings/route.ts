@@ -10,14 +10,25 @@ export async function GET() {
   try {
     let settings = await db.storeSettings.findFirst()
 
+    const defaultPaymentMethods = {
+      ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
+      BANK_TRANSFER: { isActive: true, label: "Transferencia bancaria", description: "Confirmación manual" },
+      CASH_ON_DELIVERY: { isActive: true, label: "Efectivo contra entrega", description: "Al recibir el pedido" },
+      TRANSFER_ON_DELIVERY: { isActive: false, label: "Transferencia contra entrega", description: "Transferís al momento de recibir" },
+      CARD_ON_DELIVERY: { isActive: false, label: "Tarjeta contra entrega", description: "Llevamos posnet para crédito/débito" }
+    }
+
     // If no settings exist, create with defaults
     if (!settings) {
       settings = await db.storeSettings.create({
         data: {
           storeName: "Mi Tienda",
           shippingConfig: getDefaultShippingConfig(),
+          paymentMethods: defaultPaymentMethods,
         },
       })
+    } else if (!(settings as any).paymentMethods) {
+      (settings as any).paymentMethods = defaultPaymentMethods as any
     }
 
     return NextResponse.json(settings)
@@ -64,6 +75,7 @@ export async function PUT(req: NextRequest) {
       infoCards,
       // Theme colors
       themeColors,
+      paymentMethods,
     } = body
 
     // Get existing settings to check if shippingConfig needs default
@@ -110,6 +122,9 @@ export async function PUT(req: NextRequest) {
 
     // Update theme colors if provided
     if (themeColors !== undefined) updateData.themeColors = themeColors
+
+    // Update payment methods if provided
+    if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods
 
     // Update store URL if provided
     if (storeUrl !== undefined) updateData.storeUrl = storeUrl

@@ -28,12 +28,12 @@ interface SavedAddress {
   label: string
   street: string
   number: string
-  floor?: string
-  apartment?: string
+  floor?: string | null
+  apartment?: string | null
   city: string
   state: string
   postalCode: string
-  instructions?: string
+  instructions?: string | null
   isDefault: boolean
 }
 
@@ -56,7 +56,8 @@ interface CheckoutStepsProps {
     freeShippingMin: unknown
     fixedShippingCost: unknown
     bankAccount: unknown
-    shippingConfig: ShippingConfig | null
+    shippingConfig: any
+    paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
   }
   subtotal: number
   user?: { id: string; email?: string | null; name?: string | null } | null
@@ -84,7 +85,16 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
   const [completedSteps, setCompletedSteps] = useState<Set<Step>>(initialCompleted)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">("pickup")
-  const [paymentMethod, setPaymentMethod] = useState<"MERCADOPAGO" | "BANK_TRANSFER" | "CASH_ON_DELIVERY">("MERCADOPAGO")
+  
+  const defaultPaymentMethods: Record<string, { isActive: boolean; label: string; description: string }> = {
+    ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
+    BANK_TRANSFER: { isActive: true, label: "Transferencia bancaria", description: "Confirmación manual" },
+    CASH_ON_DELIVERY: { isActive: true, label: "Efectivo contra entrega", description: "Al recibir el pedido" }
+  }
+  const paymentMethodsConfig = settings.paymentMethods || defaultPaymentMethods
+  const activeMethods = Object.keys(paymentMethodsConfig).filter(k => paymentMethodsConfig[k].isActive)
+  
+  const [paymentMethod, setPaymentMethod] = useState<string>(activeMethods[0] || "ONLINE_CARD")
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(addresses.find(a => a.isDefault)?.id || null)
   const [showNewAddressForm, setShowNewAddressForm] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState(addresses)
@@ -676,30 +686,18 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                 <CardTitle>Método de pago</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col">
-                <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as typeof paymentMethod)}>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4 mb-2">
-                    <RadioGroupItem value="MERCADOPAGO" id="mp" />
-                    <Label htmlFor="mp" className="flex-1 cursor-pointer">
-                      <strong>Mercado Pago</strong>
-                      <span className="text-muted-foreground ml-2">Pago online seguro</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4 mb-2">
-                    <RadioGroupItem value="BANK_TRANSFER" id="transfer" />
-                    <Label htmlFor="transfer" className="flex-1 cursor-pointer">
-                      <strong>Transferencia bancaria</strong>
-                      <span className="text-muted-foreground ml-2">Confirmación manual</span>
-                    </Label>
-                  </div>
-                  {shippingMethod === "pickup" && (
-                    <div className="flex items-center space-x-2 border rounded-lg p-4">
-                      <RadioGroupItem value="CASH_ON_DELIVERY" id="cash" />
-                      <Label htmlFor="cash" className="flex-1 cursor-pointer">
-                        <strong>Efectivo</strong>
-                        <span className="text-muted-foreground ml-2">Al retirar</span>
-                      </Label>
+                <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v)}>
+                  {Object.entries(paymentMethodsConfig)
+                    .filter(([_, method]) => method.isActive)
+                    .map(([key, method]) => (
+                    <div key={key} className="flex items-center space-x-2 border rounded-lg p-4 mb-2">
+                       <RadioGroupItem value={key} id={`pm-${key}`} />
+                       <Label htmlFor={`pm-${key}`} className="flex-1 cursor-pointer">
+                         <strong>{method.label}</strong>
+                         <span className="text-muted-foreground ml-2">{method.description}</span>
+                       </Label>
                     </div>
-                  )}
+                  ))}
                 </RadioGroup>
                 <div className="mt-auto">
                   <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
@@ -722,7 +720,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                   {shippingMethod === "shipping" && (
                     <p><strong>Dirección:</strong> {formData.street} {formData.number}, {formData.city}, {formData.state}</p>
                   )}
-                  <p><strong>Método de pago:</strong> {paymentMethod === "MERCADOPAGO" ? "Mercado Pago" : paymentMethod === "BANK_TRANSFER" ? "Transferencia bancaria" : "Efectivo"}</p>
+                  <p><strong>Método de pago:</strong> {paymentMethodsConfig[paymentMethod]?.label || paymentMethod}</p>
                 </div>
 
                 <div className="bg-primary/10 p-4 rounded-lg border border-primary">

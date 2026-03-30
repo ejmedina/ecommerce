@@ -36,6 +36,7 @@ interface StoreSettings {
   requiresPaymentToFulfill: boolean
   whatsappPreArrivalMessage: string | null
   themeColors: ThemeColors | null
+  paymentMethods: Record<string, { isActive: boolean, label: string, description: string }> | null
 }
 
 export function SettingsForm() {
@@ -59,6 +60,15 @@ export function SettingsForm() {
 
   // Theme colors state
   const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
+
+  // Payment methods state
+  const [paymentMethods, setPaymentMethods] = useState<Record<string, { isActive: boolean, label: string, description: string }>>({
+    ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
+    BANK_TRANSFER: { isActive: true, label: "Transferencia bancaria", description: "Confirmación manual" },
+    CASH_ON_DELIVERY: { isActive: true, label: "Efectivo contra entrega", description: "Al recibir el pedido" },
+    TRANSFER_ON_DELIVERY: { isActive: false, label: "Transferencia contra entrega", description: "Transferís al momento de recibir" },
+    CARD_ON_DELIVERY: { isActive: false, label: "Tarjeta contra entrega", description: "Llevamos posnet para crédito/débito" }
+  })
 
   useEffect(() => {
     loadSettings()
@@ -93,6 +103,11 @@ export function SettingsForm() {
       if (data.themeColors) {
         setThemeColors(data.themeColors)
       }
+
+      // Load payment methods
+      if (data.paymentMethods) {
+        setPaymentMethods(data.paymentMethods)
+      }
     } catch (error) {
       console.error("Error loading settings:", error)
     } finally {
@@ -118,6 +133,7 @@ export function SettingsForm() {
           requiresPaymentToFulfill,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
           themeColors,
+          paymentMethods,
           storeUrl: storeUrl || null,
         }),
       })
@@ -213,6 +229,13 @@ export function SettingsForm() {
       ? zone.provinces.filter(p => p !== provinceId)
       : [...zone.provinces, provinceId]
     updateZone(zoneIndex, { provinces })
+  }
+
+  const togglePaymentMethod = (key: string, checked: boolean) => {
+    setPaymentMethods(prev => ({
+      ...prev,
+      [key]: { ...prev[key], isActive: checked }
+    }))
   }
 
   const updateThemeColor = (key: keyof ThemeColors, value: string) => {
@@ -524,6 +547,33 @@ export function SettingsForm() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Methods */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Medios de Pago</CardTitle>
+              <CardDescription>Configura los métodos de pago habilitados para tus clientes</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(paymentMethods).map(([key, method]) => (
+                <div key={key} className="flex items-start space-x-3">
+                  <Checkbox
+                    id={`payment-${key}`}
+                    checked={method.isActive}
+                    onCheckedChange={(checked) => togglePaymentMethod(key, !!checked)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor={`payment-${key}`} className="font-medium cursor-pointer">
+                      {method.label}
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      {method.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
