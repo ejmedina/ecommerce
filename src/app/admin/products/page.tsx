@@ -164,7 +164,11 @@ export default async function ProductsPage(props: {
                       </td>
                       <td className="px-6 py-3 text-right">
                         <Link href={`/admin/products/${product.id}`}>
-                          <Button variant="outline" size="sm" className="group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="group-hover:bg-primary group-hover:text-white hover:!bg-primary/90 hover:!text-white transition-all shadow-sm"
+                          >
                             <Edit className="h-4 w-4 mr-1.5" />
                             Editar
                           </Button>
