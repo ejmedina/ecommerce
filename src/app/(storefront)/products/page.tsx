@@ -58,11 +58,10 @@ async function getProducts(params: { category?: string; s?: string }) {
   }
 }
 
+import { getStorefrontCategories } from "@/lib/categories"
+
 async function getCategories() {
-  return db.category.findMany({
-    where: { isActive: true, parentId: null },
-    include: { children: { where: { isActive: true } } },
-  })
+  return getStorefrontCategories()
 }
 
 export default async function ProductsPage({ searchParams }: Props) {

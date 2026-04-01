@@ -5,7 +5,7 @@ import { CartButton } from "@/components/cart-button"
 import { FloatingCart } from "@/components/floating-cart"
 import { StoreLogo } from "@/components/store-logo"
 import { StorefrontNav } from "@/components/storefront-nav"
-import { db } from "@/lib/db"
+import { getStorefrontCategories } from "@/lib/categories"
 import { auth, canAccessAdmin } from "@/lib/auth"
 import { LayoutDashboard } from "lucide-react"
 
@@ -16,16 +16,9 @@ export default async function StorefrontLayout({
 }) {
   const session = await auth()
   const isAdmin = session?.user?.role ? canAccessAdmin(session.user.role) : false
-  // Fetch categories for the navigation
-  const categories = await db.category.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-    },
-    orderBy: { order: "asc" },
-  })
+  
+  // Fetch categories for the navigation with products/stock filter
+  const categories = await getStorefrontCategories()
 
   return (
     <CartProvider>
