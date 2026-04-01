@@ -121,13 +121,47 @@ export async function updateProduct(formData: FormData) {
 
 export async function deleteProduct(id: string) {
   try {
+    // Check if product exists and if it has relations that would prevent deletion
+    const product = await db.product.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            orderItems: true,
+            cartItems: true
+          }
+        }
+      }
+    })
+
+    if (!product) {
+      console.error(`[DELETE_PRODUCT] Product with ID ${id} not found.`)
+      return { error: "El producto no existe." }
+    }
+
+    if (product._count.orderItems > 0) {
+      console.warn(`[DELETE_PRODUCT] Cannot delete product ${id} (${product.name}) because it has ${product._count.orderItems} orders associated.`)
+      return { error: "No se puede eliminar el producto porque tiene pedidos asociados. Mejor márcalo como inactivo." }
+    }
+
     await db.product.delete({ where: { id } })
+    
     revalidatePath("/admin/products")
     revalidatePath("/")
     revalidatePath("/products")
+    
     return { success: true }
-  } catch (error) {
-    console.error("Delete product error:", error)
-    return { error: "Error al eliminar el producto" }
+  } catch (error: any) {
+    console.error("[DELETE_PRODUCT_ERROR]", {
+      productId: id,
+      error: error?.message || error,
+      code: error?.code
+    })
+    
+    if (error?.code === 'P2003') {
+      return { error: "No se puede eliminar: el producto está siendo referenciado por otros registros (carritos u órdenes)." }
+    }
+    
+    return { error: "Error inesperado al eliminar el producto. Revisa los logs del servidor." }
   }
 }
