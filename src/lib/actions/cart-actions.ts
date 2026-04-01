@@ -87,7 +87,7 @@ export async function addToCart(formData: FormData) {
     return { error: "Producto no encontrado" }
   }
 
-  if (product.stock < quantity) {
+  if (!product.hasPermanentStock && product.stock < quantity) {
     return { error: "No hay suficiente stock" }
   }
 
@@ -100,7 +100,7 @@ export async function addToCart(formData: FormData) {
 
   if (existingItem) {
     const newQuantity = existingItem.quantity + quantity
-    if (newQuantity > product.stock) {
+    if (!product.hasPermanentStock && newQuantity > product.stock) {
       return { error: "No hay suficiente stock" }
     }
     await db.cartItem.update({
@@ -134,7 +134,7 @@ export async function updateCartItem(itemId: string, quantity: number) {
     return { error: "Item no encontrado" }
   }
 
-  if (quantity > item.product.stock) {
+  if (!item.product.hasPermanentStock && quantity > item.product.stock) {
     return { error: "No hay suficiente stock" }
   }
 

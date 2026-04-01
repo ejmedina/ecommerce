@@ -25,7 +25,13 @@ export default async function HomePage() {
 
   // Get best sellers products
   const bestSellers = await db.product.findMany({
-    where: { isActive: true },
+    where: { 
+      isActive: true,
+      OR: [
+        { stock: { gt: 0 } },
+        { hasPermanentStock: true }
+      ]
+    },
     orderBy: { createdAt: "desc" },
     take: settings.bestSellersLimit || 6,
     include: {

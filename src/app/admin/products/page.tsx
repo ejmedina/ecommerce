@@ -74,7 +74,7 @@ export default async function ProductsPage() {
                       <strong>Precio anterior:</strong> ${Number(product.comparePrice).toLocaleString("es-AR")}
                     </p>
                   )}
-                  <p><strong>Stock:</strong> {product.stock}</p>
+                  <p><strong>Stock:</strong> {product.stock} {product.hasPermanentStock && <span className="text-muted-foreground text-xs">(Permanente)</span>}</p>
                   <p><strong>Categoría:</strong> {product.category?.name || "Sin categoría"}</p>
                 </div>
               </CardContent>

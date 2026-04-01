@@ -100,7 +100,11 @@ export default async function ProductPage({ params }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            {product.stock > 0 ? (
+            {product.hasPermanentStock ? (
+              <span className="text-sm text-green-600 font-medium">
+                En stock
+              </span>
+            ) : product.stock > 0 ? (
               <span className="text-sm text-green-600 font-medium">
                 En stock ({product.stock} disponibles)
               </span>
@@ -117,7 +121,7 @@ export default async function ProductPage({ params }: Props) {
             </div>
           )}
 
-          {product.stock > 0 && (
+          {(product.stock > 0 || product.hasPermanentStock) && (
             <form action={addToCart} className="space-y-4">
               <input type="hidden" name="productId" value={product.id} />
               <div className="flex gap-4">
@@ -125,7 +129,7 @@ export default async function ProductPage({ params }: Props) {
                   type="number"
                   name="quantity"
                   min={1}
-                  max={product.stock}
+                  max={product.hasPermanentStock ? 100 : product.stock}
                   defaultValue={1}
                   className="w-20 h-10 border rounded-md px-3"
                 />

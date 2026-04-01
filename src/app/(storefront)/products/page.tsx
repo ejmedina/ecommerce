@@ -25,15 +25,42 @@ async function getProducts(params: { category?: string; brand?: string; s?: stri
     ]
   }
 
-  return db.product.findMany({
-    where,
-    include: {
-      images: { take: 1, orderBy: { order: "asc" } },
-      category: true,
-      brand: true,
-    },
-    orderBy: { createdAt: "desc" },
-  })
+  if (params.s) {
+    const products = await db.product.findMany({
+      where,
+      include: {
+        images: { take: 1, orderBy: { order: "asc" } },
+        category: true,
+        brand: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    
+    // For searches, show all but sort out-of-stock items at the end
+    return products.sort((a, b) => {
+      const aInStock = a.stock > 0 || a.hasPermanentStock
+      const bInStock = b.stock > 0 || b.hasPermanentStock
+      if (aInStock && !bInStock) return -1
+      if (!aInStock && bInStock) return 1
+      return 0
+    })
+  } else {
+    // For browsing (categories, brands, all), strictly hide out of stock
+    where.OR = [
+      { stock: { gt: 0 } },
+      { hasPermanentStock: true }
+    ]
+    
+    return db.product.findMany({
+      where,
+      include: {
+        images: { take: 1, orderBy: { order: "asc" } },
+        category: true,
+        brand: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+  }
 }
 
 async function getCategories() {

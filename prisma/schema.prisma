@@ -118,6 +118,7 @@ model Product {
 
   sku             String?      @unique
   stock           Int          @default(0)
+  hasPermanentStock Boolean    @default(false)
 
   price           Decimal      @db.Decimal(10, 2)
   comparePrice    Decimal?     @db.Decimal(10, 2)

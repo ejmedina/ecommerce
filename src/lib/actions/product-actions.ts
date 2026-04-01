@@ -20,6 +20,7 @@ export async function createProduct(formData: FormData) {
     const imageAlt = formData.get("imageAlt") as string || null
     const isActive = formData.get("isActive") === "1"
     const isFeatured = formData.get("isFeatured") === "1"
+    const hasPermanentStock = formData.get("hasPermanentStock") === "1"
 
     const slug = slugify(name)
 
@@ -42,6 +43,7 @@ export async function createProduct(formData: FormData) {
         metaDescription,
         isActive,
         isFeatured,
+        hasPermanentStock,
         publishedAt: isActive ? new Date() : null,
         ...(imageUrl && {
           images: {
@@ -79,6 +81,7 @@ export async function updateProduct(formData: FormData) {
     const imageAlt = formData.get("imageAlt") as string || null
     const isActive = formData.get("isActive") === "1"
     const isFeatured = formData.get("isFeatured") === "1"
+    const hasPermanentStock = formData.get("hasPermanentStock") === "1"
 
     const product = await db.product.update({
       where: { id },
@@ -95,6 +98,7 @@ export async function updateProduct(formData: FormData) {
         metaDescription,
         isActive,
         isFeatured,
+        hasPermanentStock,
         publishedAt: isActive ? new Date() : null,
       },
     })

@@ -42,6 +42,7 @@ interface Product {
   isActive: boolean
   isFeatured: boolean
   images: { id: string; url: string; alt: string | null }[]
+  hasPermanentStock: boolean
 }
 
 interface ProductFormProps {
@@ -80,6 +81,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
   const [metaDescription, setMetaDescription] = useState(product?.metaDescription || "")
   const [isActive, setIsActive] = useState(product?.isActive || false)
   const [isFeatured, setIsFeatured] = useState(product?.isFeatured || false)
+  const [hasPermanentStock, setHasPermanentStock] = useState(product?.hasPermanentStock || false)
   const [images, setImages] = useState<{ url: string; alt: string }[]>(
     product?.images?.map(img => ({ url: img.url, alt: img.alt || "" })) || []
   )
@@ -101,6 +103,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       if (metaDescription) formData.set("metaDescription", metaDescription)
       formData.set("isActive", isActive ? "1" : "0")
       formData.set("isFeatured", isFeatured ? "1" : "0")
+      formData.set("hasPermanentStock", hasPermanentStock ? "1" : "0")
       if (images.length > 0) {
         formData.set("imageUrl", images[0].url)
         formData.set("imageAlt", images[0].alt || name)
@@ -602,6 +605,20 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
               </div>
               <p className="text-xs text-muted-foreground">
                 Los productos inactivos no son visibles en la tienda
+              </p>
+              <Separator />
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasPermanentStock"
+                  checked={hasPermanentStock}
+                  onCheckedChange={(checked) => setHasPermanentStock(!!checked)}
+                />
+                <Label htmlFor="hasPermanentStock" className="cursor-pointer font-medium">
+                  Stock permanente
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Se muestra siempre con stock, ideal para productos dropshipping
               </p>
               <Separator />
               <div className="flex items-center space-x-2">
