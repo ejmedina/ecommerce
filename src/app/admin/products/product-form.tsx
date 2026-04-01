@@ -60,6 +60,9 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories)
+  const [localBrands, setLocalBrands] = useState<Brand[]>(brands)
   
   // Inline create states
   const [showNewCategory, setShowNewCategory] = useState(false)
@@ -228,10 +231,16 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       })
       const data = await res.json()
       if (data.id) {
-        const newCategory = { id: data.id, name: data.name, slug: data.slug }
+        const newCategory = { 
+          id: data.id, 
+          name: data.name, 
+          slug: data.slug,
+          parentId: data.parentId || null 
+        }
+        setLocalCategories(prev => [...prev, newCategory])
         setCategoryId(data.id)
         if (onCategoriesChange) {
-          onCategoriesChange([...categories, newCategory])
+          onCategoriesChange([...localCategories, newCategory])
         }
         setNewCategoryName("")
         setShowNewCategory(false)
@@ -267,9 +276,10 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       const data = await res.json()
       if (data.id) {
         const newBrand = { id: data.id, name: data.name, slug: data.slug }
+        setLocalBrands(prev => [...prev, newBrand])
         setBrandId(data.id)
         if (onBrandsChange) {
-          onBrandsChange([...brands, newBrand])
+          onBrandsChange([...localBrands, newBrand])
         }
         setNewBrandName("")
         setShowNewBrand(false)
@@ -295,7 +305,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
   // Helper for hierarchical select
   const sortedCategories = useMemo(() => {
     const buildFlatTree = (parentId: string | null = null, depth = 0): (Category & { depth: number })[] => {
-      return categories
+      return localCategories
         .filter(c => c.parentId === parentId)
         .map(c => [
           { ...c, depth },
@@ -304,7 +314,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
         .flat()
     }
     return buildFlatTree(null)
-  }, [categories])
+  }, [localCategories])
 
   return (
     <div className="space-y-6">
@@ -552,7 +562,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
                       className="w-full h-10 px-3 border rounded-md bg-background"
                     >
                       <option value="">Sin marca</option>
-                      {brands.map(brand => (
+                      {localBrands.map(brand => (
                         <option key={brand.id} value={brand.id}>{brand.name}</option>
                       ))}
                     </select>
