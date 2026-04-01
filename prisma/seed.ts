@@ -58,25 +58,7 @@ async function main() {
   })
   console.log("✅ Created 3 customer users")
 
-  // Create brands
-  const brands = await Promise.all([
-    prisma.brand.upsert({
-      where: { slug: "techmax" },
-      update: {},
-      create: { name: "TechMax", slug: "techmax", isActive: true },
-    }),
-    prisma.brand.upsert({
-      where: { slug: "home-style" },
-      update: {},
-      create: { name: "HomeStyle", slug: "home-style", isActive: true },
-    }),
-    prisma.brand.upsert({
-      where: { slug: "sportpro" },
-      update: {},
-      create: { name: "SportPro", slug: "sportpro", isActive: true },
-    }),
-  ])
-  console.log("✅ Created brands")
+  console.log("✅ Brands bypassed")
 
   // Create categories
   const electronica = await prisma.category.upsert({
@@ -104,7 +86,6 @@ async function main() {
       name: "Auriculares Bluetooth Pro",
       slug: "auriculares-bluetooth-pro",
       description: "Auriculares wireless con cancelación de ruido y 30h de batería",
-      brandId: brands[0].id,
       categoryId: electronica.id,
       sku: "TECH-AUD-001",
       stock: 50,
@@ -117,7 +98,6 @@ async function main() {
       name: "Smartwatch Fitness",
       slug: "smartwatch-fitness",
       description: "Reloj inteligente con monitor de ritmo cardíaco y GPS",
-      brandId: brands[0].id,
       categoryId: electronica.id,
       sku: "TECH-WATCH-001",
       stock: 30,
@@ -130,7 +110,6 @@ async function main() {
       name: "Juego de Sábanas Algodón",
       slug: "sabanas-algodon-premium",
       description: "Juego de sábanas 4 piezas 100% algodón egipcio",
-      brandId: brands[1].id,
       categoryId: hogar.id,
       sku: "HOME-SAB-001",
       stock: 100,
@@ -143,7 +122,6 @@ async function main() {
       name: "Set de Vajilla 12 Piezas",
       slug: "set-vajilla-12-piezas",
       description: "Vajilla de cerámica con diseño moderno",
-      brandId: brands[1].id,
       categoryId: hogar.id,
       sku: "HOME-VAJ-001",
       stock: 25,
@@ -155,7 +133,6 @@ async function main() {
       name: "Pelota de Fútbol Profesional",
       slug: "pelota-futbol-profesional",
       description: "Pelota de fútbol profesional FIFA approved",
-      brandId: brands[2].id,
       categoryId: deportes.id,
       sku: "SPORT-FUT-001",
       stock: 200,
@@ -167,7 +144,6 @@ async function main() {
       name: "Mancuernas 10kg Par",
       slug: "mancuernas-10kg",
       description: "Pesas ajustables recubiertas en vinilo",
-      brandId: brands[2].id,
       categoryId: deportes.id,
       sku: "SPORT-MAN-001",
       stock: 40,

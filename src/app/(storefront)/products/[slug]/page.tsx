@@ -26,11 +26,10 @@ export default async function ProductPage({ params }: Props) {
   const { slug } = await params
   const product = await db.product.findUnique({
     where: { slug, isActive: true },
-    include: {
-      images: { orderBy: { order: "asc" } },
-      category: true,
-      brand: true,
-    },
+      include: {
+        images: { orderBy: { order: "asc" } },
+        category: true,
+      },
   })
 
   if (!product) {
@@ -77,9 +76,6 @@ export default async function ProductPage({ params }: Props) {
 
         {/* Product Info */}
         <div className="space-y-6">
-          {product.brand && (
-            <p className="text-sm text-muted-foreground">{product.brand.name}</p>
-          )}
           
           <div>
             <h1 className="text-3xl font-bold mb-2">{product.name}</h1>

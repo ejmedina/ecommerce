@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Plus, Edit, Trash2, Loader2, Upload, ChevronRight, ChevronDown, Folder, Tag, MoreVertical } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, Upload, ChevronRight, ChevronDown, Folder, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -27,30 +26,16 @@ interface Category {
   }
 }
 
-interface Brand {
-  id: string
-  name: string
-  slug: string
-  logo: string | null
-  isActive: boolean
-  _count: {
-    products: number
-  }
-}
-
 interface CategoryNode extends Category {
   children: CategoryNode[]
 }
 
 export default function CatalogPage() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("categories")
 
   // Modals state
   const [showCategoryModal, setShowCategoryModal] = useState(false)
-  const [showBrandModal, setShowBrandModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -64,30 +49,18 @@ export default function CatalogPage() {
     parentId: "" as string | null,
   })
 
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null)
-  const [brandForm, setBrandForm] = useState({
-    name: "",
-    logo: "",
-    isActive: true,
-  })
-
   // Tree state
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [catRes, brandRes] = await Promise.all([
-        fetch("/api/admin/categories"),
-        fetch("/api/admin/brands")
-      ])
+      const catRes = await fetch("/api/admin/categories")
       const categoriesData = await catRes.json()
-      const brandsData = await brandRes.json()
       setCategories(Array.isArray(categoriesData) ? categoriesData : [])
-      setBrands(Array.isArray(brandsData) ? brandsData : [])
     } catch (error) {
       console.error("Error loading data:", error)
-      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." })
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar las categorías." })
     } finally {
       setLoading(false)
     }
@@ -185,83 +158,19 @@ export default function CatalogPage() {
     }
   }
 
-  // --- Brand Actions ---
-  const openCreateBrand = () => {
-    setEditingBrand(null)
-    setBrandForm({ name: "", logo: "", isActive: true })
-    setShowBrandModal(true)
-  }
-
-  const openEditBrand = (brand: Brand) => {
-    setEditingBrand(brand)
-    setBrandForm({
-      name: brand.name,
-      logo: brand.logo || "",
-      isActive: brand.isActive,
-    })
-    setShowBrandModal(true)
-  }
-
-  const handleSaveBrand = async () => {
-    setSaving(true)
-    try {
-      const res = editingBrand
-        ? await fetch("/api/admin/brands", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...brandForm, id: editingBrand.id }),
-          })
-        : await fetch("/api/admin/brands", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(brandForm),
-          })
-
-      if (res.ok) {
-        setShowBrandModal(false)
-        loadData()
-        toast({ title: "Éxito", description: "Marca guardada correctamente." })
-      } else {
-        const data = await res.json()
-        toast({ variant: "destructive", title: "Error", description: data.error || "Error al guardar." })
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Error al guardar." })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDeleteBrand = async (brand: Brand) => {
-    if (!confirm(`¿Estás seguro de eliminar "${brand.name}"?`)) return
-    try {
-      const res = await fetch(`/api/admin/brands?id=${brand.id}`, { method: "DELETE" })
-      if (res.ok) {
-        loadData()
-        toast({ title: "Eliminado", description: "La marca ha sido eliminada." })
-      } else {
-        const data = await res.json()
-        toast({ variant: "destructive", title: "Error", description: data.error || "Error al eliminar." })
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Error al eliminar." })
-    }
-  }
-
   // --- Image Upload ---
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'logo') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("type", field === 'image' ? "category" : "brand")
+      formData.append("type", "category")
       const res = await fetch("/api/admin/settings/upload", { method: "POST", body: formData })
       const data = await res.json()
       if (data.url) {
-        if (field === 'image') setCategoryForm(prev => ({ ...prev, image: data.url }))
-        else setBrandForm(prev => ({ ...prev, logo: data.url }))
+        setCategoryForm(prev => ({ ...prev, image: data.url }))
         toast({ title: "Imagen subida", description: "La imagen se cargó con éxito." })
       }
     } catch (error) {
@@ -284,91 +193,35 @@ export default function CatalogPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Catálogo</h1>
-          <p className="text-muted-foreground">Administra las marcas y categorías jerárquicas de tu tienda.</p>
+          <p className="text-muted-foreground">Administra las categorías jerárquicas de tu tienda.</p>
         </div>
+        <Button onClick={() => openCreateCategory()}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nueva Categoría Raíz
+        </Button>
       </div>
 
-      <Tabs defaultValue="categories" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
-          <TabsTrigger value="categories" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3">Categorías</TabsTrigger>
-          <TabsTrigger value="brands" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-3">Marcas</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="categories" className="pt-6 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openCreateCategory()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Categoría Raíz
-            </Button>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-               <div className="divide-y">
-                 {categoriesTree.length === 0 ? (
-                   <div className="p-8 text-center text-muted-foreground">No hay categorías cargadas.</div>
-                 ) : (
-                   categoriesTree.map(cat => (
-                     <CategoryTreeNode 
-                       key={cat.id} 
-                       node={cat} 
-                       expandedIds={expandedIds} 
-                       onToggle={toggleExpand} 
-                       onEdit={openEditCategory} 
-                       onDelete={handleDeleteCategory} 
-                       onAddChild={openCreateCategory} 
-                     />
-                   ))
-                 )}
-               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="brands" className="pt-6 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={openCreateBrand}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Marca
-            </Button>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {brands.length === 0 ? (
-              <Card className="col-span-full border-dashed p-12 flex flex-col items-center justify-center text-center">
-                <Tag className="h-12 w-12 text-muted-foreground/20 mb-4" />
-                <h3 className="font-medium text-lg text-muted-foreground">No hay marcas registradas</h3>
-                <p className="text-sm text-muted-foreground">Comienza añadiendo una nueva marca para tus productos.</p>
-              </Card>
+      <Card>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {categoriesTree.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No hay categorías cargadas.</div>
             ) : (
-              brands.map(brand => (
-                <Card key={brand.id} className="group overflow-hidden">
-                  <div className="aspect-[4/3] bg-muted relative flex items-center justify-center p-6 transition-colors group-hover:bg-muted/80">
-                    {brand.logo ? (
-                      <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
-                    ) : (
-                      <Tag className="h-10 w-10 text-muted-foreground/30" />
-                    )}
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="flex gap-1">
-                        <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => openEditBrand(brand)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => handleDeleteBrand(brand)} disabled={brand._count.products > 0}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                       <div className="min-w-0">
-                          <h3 className="font-semibold truncate">{brand.name}</h3>
-                          <p className="text-xs text-muted-foreground">{brand._count.products} productos</p>
-                       </div>
-                       {!brand.isActive && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">Inactiva</span>}
-                    </div>
-                  </CardContent>
-                </Card>
+              categoriesTree.map(cat => (
+                <CategoryTreeNode 
+                  key={cat.id} 
+                  node={cat} 
+                  expandedIds={expandedIds} 
+                  onToggle={toggleExpand} 
+                  onEdit={openEditCategory} 
+                  onDelete={handleDeleteCategory} 
+                  onAddChild={openCreateCategory} 
+                />
               ))
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
       {/* category modal */}
       <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
@@ -408,7 +261,7 @@ export default function CatalogPage() {
                         {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                         Subir Imagen
                       </Button>
-                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageUpload(e, 'image')} disabled={uploading} />
+                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} disabled={uploading} />
                    </div>
                    <Input value={categoryForm.image} onChange={e => setCategoryForm(prev => ({ ...prev, image: e.target.value }))} placeholder="O pega una URL" className="text-xs h-8" />
                 </div>
@@ -428,46 +281,6 @@ export default function CatalogPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCategoryModal(false)}>Cancelar</Button>
             <Button onClick={handleSaveCategory} disabled={saving || !categoryForm.name}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* brand modal */}
-      <Dialog open={showBrandModal} onOpenChange={setShowBrandModal}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{editingBrand ? "Editar Marca" : "Nueva Marca"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input value={brandForm.name} onChange={e => setBrandForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Samsung" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Logo</Label>
-              <div className="flex gap-4 items-center">
-                <div className="w-20 h-20 border rounded bg-muted flex-shrink-0 flex items-center justify-center overflow-hidden p-2">
-                   {brandForm.logo ? <img src={brandForm.logo} className="w-full h-full object-contain" /> : <Tag className="h-8 w-8 text-muted-foreground/30" />}
-                </div>
-                <div className="flex-1 space-y-2">
-                   <div className="relative">
-                      <Button variant="outline" size="sm" className="w-full" disabled={uploading}>Subir Logo</Button>
-                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageUpload(e, 'logo')} disabled={uploading} />
-                   </div>
-                   <Input value={brandForm.logo} onChange={e => setBrandForm(prev => ({ ...prev, logo: e.target.value }))} placeholder="URL del logo" className="text-xs h-8" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox id="brand-active" checked={brandForm.isActive} onCheckedChange={v => setBrandForm(prev => ({ ...prev, isActive: !!v }))} />
-              <Label htmlFor="brand-active" className="text-sm font-normal">Marca activa</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowBrandModal(false)}>Cancelar</Button>
-            <Button onClick={handleSaveBrand} disabled={saving || !brandForm.name}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

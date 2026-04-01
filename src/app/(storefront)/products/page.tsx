@@ -6,17 +6,14 @@ import { AddToCartButton } from "@/components/add-to-cart-button"
 export const dynamic = "force-dynamic"
 
 interface Props {
-  searchParams: Promise<{ category?: string; brand?: string; s?: string }>
+  searchParams: Promise<{ category?: string; s?: string }>
 }
 
-async function getProducts(params: { category?: string; brand?: string; s?: string }) {
+async function getProducts(params: { category?: string; s?: string }) {
   const where: Record<string, unknown> = { isActive: true }
 
   if (params.category) {
     where.category = { slug: params.category }
-  }
-  if (params.brand) {
-    where.brand = { slug: params.brand }
   }
   if (params.s) {
     where.OR = [
@@ -31,7 +28,6 @@ async function getProducts(params: { category?: string; brand?: string; s?: stri
       include: {
         images: { take: 1, orderBy: { order: "asc" } },
         category: true,
-        brand: true,
       },
       orderBy: { createdAt: "desc" },
     })
@@ -56,7 +52,6 @@ async function getProducts(params: { category?: string; brand?: string; s?: stri
       include: {
         images: { take: 1, orderBy: { order: "asc" } },
         category: true,
-        brand: true,
       },
       orderBy: { createdAt: "desc" },
     })

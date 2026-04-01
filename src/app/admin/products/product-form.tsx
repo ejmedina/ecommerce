@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { createProduct, updateProduct, deleteProduct } from "@/lib/actions/product-actions"
-import { formatCurrency } from "@/lib/utils"
 import { toast } from "@/components/ui/use-toast"
 
 interface Category {
@@ -19,12 +18,6 @@ interface Category {
   name: string
   slug: string
   parentId?: string | null
-}
-
-interface Brand {
-  id: string
-  name: string
-  slug: string
 }
 
 interface Product {
@@ -37,7 +30,6 @@ interface Product {
   comparePrice: any | null
   description: string | null
   categoryId: string | null
-  brandId: string | null
   metaTitle: string | null
   metaDescription: string | null
   isActive: boolean
@@ -49,12 +41,10 @@ interface Product {
 interface ProductFormProps {
   product?: Product
   categories: Category[]
-  brands: Brand[]
   onCategoriesChange?: (categories: Category[]) => void
-  onBrandsChange?: (brands: Brand[]) => void
 }
 
-export function ProductForm({ product, categories, brands, onCategoriesChange, onBrandsChange }: ProductFormProps) {
+export function ProductForm({ product, categories, onCategoriesChange }: ProductFormProps) {
   const router = useRouter()
   const isEditing = !!product
   const [saving, setSaving] = useState(false)
@@ -62,15 +52,11 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const [localCategories, setLocalCategories] = useState<Category[]>(categories)
-  const [localBrands, setLocalBrands] = useState<Brand[]>(brands)
   
   // Inline create states
   const [showNewCategory, setShowNewCategory] = useState(false)
-  const [showNewBrand, setShowNewBrand] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState("")
-  const [newBrandName, setNewBrandName] = useState("")
   const [creatingCategory, setCreatingCategory] = useState(false)
-  const [creatingBrand, setCreatingBrand] = useState(false)
 
   // Form state
   const [name, setName] = useState(product?.name || "")
@@ -80,7 +66,6 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
   const [comparePrice, setComparePrice] = useState(product?.comparePrice?.toString() || "")
   const [description, setDescription] = useState(product?.description || "")
   const [categoryId, setCategoryId] = useState(product?.categoryId || "")
-  const [brandId, setBrandId] = useState(product?.brandId || "")
   const [metaTitle, setMetaTitle] = useState(product?.metaTitle || "")
   const [metaDescription, setMetaDescription] = useState(product?.metaDescription || "")
   const [isActive, setIsActive] = useState(product?.isActive || false)
@@ -102,7 +87,6 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       if (comparePrice) formData.set("comparePrice", comparePrice)
       if (description) formData.set("description", description)
       if (categoryId) formData.set("categoryId", categoryId)
-      if (brandId) formData.set("brandId", brandId)
       if (metaTitle) formData.set("metaTitle", metaTitle)
       if (metaDescription) formData.set("metaDescription", metaDescription)
       formData.set("isActive", isActive ? "1" : "0")
@@ -191,7 +175,6 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
         if (data.url) {
           setImages(prev => [...prev, { url: data.url, alt: name || "" }])
           toast({
-            variant: "success",
             title: "Imagen subida",
             description: "Imagen cargada y optimizada correctamente",
           })
@@ -260,45 +243,6 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
       })
     } finally {
       setCreatingCategory(false)
-    }
-  }
-
-  // Inline brand creation
-  const handleCreateBrand = async () => {
-    if (!newBrandName.trim()) return
-    setCreatingBrand(true)
-    try {
-      const res = await fetch("/api/admin/brands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newBrandName }),
-      })
-      const data = await res.json()
-      if (data.id) {
-        const newBrand = { id: data.id, name: data.name, slug: data.slug }
-        setLocalBrands(prev => [...prev, newBrand])
-        setBrandId(data.id)
-        if (onBrandsChange) {
-          onBrandsChange([...localBrands, newBrand])
-        }
-        setNewBrandName("")
-        setShowNewBrand(false)
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: data.error || "Error al crear marca",
-        })
-      }
-    } catch (error) {
-      console.error("Create brand error:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Error al crear marca",
-      })
-    } finally {
-      setCreatingBrand(false)
     }
   }
 
@@ -479,95 +423,50 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
               <CardTitle>Organización</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="category">Categoría</Label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="category">Categoría</Label>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowNewCategory(!showNewCategory)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Nueva
+                  </Button>
+                </div>
+                {showNewCategory ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Nombre de la categoría"
+                      className="flex-1"
+                    />
                     <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setShowNewCategory(!showNewCategory)}
+                      size="sm" 
+                      onClick={handleCreateCategory}
+                      disabled={creatingCategory || !newCategoryName.trim()}
                     >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Nueva
+                      {creatingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
                     </Button>
                   </div>
-                  {showNewCategory ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        placeholder="Nombre de la categoría"
-                        className="flex-1"
-                      />
-                      <Button 
-                        size="sm" 
-                        onClick={handleCreateCategory}
-                        disabled={creatingCategory || !newCategoryName.trim()}
-                      >
-                        {creatingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <select
-                      id="category"
-                      value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                      className="w-full h-10 px-3 border rounded-md bg-background"
-                    >
-                      <option value="">Sin categoría</option>
-                      {sortedCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {"— ".repeat(cat.depth)}{cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="brand">Marca</Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setShowNewBrand(!showNewBrand)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Nueva
-                    </Button>
-                  </div>
-                  {showNewBrand ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newBrandName}
-                        onChange={(e) => setNewBrandName(e.target.value)}
-                        placeholder="Nombre de la marca"
-                        className="flex-1"
-                      />
-                      <Button 
-                        size="sm" 
-                        onClick={handleCreateBrand}
-                        disabled={creatingBrand || !newBrandName.trim()}
-                      >
-                        {creatingBrand ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <select
-                      id="brand"
-                      value={brandId}
-                      onChange={(e) => setBrandId(e.target.value)}
-                      className="w-full h-10 px-3 border rounded-md bg-background"
-                    >
-                      <option value="">Sin marca</option>
-                      {localBrands.map(brand => (
-                        <option key={brand.id} value={brand.id}>{brand.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                ) : (
+                  <select
+                    id="category"
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="w-full h-10 px-3 border rounded-md bg-background"
+                  >
+                    <option value="">Sin categoría</option>
+                    {sortedCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {"— ".repeat(cat.depth)}{cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -718,7 +617,7 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
                     )}
                   </div>
                 </Label>
-                <Input
+                <input
                   id="image-upload"
                   type="file"
                   accept="image/*"

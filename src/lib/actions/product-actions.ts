@@ -13,7 +13,6 @@ export async function createProduct(formData: FormData) {
     const comparePrice = formData.get("comparePrice") ? parseFloat(formData.get("comparePrice") as string) : null
     const description = formData.get("description") as string || null
     const categoryId = formData.get("categoryId") as string || null
-    const brandId = formData.get("brandId") as string || null
     const metaTitle = formData.get("metaTitle") as string || null
     const metaDescription = formData.get("metaDescription") as string || null
     const imageUrl = formData.get("imageUrl") as string || null
@@ -38,7 +37,6 @@ export async function createProduct(formData: FormData) {
         comparePrice,
         description,
         categoryId,
-        brandId,
         metaTitle,
         metaDescription,
         isActive,
@@ -74,7 +72,6 @@ export async function updateProduct(formData: FormData) {
     const comparePrice = formData.get("comparePrice") ? parseFloat(formData.get("comparePrice") as string) : null
     const description = formData.get("description") as string || null
     const categoryId = formData.get("categoryId") as string || null
-    const brandId = formData.get("brandId") as string || null
     const metaTitle = formData.get("metaTitle") as string || null
     const metaDescription = formData.get("metaDescription") as string || null
     const imageUrl = formData.get("imageUrl") as string || null
@@ -93,7 +90,6 @@ export async function updateProduct(formData: FormData) {
         comparePrice,
         description,
         categoryId,
-        brandId,
         metaTitle,
         metaDescription,
         isActive,

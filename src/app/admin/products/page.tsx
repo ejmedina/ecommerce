@@ -7,7 +7,6 @@ import { Plus, Edit } from "lucide-react"
 export default async function ProductsPage() {
   const products = await db.product.findMany({
     include: {
-      brand: true,
       category: true,
       images: true,
     },

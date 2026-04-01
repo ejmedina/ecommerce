@@ -22,16 +22,10 @@ export default async function EditProductPage({ params }: PageProps) {
     notFound()
   }
 
-  const [categories, brands] = await Promise.all([
-    db.category.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-    }),
-    db.brand.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-    }),
-  ])
+  const categories = await db.category.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+  })
 
   // Convert Decimal to plain numbers
   const productData = {
@@ -44,7 +38,6 @@ export default async function EditProductPage({ params }: PageProps) {
     <ProductForm
       product={productData}
       categories={categories}
-      brands={brands}
     />
   )
 }
