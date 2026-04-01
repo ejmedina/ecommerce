@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, LogOut, User } from "lucide-react"
+import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, LogOut, User, Tag } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { db } from "@/lib/db"
 import { auth, canAccessAdmin, signOut } from "@/lib/auth"
@@ -71,6 +71,13 @@ export default async function AdminLayout({
             >
               <Package className="h-4 w-4" />
               Productos
+            </Link>
+            <Link
+              href="/admin/catalog"
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+            >
+              <Tag className="h-4 w-4" />
+              Catálogo
             </Link>
             <Link
               href="/admin/orders"

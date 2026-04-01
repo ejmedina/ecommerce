@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, Trash2, Save, Loader2, ArrowLeft, AlertTriangle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ interface Category {
   id: string
   name: string
   slug: string
+  parentId?: string | null
 }
 
 interface Brand {
@@ -291,6 +292,20 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
     }
   }
 
+  // Helper for hierarchical select
+  const sortedCategories = useMemo(() => {
+    const buildFlatTree = (parentId: string | null = null, depth = 0): (Category & { depth: number })[] => {
+      return categories
+        .filter(c => c.parentId === parentId)
+        .map(c => [
+          { ...c, depth },
+          ...buildFlatTree(c.id, depth + 1)
+        ])
+        .flat()
+    }
+    return buildFlatTree(null)
+  }, [categories])
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -492,8 +507,10 @@ export function ProductForm({ product, categories, brands, onCategoriesChange, o
                       className="w-full h-10 px-3 border rounded-md bg-background"
                     >
                       <option value="">Sin categoría</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      {sortedCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {"— ".repeat(cat.depth)}{cat.name}
+                        </option>
                       ))}
                     </select>
                   )}

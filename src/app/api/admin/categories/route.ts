@@ -11,10 +11,19 @@ export async function GET() {
     const categories = await db.category.findMany({
       include: {
         _count: {
-          select: { products: true }
+          select: { 
+            products: true,
+            children: true
+          }
+        },
+        parent: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
-      orderBy: { name: "asc" },
+      orderBy: { order: "asc" },
     })
 
     return NextResponse.json(categories)
@@ -30,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, description, image, isActive } = body
+    const { name, description, image, isActive, parentId } = body
 
     if (!name) {
       return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
@@ -49,6 +58,7 @@ export async function POST(req: NextRequest) {
         description,
         image,
         isActive: isActive ?? true,
+        parentId: parentId || null,
       },
     })
 
@@ -65,7 +75,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { id, name, description, image, isActive } = body
+    const { id, name, description, image, isActive, parentId } = body
 
     if (!id || !name) {
       return NextResponse.json({ error: "ID y nombre son requeridos" }, { status: 400 })
@@ -78,6 +88,7 @@ export async function PUT(req: NextRequest) {
         description,
         image,
         isActive,
+        parentId: parentId || null,
       },
     })
 
@@ -101,10 +112,20 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Check if category has products
-    const productCount = await db.product.count({ where: { categoryId: id } })
+    const [productCount, childrenCount] = await Promise.all([
+      db.product.count({ where: { categoryId: id } }),
+      db.category.count({ where: { parentId: id } })
+    ])
+    
     if (productCount > 0) {
       return NextResponse.json({ 
         error: `No se puede eliminar. Hay ${productCount} productos usando esta categoría.` 
+      }, { status: 400 })
+    }
+
+    if (childrenCount > 0) {
+      return NextResponse.json({ 
+        error: `No se puede eliminar. Esta categoría tiene ${childrenCount} subcategorías.` 
       }, { status: 400 })
     }
 
