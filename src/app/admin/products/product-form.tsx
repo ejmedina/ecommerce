@@ -394,7 +394,12 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                     onChange={(e) => setStock(e.target.value)}
                     min={0}
                     required
+                    disabled={hasPermanentStock}
+                    className={hasPermanentStock ? "bg-muted opacity-50 cursor-not-allowed" : ""}
                   />
+                  {hasPermanentStock && (
+                    <p className="text-[10px] text-blue-600 font-medium">Stock gestionado automáticamente (Permanente)</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
@@ -635,9 +640,10 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                               </td>
                               <td className="px-4 py-3">
                                 <Input
-                                  className="h-8 w-20"
+                                  className={`h-8 w-20 ${hasPermanentStock ? "bg-muted opacity-50 cursor-not-allowed" : ""}`}
                                   type="number"
                                   value={v.stock}
+                                  disabled={hasPermanentStock}
                                   onChange={(e) => {
                                     const newVariants = [...variants];
                                     newVariants[i].stock = parseInt(e.target.value) || 0;

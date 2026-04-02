@@ -99,7 +99,7 @@ export async function addToCart(formData: FormData) {
   if (variantId) {
     const variant = product.variants[0]
     if (!variant) return { error: "Variante no encontrada" }
-    if (variant.stock < quantity) {
+    if (!product.hasPermanentStock && variant.stock < quantity) {
       return { error: "No hay suficiente stock de esta variante" }
     }
   } else {
@@ -125,7 +125,7 @@ export async function addToCart(formData: FormData) {
     // Check stock for update
     if (variantId) {
       const variant = product.variants[0]
-      if (variant.stock < newQuantity) {
+      if (!product.hasPermanentStock && variant.stock < newQuantity) {
         return { error: "No hay suficiente stock de esta variante" }
       }
     } else if (!product.hasPermanentStock && newQuantity > product.stock) {
@@ -169,7 +169,7 @@ export async function updateCartItem(itemId: string, quantity: number) {
 
   // Stock check
   if (item.variantId) {
-    if (item.variant!.stock < quantity) {
+    if (!item.product.hasPermanentStock && item.variant!.stock < quantity) {
       return { error: `No hay suficiente stock de ${item.variant!.title}` }
     }
   } else {
