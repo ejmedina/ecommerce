@@ -524,7 +524,7 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                             value={opt.values.join(", ")}
                             onChange={(e) => {
                               const newOptions = [...options];
-                              newOptions[index].values = e.target.value.split(",").map(v => v.trim()).filter(Boolean);
+                              newOptions[index].values = e.target.value.split(",").map(v => v.trimStart());
                               setOptions(newOptions);
                             }}
                           />
@@ -555,7 +555,14 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                               return;
                             }
                             const option = opts[idx];
-                            for (const val of option.values) {
+                            const cleanValues = option.values.map(v => v.trim()).filter(Boolean);
+                            
+                            if (cleanValues.length === 0) {
+                              helper(current, idx + 1);
+                              return;
+                            }
+
+                            for (const val of cleanValues) {
                               current[option.name] = val;
                               helper(current, idx + 1);
                             }
