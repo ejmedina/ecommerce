@@ -110,6 +110,11 @@ model Product {
 
   images          ProductImage[]
 
+  // === VARIANTES ===
+  hasVariants     Boolean          @default(false)
+  options         ProductOption[]
+  variants        ProductVariant[]
+
   isFeatured      Boolean      @default(false)
   isActive        Boolean      @default(false)
   publishedAt     DateTime?
@@ -139,6 +144,47 @@ model ProductImage {
 }
 
 // ============================================
+// PRODUCT CONFIGURATION (OPTIONS & VARIANTS)
+// ============================================
+
+model ProductOption {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String   // e.g. "Color", "Size"
+  position  Int      @default(0)
+  values    String[]
+  
+  @@unique([productId, name])
+  @@map("product_options")
+}
+
+model ProductVariant {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  sku             String?  @unique
+  price           Decimal? @db.Decimal(10, 2)
+  comparePrice    Decimal? @db.Decimal(10, 2)
+  stock           Int      @default(0)
+  
+  // Ej: {"Color": "Rojo", "Talle": "XL"}
+  options         Json     @default("{}")
+
+  title           String?
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  
+  @@map("product_variants")
+}
+
+// ============================================
 // CART
 // ============================================
 
@@ -160,9 +206,12 @@ model CartItem {
   cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId String
   product   Product @relation(fields: [productId], references: [id])
+  
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+  
   quantity  Int     @default(1)
 
-  @@unique([cartId, productId])
   @@map("cart_items")
 }
 
@@ -254,6 +303,9 @@ model OrderItem {
   order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId       String
   product         Product  @relation(fields: [productId], references: [id])
+
+  variantId       String?
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
 
   name            String
   sku             String?

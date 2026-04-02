@@ -15,6 +15,12 @@ export default async function EditProductPage({ params }: PageProps) {
       images: {
         orderBy: { order: "asc" },
       },
+      options: {
+        orderBy: { position: "asc" }
+      },
+      variants: {
+        orderBy: { createdAt: "asc" }
+      }
     },
   })
 
@@ -27,12 +33,17 @@ export default async function EditProductPage({ params }: PageProps) {
     orderBy: { name: "asc" },
   })
 
-  // Convert Decimal to plain numbers
+  // Convert Decimal to plain numbers and handle variant data
   const productData = {
     ...product,
     price: Number(product.price),
     comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
-  }
+    variants: product.variants.map(v => ({
+      ...v,
+      price: v.price ? Number(v.price) : null,
+      comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+    }))
+  } as any
 
   return (
     <ProductForm

@@ -22,6 +22,7 @@ async function getCart() {
         items: {
           include: {
             product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
+            variant: true,
           },
         },
       },
@@ -35,6 +36,7 @@ async function getCart() {
         items: {
           include: {
             product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
+            variant: true,
           },
         },
       },
@@ -61,11 +63,11 @@ export default async function CartPage() {
     )
   }
 
-  const subtotal = cart.items.reduce(
-    (sum, item) => sum + Number(item.product.price) * item.quantity,
-    0
-  )
-  const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+  const subtotal = cart.items.reduce((sum: number, item: any) => {
+    const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+    return sum + itemPrice * item.quantity
+  }, 0)
+  const itemCount = cart.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -74,42 +76,50 @@ export default async function CartPage() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
-          {cart.items.map((item) => (
-            <Card key={item.id}>
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  {/* Image */}
-                  <div className="w-24 h-24 shrink-0 rounded-md bg-muted overflow-hidden">
-                    {item.product.images[0] ? (
-                      <img
-                        src={item.product.images[0].url}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                        Sin imagen
-                      </div>
-                    )}
-                  </div>
+          {cart.items.map((item: any) => {
+            const currentPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+            
+            return (
+              <Card key={item.id}>
+                <CardContent className="p-4">
+                  <div className="flex gap-4">
+                    {/* Image */}
+                    <div className="w-24 h-24 shrink-0 rounded-md bg-muted overflow-hidden">
+                      {item.product.images[0] ? (
+                        <img
+                          src={item.product.images[0].url}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                          Sin imagen
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/products/${item.product.slug}`}
-                      className="font-medium hover:underline line-clamp-1"
-                    >
-                      {item.product.name}
-                    </Link>
-                    {item.product.sku && (
-                      <p className="text-xs text-muted-foreground">
-                        SKU: {item.product.sku}
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/products/${item.product.slug}`}
+                        className="font-medium hover:underline line-clamp-1"
+                      >
+                        {item.product.name}
+                      </Link>
+                      {item.variant?.title && (
+                        <p className="text-sm text-muted-foreground">
+                          {item.variant.title}
+                        </p>
+                      )}
+                      {item.product.sku && !item.variant && (
+                        <p className="text-xs text-muted-foreground">
+                          SKU: {item.product.sku}
+                        </p>
+                      )}
+                      <p className="font-semibold mt-1">
+                        {formatCurrency(currentPrice)}
                       </p>
-                    )}
-                    <p className="font-semibold mt-1">
-                      {formatCurrency(Number(item.product.price))}
-                    </p>
-                  </div>
+                    </div>
 
                   {/* Quantity */}
                   <div className="flex flex-col items-end gap-2">
@@ -152,7 +162,8 @@ export default async function CartPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            )
+          })}
         </div>
 
         {/* Summary */}

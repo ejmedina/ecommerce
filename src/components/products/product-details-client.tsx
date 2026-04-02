@@ -1,0 +1,180 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import { formatCurrency } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { addToCart } from "@/lib/actions/cart-actions"
+import { toast } from "@/components/ui/use-toast"
+import { Loader2 } from "lucide-react"
+
+interface ProductOption {
+  id: string
+  name: string
+  values: string[]
+}
+
+interface ProductVariant {
+  id: string
+  sku: string | null
+  price: number | null
+  stock: number
+  options: any
+  title: string | null
+}
+
+interface ProductDetailsClientProps {
+  product: {
+    id: string
+    name: string
+    price: number
+    comparePrice: number | null
+    stock: number
+    hasPermanentStock: boolean
+    hasVariants: boolean
+    options: ProductOption[]
+    variants: ProductVariant[]
+  }
+}
+
+export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
+  const [adding, setAdding] = useState(false)
+
+  // Deserializar opciones de variantes si vienen como string
+  const processedVariants = useMemo(() => {
+    return product.variants.map(v => ({
+      ...v,
+      options: typeof v.options === 'string' ? JSON.parse(v.options) : v.options
+    }))
+  }, [product.variants])
+
+  // Encontrar variante seleccionada
+  const selectedVariant = useMemo(() => {
+    if (!product.hasVariants) return null
+    if (Object.keys(selectedOptions).length !== product.options.length) return null
+    
+    return processedVariants.find(v => {
+      return Object.entries(selectedOptions).every(([name, value]) => v.options[name] === value)
+    })
+  }, [selectedOptions, processedVariants, product.hasVariants, product.options])
+
+  const currentPrice = selectedVariant?.price ? Number(selectedVariant.price) : Number(product.price)
+  const currentComparePrice = selectedVariant ? Number(selectedVariant.price) === Number(product.price) ? Number(product.comparePrice) : null : Number(product.comparePrice)
+  const currentStock = selectedVariant ? selectedVariant.stock : product.stock
+  const isAvailable = product.hasPermanentStock || currentStock > 0
+
+  const handleAddToCart = async (formData: FormData) => {
+    if (product.hasVariants && !selectedVariant) {
+      toast({
+        variant: "destructive",
+        title: "Selección incompleta",
+        description: "Por favor elegí todas las opciones disponibles."
+      })
+      return
+    }
+
+    setAdding(true)
+    try {
+      const result = await addToCart(formData)
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error
+        })
+      }
+    } catch (error) {
+      console.error("Cart error:", error)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-baseline gap-3">
+        <span className="text-3xl font-bold">
+          {formatCurrency(currentPrice)}
+        </span>
+        {currentComparePrice && currentComparePrice > currentPrice && (
+          <span className="text-lg text-muted-foreground line-through">
+            {formatCurrency(currentComparePrice)}
+          </span>
+        )}
+      </div>
+
+      {/* Stock status */}
+      <div className="flex items-center gap-2">
+        {product.hasPermanentStock ? (
+          <span className="text-sm text-green-600 font-medium">En stock</span>
+        ) : currentStock > 0 ? (
+          <span className="text-sm text-green-600 font-medium">
+            En stock ({currentStock} disponibles)
+          </span>
+        ) : (
+          <span className="text-sm text-red-600 font-medium">Sin stock</span>
+        )}
+      </div>
+
+      {/* Options Selection */}
+      {product.hasVariants && product.options.map((option) => (
+        <div key={option.id} className="space-y-3">
+          <Label className="text-base font-semibold">{option.name}</Label>
+          <div className="flex flex-wrap gap-2">
+            {option.values.map((value) => {
+              const isSelected = selectedOptions[option.name] === value
+              return (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={isSelected ? "default" : "outline"}
+                  className="rounded-full"
+                  onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
+                >
+                  {value}
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Add to Cart Form */}
+      {isAvailable && (
+        <form action={handleAddToCart} className="space-y-4 pt-4 border-t">
+          <input type="hidden" name="productId" value={product.id} />
+          {selectedVariant && (
+            <input type="hidden" name="variantId" value={selectedVariant.id} />
+          )}
+          
+          <div className="flex gap-4">
+            <input
+              type="number"
+              name="quantity"
+              min={1}
+              max={product.hasPermanentStock ? 100 : currentStock}
+              defaultValue={1}
+              className="w-20 h-11 border rounded-md px-3 bg-background"
+            />
+            <Button 
+              type="submit" 
+              size="lg" 
+              className="flex-1 h-11"
+              disabled={adding || (product.hasVariants && !selectedVariant)}
+            >
+              {adding ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {product.hasVariants && !selectedVariant ? "Seleccioná opciones" : "Agregar al carrito"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+function Label({ children, className }: { children: React.ReactNode, className?: string }) {
+  return <p className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`}>{children}</p>
+}

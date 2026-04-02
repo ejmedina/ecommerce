@@ -1,5 +1,7 @@
 "use server"
 
+import { sendOrderConfirmationEmail } from "@/lib/email"
+
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
@@ -86,7 +88,10 @@ export async function createOrder(formData: FormData) {
       where: { id: cartId },
       include: {
         items: {
-          include: { product: true }
+          include: { 
+            product: true,
+            variant: true
+          }
         }
       }
     })
@@ -96,10 +101,10 @@ export async function createOrder(formData: FormData) {
     }
 
     // Calculate totals
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum + Number(item.product.price) * item.quantity,
-      0
-    )
+    const subtotal = cart.items.reduce((sum: number, item: any) => {
+      const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+      return sum + itemPrice * item.quantity
+    }, 0)
 
     // Get settings for shipping
     const settings = await db.storeSettings.findFirst()
@@ -121,7 +126,8 @@ export async function createOrder(formData: FormData) {
 
     // If no userId still, check sessionId cookie
     if (!userId) {
-      const sessionId = (await cookies()).get("sessionId")?.value
+      const cookieStore = await cookies()
+      const sessionId = cookieStore.get("cart_session_id")?.value
       if (sessionId) {
         const existingCart = await db.cart.findUnique({
           where: { sessionId },
@@ -183,15 +189,25 @@ export async function createOrder(formData: FormData) {
         paymentMethod: finalPaymentMethod as any,
         paymentStatus: "PENDING",
         items: {
-          create: cart.items.map((item) => ({
-            productId: item.productId,
-            name: item.product.name,
-            sku: item.product.sku,
-            price: item.product.price,
-            quantityOrdered: item.quantity,
-            unitTotal: Number(item.product.price) * item.quantity,
-          }))
+          create: cart.items.map((item: any) => {
+            const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+            const itemName = item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name
+            
+            return {
+              productId: item.productId,
+              variantId: item.variantId,
+              name: itemName,
+              sku: item.variant?.sku || item.product.sku,
+              price: itemPrice,
+              quantityOrdered: item.quantity,
+              unitTotal: itemPrice * item.quantity,
+            }
+          })
         }
+      },
+      include: {
+        items: true,
+        user: true
       }
     })
 
@@ -199,6 +215,14 @@ export async function createOrder(formData: FormData) {
     await db.cartItem.deleteMany({
       where: { cartId }
     })
+
+    // Send confirmation email
+    try {
+      await sendOrderConfirmationEmail(order)
+    } catch (emailError) {
+      console.error("Failed to send order confirmation email:", emailError)
+      // We don't fail the whole process if email fails
+    }
 
     // For demo: return success (in production, would integrate with payment gateway)
     return { orderId: order.id, paymentUrl: undefined }

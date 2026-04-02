@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { addToCart } from "@/lib/actions/cart-actions"
+import { ProductDetailsClient } from "@/components/products/product-details-client"
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -29,6 +30,8 @@ export default async function ProductPage({ params }: Props) {
       include: {
         images: { orderBy: { order: "asc" } },
         category: true,
+        options: { orderBy: { position: "asc" } },
+        variants: { where: { isActive: true } },
       },
   })
 
@@ -84,32 +87,26 @@ export default async function ProductPage({ params }: Props) {
             )}
           </div>
 
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold">
-              {formatCurrency(Number(product.price))}
-            </span>
-            {product.comparePrice && Number(product.comparePrice) > Number(product.price) && (
-              <span className="text-lg text-muted-foreground line-through">
-                {formatCurrency(Number(product.comparePrice))}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {product.hasPermanentStock ? (
-              <span className="text-sm text-green-600 font-medium">
-                En stock
-              </span>
-            ) : product.stock > 0 ? (
-              <span className="text-sm text-green-600 font-medium">
-                En stock ({product.stock} disponibles)
-              </span>
-            ) : (
-              <span className="text-sm text-red-600 font-medium">
-                Sin stock
-              </span>
-            )}
-          </div>
+          <ProductDetailsClient 
+            product={{
+              ...product,
+              price: Number(product.price),
+              comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+              options: product.options.map(opt => ({
+                id: opt.id,
+                name: opt.name,
+                values: opt.values
+              })),
+              variants: product.variants.map(v => ({
+                id: v.id,
+                sku: v.sku,
+                price: v.price ? Number(v.price) : null,
+                stock: v.stock,
+                options: v.options,
+                title: v.title
+              }))
+            }} 
+          />
 
           {product.description && (
             <div className="prose prose-sm max-w-none">
@@ -117,24 +114,7 @@ export default async function ProductPage({ params }: Props) {
             </div>
           )}
 
-          {(product.stock > 0 || product.hasPermanentStock) && (
-            <form action={addToCart} className="space-y-4">
-              <input type="hidden" name="productId" value={product.id} />
-              <div className="flex gap-4">
-                <input
-                  type="number"
-                  name="quantity"
-                  min={1}
-                  max={product.hasPermanentStock ? 100 : product.stock}
-                  defaultValue={1}
-                  className="w-20 h-10 border rounded-md px-3"
-                />
-                <Button type="submit" size="lg" className="flex-1">
-                  Agregar al carrito
-                </Button>
-              </div>
-            </form>
-          )}
+          {/* El formulario está ahora dentro de ProductDetailsClient */}
 
           {product.category && (
             <div className="pt-4 border-t">

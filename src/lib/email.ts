@@ -103,3 +103,74 @@ export async function sendVerificationEmail({
 
   return sendEmail({ to, subject, html })
 }
+
+export async function sendOrderConfirmationEmail(order: any) {
+  const baseUrl = await getStoreUrl()
+  const to = order.user.email
+  const subject = `Confirmación de pedido #${order.orderNumber}`
+
+  const itemsHtml = order.items.map((item: any) => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">
+        ${item.name}<br/>
+        <small style="color: #666;">SKU: ${item.sku || 'N/A'}</small>
+      </td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantityOrdered}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">$${Number(item.price).toLocaleString()}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">$${Number(item.unitTotal).toLocaleString()}</td>
+    </tr>
+  `).join("")
+
+  const shippingAddress = order.shippingAddress as any
+  const addressHtml = order.shippingMethod === "pickup" 
+    ? "<p><strong>Retiro en tienda</strong></p>"
+    : `
+      <p><strong>Dirección de envío:</strong><br/>
+      ${shippingAddress.street} ${shippingAddress.number}${shippingAddress.floor ? `, Piso ${shippingAddress.floor}` : ""}${shippingAddress.apartment ? `, Depto ${shippingAddress.apartment}` : ""}<br/>
+      ${shippingAddress.city}, ${shippingAddress.state} (${shippingAddress.postalCode})<br/>
+      ${shippingAddress.phone}
+      </p>
+    `
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h1 style="border-bottom: 2px solid #000; padding-bottom: 10px;">¡Gracias por tu compra!</h1>
+      <p>Hola ${order.user.name || "cliente"},</p>
+      <p>Hemos recibido tu pedido <strong>#${order.orderNumber}</strong> y lo estamos procesando.</p>
+      
+      <h2 style="font-size: 18px; margin-top: 20px;">Detalle del pedido</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background-color: #f9f9f9;">
+            <th style="padding: 10px; text-align: left;">Producto</th>
+            <th style="padding: 10px; text-align: center;">Cant.</th>
+            <th style="padding: 10px; text-align: right;">Precio</th>
+            <th style="padding: 10px; text-align: right;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+      
+      <div style="text-align: right; margin-top: 20px;">
+        <p style="margin: 5px 0;">Subtotal: $${Number(order.subtotal).toLocaleString()}</p>
+        <p style="margin: 5px 0;">Envío: ${Number(order.shippingCost) === 0 ? "Gratis" : `$${Number(order.shippingCost).toLocaleString()}`}</p>
+        <p style="margin: 5px 0; font-size: 18px; font-bold;"><strong>Total: $${Number(order.total).toLocaleString()}</strong></p>
+      </div>
+      
+      <div style="margin-top: 30px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
+        ${addressHtml}
+      </div>
+      
+      <p style="margin-top: 30px; font-size: 14px; color: #666;">
+        Podés ver el estado de tu pedido en cualquier momento haciendo clic acá: 
+        <a href="${baseUrl}/account/orders/${order.id}">Ver mi pedido</a>
+      </p>
+      
+      <p style="margin-top: 20px;">Si tenés alguna duda, respondé a este email o contactanos por WhatsApp.</p>
+    </div>
+  `
+
+  return sendEmail({ to, subject, html })
+}

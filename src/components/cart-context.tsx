@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 interface CartItem {
   id: string
   productId: string
+  variantId: string | null
   quantity: number
   product: {
     id: string
@@ -12,6 +13,12 @@ interface CartItem {
     price: number
     images: { url: string; alt: string | null }[]
   }
+  variant: {
+    id: string
+    title: string
+    price: number | null
+    sku: string | null
+  } | null
 }
 
 interface Cart {

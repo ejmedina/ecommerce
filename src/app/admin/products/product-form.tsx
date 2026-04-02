@@ -20,6 +20,24 @@ interface Category {
   parentId?: string | null
 }
 
+interface ProductOption {
+  id?: string
+  name: string
+  values: string[]
+  position: number
+}
+
+interface ProductVariant {
+  id?: string
+  sku: string | null
+  price: number | null
+  comparePrice: number | null
+  stock: number
+  options: Record<string, string>
+  title: string | null
+  isActive: boolean
+}
+
 interface Product {
   id: string
   name: string
@@ -36,6 +54,9 @@ interface Product {
   isFeatured: boolean
   images: { id: string; url: string; alt: string | null }[]
   hasPermanentStock: boolean
+  hasVariants: boolean
+  options: ProductOption[]
+  variants: ProductVariant[]
 }
 
 interface ProductFormProps {
@@ -76,6 +97,18 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
   )
   const [uploading, setUploading] = useState(false)
 
+  // Variantes
+  const [hasVariants, setHasVariants] = useState(product?.hasVariants || false)
+  const [options, setOptions] = useState<ProductOption[]>(product?.options || [])
+  const [variants, setVariants] = useState<ProductVariant[]>(
+    product?.variants?.map(v => ({
+      ...v,
+      price: v.price ? Number(v.price) : null,
+      comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+      options: typeof v.options === 'string' ? JSON.parse(v.options) : (v.options as Record<string, string>)
+    })) || []
+  )
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -92,6 +125,13 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
       formData.set("isActive", isActive ? "1" : "0")
       formData.set("isFeatured", isFeatured ? "1" : "0")
       formData.set("hasPermanentStock", hasPermanentStock ? "1" : "0")
+      formData.set("hasVariants", hasVariants ? "1" : "0")
+      
+      if (hasVariants) {
+        formData.set("options", JSON.stringify(options))
+        formData.set("variants", JSON.stringify(variants))
+      }
+
       if (images.length > 0) {
         formData.set("imageUrl", images[0].url)
         formData.set("imageAlt", images[0].alt || name)
@@ -374,11 +414,16 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
           <Card>
             <CardHeader>
               <CardTitle>Precios</CardTitle>
+              {hasVariants && (
+                <CardDescription>
+                  El precio general se usará por defecto si una variante no tiene precio específico.
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Precio *</Label>
+                  <Label htmlFor="price">Precio general *</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
@@ -409,12 +454,209 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                       step={0.01}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Precio original para mostrar como oferta
-                  </p>
                 </div>
               </div>
             </CardContent>
+          </Card>
+
+          {/* Variantes - Sección nueva */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Variantes</CardTitle>
+                  <CardDescription>
+                    Agregá opciones como talle, color o sabor
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hasVariants"
+                    checked={hasVariants}
+                    onCheckedChange={(checked) => setHasVariants(!!checked)}
+                  />
+                  <Label htmlFor="hasVariants">Este producto tiene variantes</Label>
+                </div>
+              </div>
+            </CardHeader>
+            {hasVariants && (
+              <CardContent className="space-y-6">
+                {/* Editor de Opciones */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Opciones</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOptions([...options, { name: "", values: [], position: options.length }])}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Agregar opción
+                    </Button>
+                  </div>
+                  
+                  {options.map((opt, index) => (
+                    <div key={index} className="space-y-2 p-4 border rounded-lg bg-muted/50 relative group">
+                      <button
+                        type="button"
+                        onClick={() => setOptions(options.filter((_, i) => i !== index))}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                      <div className="flex gap-4">
+                        <div className="flex-1 space-y-2">
+                          <Label>Nombre de la opción</Label>
+                          <Input
+                            placeholder="Ej: Color o Talle"
+                            value={opt.name}
+                            onChange={(e) => {
+                              const newOptions = [...options];
+                              newOptions[index].name = e.target.value;
+                              setOptions(newOptions);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-[2] space-y-2">
+                          <Label>Valores (separados por coma)</Label>
+                          <Input
+                            placeholder="Ej: S, M, L o Azul, Rojo"
+                            value={opt.values.join(", ")}
+                            onChange={(e) => {
+                              const newOptions = [...options];
+                              newOptions[index].values = e.target.value.split(",").map(v => v.trim()).filter(Boolean);
+                              setOptions(newOptions);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator />
+
+                {/* Tabla de Variantes */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Combinaciones generadas</h3>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        // Generar combinaciones
+                        const generateCombinations = (opts: ProductOption[]) => {
+                          if (opts.length === 0) return [];
+                          const results: Record<string, string>[] = [];
+                          
+                          const helper = (current: Record<string, string>, idx: number) => {
+                            if (idx === opts.length) {
+                              results.push({ ...current });
+                              return;
+                            }
+                            const option = opts[idx];
+                            for (const val of option.values) {
+                              current[option.name] = val;
+                              helper(current, idx + 1);
+                            }
+                          };
+                          
+                          helper({}, 0);
+                          return results;
+                        };
+
+                        const combinations = generateCombinations(options);
+                        const newVariants = combinations.map(comb => {
+                          const title = Object.values(comb).join(" / ");
+                          // Intentar encontrar si ya existe para preservar datos
+                          const existing = variants.find(v => JSON.stringify(v.options) === JSON.stringify(comb));
+                          return existing || {
+                            sku: sku ? `${sku}-${title.replace(/\s+/g, '-').toUpperCase()}` : "",
+                            price: price ? parseFloat(price) : null,
+                            comparePrice: comparePrice ? parseFloat(comparePrice) : null,
+                            stock: 0,
+                            options: comb,
+                            title,
+                            isActive: true
+                          };
+                        });
+                        setVariants(newVariants);
+                      }}
+                    >
+                      Generar variantes
+                    </Button>
+                  </div>
+
+                  {variants.length > 0 && (
+                    <div className="rounded-md border overflow-x-auto text-sm">
+                      <table className="w-full">
+                        <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-bold">
+                          <tr>
+                            <th className="px-4 py-2 text-left">Variante</th>
+                            <th className="px-4 py-2 text-left">SKU</th>
+                            <th className="px-4 py-2 text-left">Precio</th>
+                            <th className="px-4 py-2 text-left">Stock</th>
+                            <th className="px-4 py-2 text-right">Visible</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {variants.map((v, i) => (
+                            <tr key={i} className="hover:bg-muted/50 transition-colors">
+                              <td className="px-4 py-3 font-medium">{v.title}</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  className="h-8 w-24"
+                                  value={v.sku || ""}
+                                  onChange={(e) => {
+                                    const newVariants = [...variants];
+                                    newVariants[i].sku = e.target.value;
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  className="h-8 w-24"
+                                  type="number"
+                                  value={v.price === null ? "" : v.price}
+                                  onChange={(e) => {
+                                    const newVariants = [...variants];
+                                    newVariants[i].price = e.target.value === "" ? null : parseFloat(e.target.value);
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  className="h-8 w-20"
+                                  type="number"
+                                  value={v.stock}
+                                  onChange={(e) => {
+                                    const newVariants = [...variants];
+                                    newVariants[i].stock = parseInt(e.target.value) || 0;
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <Checkbox
+                                  checked={v.isActive}
+                                  onCheckedChange={(checked) => {
+                                    const newVariants = [...variants];
+                                    newVariants[i].isActive = !!checked;
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            )}
           </Card>
 
           {/* Organization */}

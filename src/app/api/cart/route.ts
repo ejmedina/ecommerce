@@ -22,6 +22,7 @@ export async function GET() {
                   images: { take: 1, orderBy: { order: "asc" } },
                 },
               },
+              variant: true,
             },
           },
         },
@@ -37,6 +38,7 @@ export async function GET() {
                   images: { take: 1, orderBy: { order: "asc" } },
                 },
               },
+              variant: true,
             },
           },
         },
@@ -56,6 +58,10 @@ export async function GET() {
           ...item.product,
           price: Number(item.product.price),
         },
+        variant: item.variant ? {
+          ...item.variant,
+          price: item.variant.price ? Number(item.variant.price) : null,
+        } : null,
       })),
     }
 
