@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Client } from 'pg';
 
 async function warmup() {
@@ -14,7 +15,7 @@ async function warmup() {
   });
 
   let attempts = 0;
-  const maxAttempts = 5;
+  const maxAttempts = 15;
 
   while (attempts < maxAttempts) {
     try {
