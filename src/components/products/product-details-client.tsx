@@ -60,7 +60,9 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   }, [selectedOptions, processedVariants, product.hasVariants, product.options])
 
   const currentPrice = selectedVariant?.price ? Number(selectedVariant.price) : Number(product.price)
-  const currentComparePrice = selectedVariant ? Number(selectedVariant.price) === Number(product.price) ? Number(product.comparePrice) : null : Number(product.comparePrice)
+  const currentComparePrice = selectedVariant 
+    ? (Number(selectedVariant.price) === Number(product.price) ? (product.comparePrice ? Number(product.comparePrice) : null) : null) 
+    : (product.comparePrice ? Number(product.comparePrice) : null)
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock
   const isAvailable = product.hasPermanentStock || currentStock > 0
 
@@ -97,7 +99,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
         <span className="text-3xl font-bold">
           {formatCurrency(currentPrice)}
         </span>
-        {currentComparePrice && currentComparePrice > currentPrice && (
+        {currentComparePrice !== null && currentComparePrice > currentPrice && (
           <span className="text-lg text-muted-foreground line-through">
             {formatCurrency(currentComparePrice)}
           </span>
