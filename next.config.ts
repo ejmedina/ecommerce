@@ -35,6 +35,18 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "elpanatucasa.com.ar",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.elpanatucasa.com.ar",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };
