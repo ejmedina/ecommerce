@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { OrderStatusManager } from "@/components/order-status-manager"
+import { OrderFulfillment } from "@/components/order-fulfillment"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -32,7 +33,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   function getOrderStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
-      RECEIVED: "secondary",
+      RECEIVED: "default",
       CONFIRMED: "default",
       PREPARING: "warning",
       READY_FOR_DELIVERY: "warning",
@@ -62,7 +63,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       PARTIALLY_REFUNDED: "warning",
       REFUNDED: "destructive",
       FAILED: "destructive",
-      VOIDED: "secondary",
+      VOIDED: "default",
     }
     const labels: Record<string, string> = {
       PENDING: "Pendiente",
@@ -92,7 +93,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   // Check for partial fulfillment (faltantes)
   const hasFaltantes = order.items.some(
-    item => (item.quantityFulfilled ?? 0) !== (item.quantityOrdered ?? item.quantity)
+    item => (item.quantityFulfilled ?? 0) !== item.quantityOrdered
   )
 
   return (
@@ -225,6 +226,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </Card>
       )}
 
+      {/* Fulfillment Management Section */}
+      <OrderFulfillment 
+        orderId={order.id} 
+        items={order.items as any}
+        currentStatus={order.orderStatus}
+      />
+
       {/* Items with faltantes info */}
       <Card>
         <CardHeader>
@@ -233,7 +241,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         <CardContent>
           <div className="space-y-4">
             {order.items.map((item) => {
-              const quantityOrdered = item.quantityOrdered ?? item.quantity
+              const quantityOrdered = item.quantityOrdered
               const quantityFulfilled = item.quantityFulfilled ?? quantityOrdered
               const hasFaltante = quantityFulfilled < quantityOrdered
               
