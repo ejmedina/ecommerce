@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { Printer, Copy } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -303,6 +304,60 @@ export function OrdersTable({
     }
   }
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const stockHtml = estimatedStock
+      .map(item => `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px; text-align: left;">${item.name}</td>
+          <td style="padding: 8px; text-align: right; font-weight: bold;">${item.quantity}</td>
+        </tr>
+      `)
+      .join('')
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Estimación de Stock - ${new Date().toLocaleDateString('es-AR')}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            h1 { font-size: 20px; color: #333; }
+            .footer { margin-top: 30px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Estimación de Stock</h1>
+          <p>Fecha: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR')}</p>
+          <p>Pedidos seleccionados: ${selectedOrders.size}</p>
+          <table>
+            <thead>
+              <tr style="background-color: #f9f9f9;">
+                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Producto</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Cantidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stockHtml}
+            </tbody>
+          </table>
+          <div class="footer">
+            Generado automáticamente el ${new Date().toLocaleString('es-AR')}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
   return (
     <div className="space-y-4">
       {/* Filtros */}
@@ -465,9 +520,13 @@ export function OrdersTable({
                         )}
                       </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                       <Button variant="outline" onClick={() => setEstimateStockOpen(false)}>
                         Cerrar
+                      </Button>
+                      <Button variant="outline" onClick={handlePrint} disabled={estimatedStock.length === 0}>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimir
                       </Button>
                       <Button onClick={copyToClipboard} disabled={estimatedStock.length === 0}>
                         📋 Copiar
