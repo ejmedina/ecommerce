@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { db } from "@/lib/db"
-import { formatCurrency } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { AddToCartButton } from "@/components/add-to-cart-button"
+import { getStorefrontCategories } from "@/lib/categories"
 
 export const dynamic = "force-dynamic"
 
@@ -58,8 +59,6 @@ async function getProducts(params: { category?: string; s?: string }) {
   }
 }
 
-import { getStorefrontCategories } from "@/lib/categories"
-
 async function getCategories() {
   return getStorefrontCategories()
 }
@@ -75,7 +74,10 @@ export default async function ProductsPage({ searchParams }: Props) {
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Filters Sidebar */}
-        <aside className="w-full md:w-64 shrink-0">
+        <aside className={cn(
+          "w-full md:w-64 shrink-0",
+          params.s && "hidden md:block"
+        )}>
           <h2 className="font-semibold mb-4">Categorías</h2>
           <nav className="space-y-2">
             <Link
