@@ -216,19 +216,25 @@ export default function ShippingZonesPage() {
                 </div>
               </div>
 
-              {zone.provinces.includes("BUENOS_AIRES") && (
+              {(zone.provinces.includes("BUENOS_AIRES") || zone.provinces.includes("CABA")) && (
                 <div className="space-y-2">
-                  <Label>Ciudades específicas (opcional)</Label>
+                  <Label>
+                    {zone.provinces.includes("CABA") && !zone.provinces.includes("BUENOS_AIRES") 
+                      ? "Barrios específicos (opcional)" 
+                      : "Ciudades/Barrios específicos (opcional)"}
+                  </Label>
                   <Textarea
                     value={zone.cities?.join(", ") || ""}
                     onChange={(e) => updateZone(index, { 
                       cities: e.target.value ? e.target.value.split(",").map(c => c.trim()) : undefined 
                     })}
-                    placeholder="Ciudad1, Ciudad2 (dejar vacío para toda la provincia)"
+                    placeholder={zone.provinces.includes("CABA") 
+                      ? "Palermo, Recoleta, Almagro..." 
+                      : "Ciudad1, Ciudad2..."}
                     className="text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Separa las ciudades con comas. Si está vacío, la zona aplica a toda la provincia.
+                    Separa con comas. Si está vacío, la zona aplica a toda la provincia seleccionada (toda CABA o todo Buenos Aires).
                   </p>
                 </div>
               )}

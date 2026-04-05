@@ -192,8 +192,6 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
     setFormData(prev => ({
       ...prev,
       state: provinceId,
-      // If it's CABA, city is also CABA
-      city: provinceId === "CABA" ? "CABA" : prev.city
     }))
   }
 
@@ -528,13 +526,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
 
                     {selectedProvince && (
                       <div className="space-y-2">
-                        <Label htmlFor="checkout-city">Tu ciudad</Label>
+                        <Label htmlFor="checkout-city">
+                          {selectedProvince === "CABA" ? "Tu barrio" : "Tu ciudad"}
+                        </Label>
                         <Input 
                           id="checkout-city" 
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          placeholder="Ej: Mar del Plata"
+                          placeholder={selectedProvince === "CABA" ? "Ej: Palermo" : "Ej: Mar del Plata"}
                         />
                       </div>
                     )}
@@ -659,8 +659,17 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="city">Ciudad *</Label>
-                        <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
+                        <Label htmlFor="city">
+                          {formData.state === "CABA" ? "Barrio *" : "Ciudad *"}
+                        </Label>
+                        <Input 
+                          id="city" 
+                          name="city" 
+                          value={formData.city} 
+                          onChange={handleInputChange} 
+                          placeholder={formData.state === "CABA" ? "Ej: Recoleta" : "Ej: Rosario"}
+                          required 
+                        />
                       </div>
                       <div>
                         <Label htmlFor="state">Provincia *</Label>
