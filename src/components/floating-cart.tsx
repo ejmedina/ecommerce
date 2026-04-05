@@ -161,13 +161,27 @@ export function FloatingCart() {
                 <span>{formatCurrency(totalToPay)}</span>
               </div>
             </div>
+
+            {/* Minimum Order Warning */}
+            {useCart().settings?.minShippingOrderAmount > 0 && rawSubtotal < useCart().settings.minShippingOrderAmount && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <p className="font-medium">Mínimo para envío a domicilio</p>
+                <p>Te faltan <strong>{formatCurrency(useCart().settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(useCart().settings.minShippingOrderAmount)}.</p>
+                <p className="text-xs mt-1 opacity-80">(Podés seguir para retirar en tienda sin mínimo)</p>
+              </div>
+            )}
             
             <Button asChild className="w-full" size="lg" onClick={() => setIsOpen(false)}>
               <Link href="/cart">
                 Ver carrito
               </Link>
             </Button>
-            <Button asChild variant="outline" className="w-full" onClick={() => setIsOpen(false)}>
+            <Button 
+              asChild 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setIsOpen(false)}
+            >
               <Link href="/checkout">
                 Finalizar compra
               </Link>

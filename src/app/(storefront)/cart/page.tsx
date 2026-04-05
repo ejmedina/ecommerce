@@ -46,8 +46,15 @@ async function getCart() {
   return null
 }
 
+async function getSettings() {
+  const settings = await db.storeSettings.findFirst()
+  return {
+    minShippingOrderAmount: Number(settings?.minShippingOrderAmount) || 0,
+  }
+}
+
 export default async function CartPage() {
-  const cart = await getCart()
+  const [cart, settings] = await Promise.all([getCart(), getSettings()])
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -185,6 +192,13 @@ export default async function CartPage() {
                 <span>Total</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
+              {settings.minShippingOrderAmount > 0 && subtotal < settings.minShippingOrderAmount && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  <p className="font-medium">Mínimo para envío a domicilio</p>
+                  <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - subtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
+                  <p className="text-xs mt-1 opacity-80">(Podés seguir para retirar en tienda sin mínimo)</p>
+                </div>
+              )}
               <Button asChild className="w-full" size="lg">
                 <Link href="/checkout">Continuar compra</Link>
               </Button>

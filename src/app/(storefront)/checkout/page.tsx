@@ -73,6 +73,7 @@ async function getSettings() {
     bankAccount: settings.bankAccount,
     shippingConfig: settings.shippingConfig,
     paymentMethods: settings.paymentMethods as any,
+    minShippingOrderAmount: Number(settings.minShippingOrderAmount) || 0,
   }
 }
 

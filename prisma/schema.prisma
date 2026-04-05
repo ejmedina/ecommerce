@@ -427,6 +427,10 @@ model StoreSettings {
   // true = solo avanzar fulfillment si paymentStatus = PAID
   // false = avanzar aunque paymentStatus = PENDING (contra entrega)
   requiresPaymentToFulfill Boolean @default(false)
+
+  // === CONFIGURACIÓN DE MONTO MÍNIMO ===
+  // Monto mínimo de pedido para habilitar el envío a domicilio
+  minShippingOrderAmount Decimal @db.Decimal(10, 2) @default(0)
   
   // === CONFIGURACIÓN DE WHATSAPP ===
   // Mensaje personalizado para notificar al cliente cuando el pedido está por llegar

@@ -38,23 +38,33 @@ interface CartContextType {
   setIsOpen: (open: boolean) => void
   refreshCart: () => Promise<void>
   pricingResult: PricingResult | null
+  settings: any | null
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null)
+  const [settings, setSettings] = useState<any | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
   const refreshCart = async () => {
     try {
-      const res = await fetch("/api/cart")
-      if (res.ok) {
-        const data = await res.json()
+      const [cartRes, settingsRes] = await Promise.all([
+        fetch("/api/cart"),
+        fetch("/api/settings")
+      ])
+      
+      if (cartRes.ok) {
+        const data = await cartRes.json()
         setCart(data)
       }
+      if (settingsRes.ok) {
+        const data = await settingsRes.json()
+        setSettings(data)
+      }
     } catch (error) {
-      console.error("Error fetching cart:", error)
+      console.error("Error fetching cart/settings:", error)
     }
   }
 
@@ -66,7 +76,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const pricingResult = cart?.pricingResult || null
 
   return (
-    <CartContext.Provider value={{ cart, itemCount, isOpen, setIsOpen, refreshCart, pricingResult }}>
+    <CartContext.Provider value={{ cart, itemCount, isOpen, setIsOpen, refreshCart, pricingResult, settings }}>
       {children}
     </CartContext.Provider>
   )

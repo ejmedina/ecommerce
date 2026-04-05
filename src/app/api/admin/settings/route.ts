@@ -63,6 +63,7 @@ export async function PUT(req: NextRequest) {
       whatsappPreArrivalMessage,
       autoConfirmOrders,
       requiresPaymentToFulfill,
+      minShippingOrderAmount,
       storeUrl,
       // Home page fields
       heroSliderEnabled,
@@ -94,6 +95,7 @@ export async function PUT(req: NextRequest) {
       bankAccount,
       autoConfirmOrders,
       requiresPaymentToFulfill,
+      minShippingOrderAmount,
       whatsappPreArrivalMessage,
     }
 

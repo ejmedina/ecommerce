@@ -59,6 +59,7 @@ interface CheckoutStepsProps {
     bankAccount: unknown
     shippingConfig: any
     paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
+    minShippingOrderAmount?: unknown
   }
   pricingResult: PricingResult
   user?: { id: string; email?: string | null; name?: string | null } | null
@@ -220,6 +221,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       case "account":
         return true
       case "shipping":
+        if (shippingMethod === "shipping") {
+          const min = Number(settings.minShippingOrderAmount) || 0
+          return pricingResult.rawSubtotal >= min
+        }
         return true
       case "address":
         return !!(formData.street && formData.number && formData.city && formData.state && formData.postalCode)
@@ -573,7 +578,13 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                   </div>
                 )}
 
-                <div className="mt-auto">
+                <div className="mt-auto space-y-4">
+                  {currentStep === "shipping" && shippingMethod === "shipping" && Number(settings.minShippingOrderAmount) > 0 && pricingResult.rawSubtotal < Number(settings.minShippingOrderAmount) && (
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+                      <p className="font-medium text-center">No alcanzaste el mínimo</p>
+                      <p className="text-center">El monto mínimo para envío a domicilio es <strong>{formatCurrency(Number(settings.minShippingOrderAmount))}</strong>. Te faltan <strong>{formatCurrency(Number(settings.minShippingOrderAmount) - pricingResult.rawSubtotal)}</strong>.</p>
+                    </div>
+                  )}
                   <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
                     Continuar <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>

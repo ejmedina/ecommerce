@@ -37,6 +37,7 @@ interface StoreSettings {
   whatsappPreArrivalMessage: string | null
   themeColors: ThemeColors | null
   paymentMethods: Record<string, { isActive: boolean, label: string, description: string }> | null
+  minShippingOrderAmount: any
 }
 
 export function SettingsForm() {
@@ -56,6 +57,7 @@ export function SettingsForm() {
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
   const [autoConfirmOrders, setAutoConfirmOrders] = useState(true)
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
+  const [minShippingOrderAmount, setMinShippingOrderAmount] = useState(0)
   const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
 
   // Theme colors state
@@ -88,6 +90,7 @@ export function SettingsForm() {
       setFavicon(data.favicon)
       setAutoConfirmOrders(data.autoConfirmOrders ?? true)
       setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
+      setMinShippingOrderAmount(Number(data.minShippingOrderAmount) || 0)
       setWhatsappPreArrivalMessage(data.whatsappPreArrivalMessage || "")
       
       if (data.shippingConfig) {
@@ -131,6 +134,7 @@ export function SettingsForm() {
           shippingConfig,
           autoConfirmOrders,
           requiresPaymentToFulfill,
+          minShippingOrderAmount,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
           themeColors,
           paymentMethods,
@@ -542,6 +546,24 @@ export function SettingsForm() {
                     Si está desactivado, se puede preparar pedidos con pago pendiente (contra entrega).
                   </p>
                 </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="minShippingOrderAmount">Monto mínimo para envío a domicilio ($)</Label>
+                <Input
+                  id="minShippingOrderAmount"
+                  type="number"
+                  value={minShippingOrderAmount}
+                  onChange={(e) => setMinShippingOrderAmount(Number(e.target.value))}
+                  min={0}
+                  step={100}
+                />
+                <p className="text-sm text-muted-foreground">
+                  El cliente no podrá finalizar la compra con entrega a domicilio si el subtotal es menor a este monto.
+                  Pon 0 para que no haya mínimo.
+                </p>
               </div>
             </CardContent>
           </Card>
