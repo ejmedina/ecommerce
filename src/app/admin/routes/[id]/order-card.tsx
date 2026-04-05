@@ -150,11 +150,17 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
       `}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">
-                {item.order.user.name || item.order.user.email}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">#{item.order.orderNumber}</p>
+            <div className="flex items-center gap-3">
+              {/* Sequence number for easy bag identification */}
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground shrink-0 shadow-sm border-2 border-white">
+                {index + 1}
+              </div>
+              <div>
+                <CardTitle className="text-base md:text-lg">
+                  {item.order.user.name || item.order.user.email}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Pedido #{item.order.orderNumber}</p>
+              </div>
             </div>
             {isDelivered && (
               <Badge variant="success" className="text-sm">✓ Entregado</Badge>
@@ -356,18 +362,23 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
               </Button>
             </div>
             
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">#{index + 1}</span>
-                <CardTitle className="text-lg">
-                  {item.order.user.name || item.order.user.email}
-                </CardTitle>
-                {isDelivered && <Badge variant="success">✓ Entregado</Badge>}
-                {isNotDelivered && <Badge variant="destructive">✗ No entregado</Badge>}
+            <div className="flex items-center gap-3">
+              {/* Proeminent sequence number for bag labeling */}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-xl font-black text-primary-foreground shrink-0 shadow-sm border-2 border-white">
+                {index + 1}
               </div>
-              <p className="text-sm text-muted-foreground">
-                Pedido #{item.order.orderNumber} • {formatCurrency(Number(item.order.total))}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg">
+                    {item.order.user.name || item.order.user.email}
+                  </CardTitle>
+                  {isDelivered && <Badge variant="success">✓ Entregado</Badge>}
+                  {isNotDelivered && <Badge variant="destructive">✗ No entregado</Badge>}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Pedido #{item.order.orderNumber} • {formatCurrency(Number(item.order.total))}
+                </p>
+              </div>
             </div>
           </div>
 

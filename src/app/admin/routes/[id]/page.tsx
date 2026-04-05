@@ -147,13 +147,13 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
             Vista optimizada para usar durante la entrega.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
-            {routeSheet.items.map((item: any) => (
+            {routeSheet.items.map((item: any, index: number) => (
               <OrderCard
                 key={item.id}
                 item={item}
-                index={0}
+                index={index}
                 mode="delivery"
-                totalItems={0}
+                totalItems={routeSheet.items.length}
                 whatsappMessage={whatsappMessage}
                 storeName={settings?.storeName || "Mi Tienda"}
               />
