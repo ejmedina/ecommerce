@@ -444,3 +444,220 @@ export async function getRouteSheets() {
     return []
   }
 }
+
+// ============================================
+// BATCH REORDER ROUTE SHEET ITEMS (For Drag & Drop)
+// ============================================
+
+export async function reorderRouteSheetItemsBatch(routeSheetId: string, itemIdsInOrder: string[]) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: "No autorizado" }
+
+    // Execute all updates in a transaction for data integrity
+    await db.$transaction(
+      itemIdsInOrder.map((id, index) => 
+        db.routeSheetItem.update({
+          where: { id },
+          data: { position: index + 1 }
+        })
+      )
+    )
+
+    revalidatePath(`/admin/routes/${routeSheetId}`)
+    return { success: true }
+  } catch (error: any) {
+    console.error("Batch reorder error:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ============================================
+// GEOCODING UTILITY
+// ============================================
+
+export async function geocodeAddress(addressData: any) {
+  // If we already have coordinates from the user's saved address or previous geocoding, use them.
+  if (addressData.lat && addressData.lng) {
+    return { lat: addressData.lat, lng: addressData.lng }
+  }
+
+  // Construct query string
+  const queryParts = [addressData.street, addressData.number, addressData.city, addressData.state, "Argentina"]
+  const query = queryParts.filter(Boolean).join(", ")
+
+  try {
+    const apiKey = process.env.OPENROUTESERVICE_API_KEY
+    if (!apiKey) {
+      console.warn("No ORS API Key configured")
+      return null
+    }
+
+    const res = await fetch(`https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(query)}&size=1`)
+    if (!res.ok) throw new Error("Error fetching geocode")
+    const data = await res.json()
+
+    if (data.features && data.features.length > 0) {
+      // GeoJSON responses have coordinates as [longitude, latitude]
+      const coords = data.features[0].geometry.coordinates
+      return { lng: coords[0], lat: coords[1] }
+    }
+    return null
+  } catch (e) {
+    console.error("Geocoding failed for address:", query, e)
+    return null
+  }
+}
+
+// ============================================
+// LOGISTICS: AUTO-OPTIMIZE ROUTE (TSP) via ORS
+// ============================================
+
+export async function optimizeRouteOrder(routeSheetId: string, startDepotId?: string | null, endDepotId?: string | null, vehicleId?: string | null) {
+  try {
+    const apiKey = process.env.OPENROUTESERVICE_API_KEY
+    if (!apiKey) {
+      return { success: false, error: "La API Key de OpenRouteService no está configurada en .env" }
+    }
+
+    // 1. Fetch Route Sheet, Items and Orders
+    const routeSheet = await db.routeSheet.findUnique({
+      where: { id: routeSheetId },
+      include: {
+        items: {
+          include: { order: true }
+        }
+      }
+    })
+
+    if (!routeSheet || routeSheet.items.length === 0) {
+      return { success: false, error: "La hoja de ruta está vacía." }
+    }
+
+    // 2. Resolve Depots (Start / End)
+    let startDepot = null
+    let endDepot = null
+
+    if (startDepotId) {
+      startDepot = await db.depot.findUnique({ where: { id: startDepotId } })
+    }
+    if (endDepotId) {
+      endDepot = await db.depot.findUnique({ where: { id: endDepotId } })
+    }
+
+    // Update the route sheet with the selected logistics params
+    await db.routeSheet.update({
+      where: { id: routeSheetId },
+      data: {
+        startDepotId: startDepotId || null,
+        endDepotId: endDepotId || null,
+        vehicleId: vehicleId || null
+      }
+    })
+
+    // 3. Build VROOM / Optimization Payload
+    // Format: https://openrouteservice.org/dev/#/api-docs/optimization/post
+    
+    const jobs = []
+    
+    for (const item of routeSheet.items) {
+      let shippingAddress = item.order.shippingAddress as any
+      let coords = await geocodeAddress(shippingAddress)
+
+      if (!coords) {
+        return { success: false, error: `No se pudieron obtener coordenadas para el pedido #${item.order.orderNumber}` }
+      }
+
+      // Persist geocoded coordinates back to the order shipping address to save API calls in future
+      if (!shippingAddress.lat || !shippingAddress.lng) {
+        shippingAddress.lat = coords.lat
+        shippingAddress.lng = coords.lng
+        await db.order.update({
+          where: { id: item.order.id },
+          data: { shippingAddress }
+        })
+      }
+
+      jobs.push({
+        id: parseInt(item.id.replace(/\D/g, '').slice(-8)) || Math.floor(Math.random() * 1000000), // VROOM needs numeric IDs, create a stable hash or fallback
+        mapped_id: item.id, // Store string id locally
+        location: [coords.lng, coords.lat],
+        service: 300 // 5 minutes service time per delivery
+      })
+    }
+
+    const vehicleObj: any = {
+      id: 1,
+      profile: "driving-car"
+    }
+
+    if (startDepot && startDepot.lng && startDepot.lat) {
+      vehicleObj.start = [startDepot.lng, startDepot.lat]
+    } else if (jobs.length > 0) {
+      // If no start depot, use the first coordinates or just omit. 
+      // VROOM requires at least start or end if we have vehicles.
+      // If none, we will just use the first job's location as a virtual start.
+      vehicleObj.start = jobs[0].location
+    }
+
+    if (endDepot && endDepot.lng && endDepot.lat) {
+      vehicleObj.end = [endDepot.lng, endDepot.lat]
+    }
+
+    const payload = {
+      jobs: jobs.map(({mapped_id, ...rest}) => rest), // Remove mapped_id for payload
+      vehicles: [vehicleObj]
+    }
+
+    // 4. Call ORS Optimization
+    const res = await fetch(`https://api.openrouteservice.org/optimization`, {
+      method: 'POST',
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      console.error("ORS optimization failed:", err)
+      return { success: false, error: "El servicio de ruteo devolvió un error. Verifique las direcciones." }
+    }
+
+    const data = await res.json()
+
+    if (data.code !== 0 || !data.routes || data.routes.length === 0) {
+      return { success: false, error: "No se encontró una ruta óptima." }
+    }
+
+    // 5. Update positions based on route steps
+    const steps = data.routes[0].steps
+    let currentPosition = 1
+
+    const updates = []
+    for (const step of steps) {
+      if (step.type === 'job') {
+        const originalJobId = step.job
+        const originalJob = jobs.find(j => j.id === originalJobId)
+        if (originalJob) {
+          updates.push(
+            db.routeSheetItem.update({
+              where: { id: originalJob.mapped_id },
+              data: { position: currentPosition }
+            })
+          )
+          currentPosition++
+        }
+      }
+    }
+
+    await db.$transaction(updates)
+    revalidatePath(`/admin/routes/${routeSheetId}`)
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Optimize Route Error:", error)
+    return { success: false, error: error.message }
+  }
+}

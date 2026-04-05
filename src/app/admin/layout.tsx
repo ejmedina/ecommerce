@@ -114,6 +114,26 @@ export default async function AdminLayout({
               <Settings className="h-4 w-4" />
               Configuración
             </Link>
+
+            <div className="pt-4 pb-2">
+              <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Logística y Ruteo
+              </p>
+            </div>
+            <Link
+              href="/admin/logistics/depots"
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+            >
+              <Home className="h-4 w-4" />
+              Depósitos
+            </Link>
+            <Link
+              href="/admin/logistics/vehicles"
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+            >
+              <Truck className="h-4 w-4" />
+              Móviles
+            </Link>
           </nav>
         </aside>
 

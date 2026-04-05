@@ -63,6 +63,10 @@ model Address {
   country      String   @default("AR")
   instructions String?
   isDefault    Boolean  @default(false)
+  
+  // Geolocation
+  lat          Float?
+  lng          Float?
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -351,12 +355,55 @@ enum DeliveryFailureReason {
   OTHER
 }
 
+// ============================================
+// LOGISTICS & ROUTING
+// ============================================
+
+model Vehicle {
+  id           String       @id @default(cuid())
+  name         String
+  licensePlate String?
+  capacity     Int?         // Capacity in orders or weight, optional
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  routeSheets  RouteSheet[]
+
+  @@map("vehicles")
+}
+
+model Depot {
+  id           String       @id @default(cuid())
+  name         String
+  address      Json         // Storing address data same as order.shippingAddress
+  lat          Float?
+  lng          Float?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  startedRoutes RouteSheet[] @relation("RouteSheetStartDepot")
+  endedRoutes   RouteSheet[] @relation("RouteSheetEndDepot")
+
+  @@map("depots")
+}
+
 model RouteSheet {
   id          String            @id @default(cuid())
   name        String
   date        DateTime          @db.Date
   notes       String?
   status      RouteSheetStatus @default(DRAFT)
+  
+  // Logistics routing fields
+  vehicleId   String?
+  vehicle     Vehicle?          @relation(fields: [vehicleId], references: [id])
+  startDepotId String?
+  startDepot  Depot?            @relation("RouteSheetStartDepot", fields: [startDepotId], references: [id])
+  endDepotId  String?
+  endDepot    Depot?            @relation("RouteSheetEndDepot", fields: [endDepotId], references: [id])
+  
   createdById String
   createdBy   User              @relation(fields: [createdById], references: [id])
   createdAt   DateTime          @default(now())

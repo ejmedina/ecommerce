@@ -1,12 +1,14 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getRouteSheet } from "@/lib/actions/route-sheet-actions"
+import { getDepots, getVehicles } from "@/lib/actions/logistics-actions"
 import { db } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RouteSheetActions } from "./route-sheet-actions"
 import { OrderCard } from "./order-card"
+import { SortableRouteItems } from "./sortable-route-items"
 
 interface RouteSheetDetailPageProps {
   params: Promise<{ id: string }>
@@ -14,14 +16,17 @@ interface RouteSheetDetailPageProps {
 
 export default async function RouteSheetDetailPage({ params }: RouteSheetDetailPageProps) {
   const { id } = await params
-  const routeSheet = await getRouteSheet(id)
+  const [routeSheet, settings, depots, vehicles] = await Promise.all([
+    getRouteSheet(id),
+    db.storeSettings.findFirst(),
+    getDepots(),
+    getVehicles()
+  ])
 
   if (!routeSheet) {
     notFound()
   }
 
-  // Obtener settings para el mensaje de WhatsApp
-  const settings = await db.storeSettings.findFirst()
   const whatsappMessage = settings?.whatsappPreArrivalMessage || ""
 
   const statusLabels: Record<string, string> = {
@@ -124,21 +129,16 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
         {/* Vista de Preparación */}
         <TabsContent value="preparation" className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Ordene los pedidos y prepare la mercadería. Marque los faltantes.
+            Ordene los pedidos y prepare la mercadería. Marque los faltantes o utilice optimización de ruteo.
           </p>
-          <div className="space-y-4">
-            {routeSheet.items.map((item: any, index: number) => (
-              <OrderCard
-                key={item.id}
-                item={item}
-                index={index}
-                mode="preparation"
-                totalItems={routeSheet.items.length}
-                whatsappMessage={whatsappMessage}
-                storeName={settings?.storeName || "Mi Tienda"}
-              />
-            ))}
-          </div>
+          <SortableRouteItems 
+            items={routeSheet.items}
+            whatsappMessage={settings?.whatsappRouteMessage || ""}
+            storeName={settings?.storeName || "Mi Tienda"}
+            depots={depots}
+            vehicles={vehicles}
+            routeSheet={routeSheet}
+          />
         </TabsContent>
 
         {/* Vista de Reparto */}

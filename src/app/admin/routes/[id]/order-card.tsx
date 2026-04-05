@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { 
   Dialog, 
   DialogContent, 
@@ -31,7 +33,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical } from "lucide-react"
 
 interface OrderCardProps {
   item: {
@@ -97,6 +99,22 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id, disabled: mode !== "preparation" })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative' as any
+  }
+
   // Generar mensaje de WhatsApp personalizado
   const getWhatsAppMessage = () => {
     if (!whatsappMessage) return "Hola, llegamos en menos de 10 minutos."
@@ -144,9 +162,13 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
       : `${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`
 
     return (
-      <Card className={`
+      <Card 
+        ref={setNodeRef} 
+        style={style} 
+        className={`
         ${isDelivered ? "bg-green-50 border-green-200" : ""}
         ${isNotDelivered ? "bg-red-50 border-red-200" : ""}
+        ${isDragging ? 'opacity-70 shadow-lg ring-2 ring-primary border-primary' : ''}
       `}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -354,6 +376,17 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
+            {/* Drag handle for preparation mode */}
+            {mode === "preparation" && (
+              <div 
+                {...attributes} 
+                {...listeners} 
+                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 p-2 -ml-2"
+              >
+                <GripVertical className="h-5 w-5" />
+              </div>
+            )}
+            
             {/* Reorder buttons */}
             <div className="flex flex-col gap-1">
               <Button 
