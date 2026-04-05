@@ -31,7 +31,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation } from "lucide-react"
 
 interface OrderCardProps {
   item: {
@@ -173,7 +173,21 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         <CardContent className="space-y-3">
           {/* Contact Info */}
           <div className="space-y-1">
-            <p className="font-medium text-sm">{displayAddress}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-sm">{displayAddress}</p>
+              {shippingAddress?.shippingMethod !== "pickup" && (
+                <a 
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state || ''}, Argentina`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600">
+                    <Navigation className="w-4 h-4" />
+                  </Button>
+                </a>
+              )}
+            </div>
             {phone && (
               <div className="flex gap-2 flex-wrap">
                 <a href={`tel:${phone}`}>
@@ -401,10 +415,24 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Address */}
-        <div>
-          <p className="text-sm font-medium">Dirección:</p>
-          <p className="text-sm text-muted-foreground">{displayAddress}</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">Dirección:</p>
+            <p className="text-sm text-muted-foreground">{displayAddress}</p>
+          </div>
+          {shippingAddress?.shippingMethod !== "pickup" && (
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state || ''}, Argentina`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1"
+            >
+              <Button size="sm" variant="ghost" className="text-blue-600 h-8 gap-1 p-1">
+                <MapPin className="w-4 h-4" />
+                <span className="text-xs">Mapa</span>
+              </Button>
+            </a>
+          )}
         </div>
 
         {/* Items */}

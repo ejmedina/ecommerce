@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { MapPin } from "lucide-react"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
@@ -7,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { OrderStatusManager } from "@/components/order-status-manager"
 import { OrderFulfillment } from "@/components/order-fulfillment"
+
+import { Button } from "@/components/ui/button"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -179,6 +182,18 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 {shippingAddress?.floor && <p>Piso: {shippingAddress.floor}</p>}
                 {shippingAddress?.apartment && <p>Depto: {shippingAddress.apartment}</p>}
                 <p>{shippingAddress?.city}, {shippingAddress?.state} {shippingAddress?.postalCode}</p>
+                <div className="mt-2">
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state}, Argentina`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" size="sm" className="w-full">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Ver en mapa
+                    </Button>
+                  </a>
+                </div>
                 <p><strong>País:</strong> {shippingAddress?.country || "Argentina"}</p>
               </>
             )}
