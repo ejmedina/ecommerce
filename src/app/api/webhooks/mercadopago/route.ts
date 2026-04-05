@@ -28,26 +28,23 @@ export async function POST(req: NextRequest) {
           ? body.data?.status 
           : "PENDING"
 
-        let newStatus = order.status
-        let newPaymentStatus: "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED" | "CANCELLED" = "PENDING"
+        let newStatus = order.orderStatus
+        let newPaymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOIDED" = "PENDING"
 
         // Map Mercado Pago status to our status
         switch (paymentStatus) {
           case "approved":
-            newPaymentStatus = "APPROVED"
-            newStatus = "PROCESSING"
+            newPaymentStatus = "PAID"
+            newStatus = "CONFIRMED"
             break
           case "rejected":
-            newPaymentStatus = "REJECTED"
-            newStatus = "CANCELLED"
+            newPaymentStatus = "FAILED"
             break
           case "refunded":
             newPaymentStatus = "REFUNDED"
-            newStatus = "REFUNDED"
             break
           case "cancelled":
-            newPaymentStatus = "CANCELLED"
-            newStatus = "CANCELLED"
+            newPaymentStatus = "VOIDED"
             break
           default:
             newPaymentStatus = "PENDING"
@@ -57,8 +54,8 @@ export async function POST(req: NextRequest) {
           where: { id: order.id },
           data: {
             paymentStatus: newPaymentStatus,
-            status: newStatus,
-            paidAt: newPaymentStatus === "APPROVED" ? new Date() : undefined,
+            orderStatus: newStatus,
+            paidAt: newPaymentStatus === "PAID" ? new Date() : undefined,
             mercadopagoData: body,
           },
         })

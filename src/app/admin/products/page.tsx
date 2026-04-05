@@ -16,6 +16,7 @@ export default async function ProductsPage(props: {
   const search = typeof searchParams.search === 'string' ? searchParams.search : undefined
   const categoryId = typeof searchParams.category === 'string' && searchParams.category !== 'all' ? searchParams.category : undefined
   const sort = typeof searchParams.sort === 'string' ? searchParams.sort : 'date_desc'
+  const discountFilter = typeof searchParams.discount === 'string' ? searchParams.discount : 'all'
   const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1
   const limit = 20
   const skip = (page - 1) * limit
@@ -31,6 +32,9 @@ export default async function ProductsPage(props: {
         ]
       } : {},
       categoryId ? { categoryId } : {},
+      discountFilter === 'with_discount' ? { discountType: { not: 'NONE' } } : {},
+      discountFilter === 'compare_price' ? { discountType: 'COMPARE_PRICE' } : {},
+      discountFilter === 'volume_fixed' ? { discountType: 'VOLUME_FIXED' } : {},
     ]
   }
 

@@ -214,12 +214,8 @@ export default function HomeSettingsPage() {
             Personaliza los componentes de la página principal
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
+        <Button onClick={handleSave} isLoading={saving}>
+          <Save className="h-4 w-4 mr-2" />
           Guardar
         </Button>
       </div>

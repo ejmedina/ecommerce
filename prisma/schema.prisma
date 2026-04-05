@@ -115,6 +115,10 @@ model Product {
   options         ProductOption[]
   variants        ProductVariant[]
 
+  // === DESCUENTOS ===
+  discountType    String       @default("NONE") // NONE, COMPARE_PRICE, VOLUME_FIXED
+  discountConfig  Json?        // Ej: { threshold: 2, value: 1000 }
+
   isFeatured      Boolean      @default(false)
   isActive        Boolean      @default(false)
   publishedAt     DateTime?

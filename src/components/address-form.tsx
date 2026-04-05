@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
+import { ARGENTINE_PROVINCES } from "@/lib/shipping"
 
 interface Address {
   id?: string
@@ -160,13 +161,20 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
         </div>
         <div className="space-y-2">
           <Label htmlFor="state">Provincia *</Label>
-          <Input
+          <select
             id="state"
             value={formData.state}
             onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
-            placeholder="CABA"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             required
-          />
+          >
+            <option value="">Seleccioná una provincia</option>
+            {ARGENTINE_PROVINCES.map((province) => (
+              <option key={province.id} value={province.id}>
+                {province.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -209,8 +217,7 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
             Cancelar
           </Button>
         )}
-        <Button type="submit" disabled={isLoading} className="flex-1">
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+        <Button type="submit" isLoading={isLoading} className="flex-1">
           {address?.id ? "Actualizar" : "Guardar"} dirección
         </Button>
       </div>

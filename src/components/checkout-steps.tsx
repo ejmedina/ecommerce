@@ -22,6 +22,7 @@ import {
   calculateShipping,
   getDefaultShippingConfig 
 } from "@/lib/shipping"
+import { type PricingResult } from "@/lib/pricing"
 
 interface SavedAddress {
   id: string
@@ -59,7 +60,7 @@ interface CheckoutStepsProps {
     shippingConfig: any
     paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
   }
-  subtotal: number
+  pricingResult: PricingResult
   user?: { id: string; email?: string | null; name?: string | null } | null
   addresses?: SavedAddress[]
 }
@@ -74,7 +75,7 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "confirm", label: "Confirmar" },
 ]
 
-export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }: CheckoutStepsProps) {
+export function CheckoutSteps({ cart, settings, pricingResult, user, addresses = [] }: CheckoutStepsProps) {
   const router = useRouter()
   
   // Si el usuario está logueado, empezar desde "shipping" y marcar "account" como completado
@@ -142,7 +143,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
       const calc = calculateShipping(
         selectedProvince as ProvinceId,
         formData.city,
-        subtotal,
+        pricingResult.totalToPay, // Use total to pay (after discounts) for free shipping threshold
         shippingConfig
       )
       if (calc) {
@@ -158,12 +159,12 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
     } else {
       setShippingCalculation(null)
     }
-  }, [selectedProvince, formData.city, subtotal, shippingConfig, shippingMethod])
+  }, [selectedProvince, formData.city, pricingResult.totalToPay, shippingConfig, shippingMethod])
 
   const shippingCost = shippingMethod === "shipping" 
     ? (shippingCalculation?.cost ?? 0)
     : 0
-  const total = subtotal + shippingCost
+  const total = pricingResult.totalToPay + shippingCost
 
   // Determine visible steps based on settings
   const visibleSteps = getVisibleSteps(shippingMethod)
@@ -179,12 +180,21 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
     return steps
   }
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
   function handleProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedProvince(e.target.value as ProvinceId)
+    const provinceId = e.target.value as ProvinceId
+    setSelectedProvince(provinceId)
+    
+    // Also sync with formData for consistency
+    setFormData(prev => ({
+      ...prev,
+      state: provinceId,
+      // If it's CABA, city is also CABA
+      city: provinceId === "CABA" ? "CABA" : prev.city
+    }))
   }
 
   function goToStep(step: Step) {
@@ -309,6 +319,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
       formDataObj.set("state", formData.state)
       formDataObj.set("postalCode", formData.postalCode)
       formDataObj.set("instructions", formData.instructions)
+      formDataObj.set("discountAmount", pricingResult.discountAmount.toString())
 
       const result = await createOrder(formDataObj)
       
@@ -402,8 +413,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                         <Input id="login-password" type="password" value={loginData.password} onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))} required />
                       </div>
                       {authError && <p className="text-sm text-destructive">{authError}</p>}
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      <Button type="submit" className="w-full" isLoading={isLoading}>
                         Iniciar sesión
                       </Button>
                     </form>
@@ -437,8 +447,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                           <Input id="register-password" type="password" value={registerData.password} onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))} required minLength={8} />
                         </div>
                         {authError && <p className="text-sm text-destructive">{authError}</p>}
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                        <Button type="submit" className="w-full" isLoading={isLoading}>
                           Crear cuenta
                         </Button>
                       </form>
@@ -459,8 +468,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                         <Input id="guest-email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="tu@email.com" required />
                       </div>
                       {authError && <p className="text-sm text-destructive">{authError}</p>}
-                      <Button type="submit" className="w-full" disabled={isLoading || guestSent}>
-                        {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      <Button type="submit" className="w-full" isLoading={isLoading} disabled={guestSent}>
                         {guestSent ? "¡Listo! Continuar" : "Continuar como invitado"}
                       </Button>
                     </form>
@@ -656,7 +664,21 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                       </div>
                       <div>
                         <Label htmlFor="state">Provincia *</Label>
-                        <Input id="state" name="state" value={formData.state} onChange={handleInputChange} required />
+                        <select
+                          id="state"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          required
+                        >
+                          <option value="">Seleccioná una provincia</option>
+                          {ARGENTINE_PROVINCES.map((province) => (
+                            <option key={province.id} value={province.id}>
+                              {province.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div>
@@ -730,7 +752,7 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
                 </div>
 
                 <div className="mt-auto">
-                  <Button onClick={handleSubmit} className="w-full" size="lg" disabled={isSubmitting}>
+                  <Button onClick={handleSubmit} className="w-full" size="lg" isLoading={isSubmitting}>
                     {isSubmitting ? "Procesando..." : `Confirmar pedido - ${formatCurrency(total)}`}
                   </Button>
                 </div>
@@ -772,10 +794,18 @@ export function CheckoutSteps({ cart, settings, subtotal, user, addresses = [] }
               <Separator />
 
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{formatCurrency(pricingResult.rawSubtotal)}</span>
                 </div>
+                
+                {pricingResult.discounts.map((discount, idx) => (
+                  <div key={idx} className="flex justify-between text-green-600 font-medium">
+                    <span>{discount.description}</span>
+                    <span>-{formatCurrency(discount.amount)}</span>
+                  </div>
+                ))}
+
                 <div className="flex justify-between">
                   <span>Envío</span>
                   <span>

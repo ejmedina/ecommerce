@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 
+import { type PricingResult } from "@/lib/pricing"
+
 interface CartItem {
   id: string
   productId: string
@@ -11,6 +13,8 @@ interface CartItem {
     id: string
     name: string
     price: number
+    discountType?: string | null
+    discountConfig?: any | null
     images: { url: string; alt: string | null }[]
   }
   variant: {
@@ -24,6 +28,7 @@ interface CartItem {
 interface Cart {
   id: string
   items: CartItem[]
+  pricingResult?: PricingResult | null
 }
 
 interface CartContextType {
@@ -32,6 +37,7 @@ interface CartContextType {
   isOpen: boolean
   setIsOpen: (open: boolean) => void
   refreshCart: () => Promise<void>
+  pricingResult: PricingResult | null
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -57,9 +63,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) || 0
+  const pricingResult = cart?.pricingResult || null
 
   return (
-    <CartContext.Provider value={{ cart, itemCount, isOpen, setIsOpen, refreshCart }}>
+    <CartContext.Provider value={{ cart, itemCount, isOpen, setIsOpen, refreshCart, pricingResult }}>
       {children}
     </CartContext.Provider>
   )

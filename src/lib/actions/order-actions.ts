@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { OrderStatus, PaymentStatus } from "@prisma/client"
+import { calculateCartPricing } from "@/lib/pricing"
 
 // ============================================
 // UPDATE ORDERS STATUS (MASIVO)
@@ -100,22 +101,24 @@ export async function createOrder(formData: FormData) {
       return { error: "El carrito está vacío" }
     }
 
-    // Calculate totals
-    const subtotal = cart.items.reduce((sum: number, item: any) => {
-      const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
-      return sum + itemPrice * item.quantity
-    }, 0)
+    // Calculate totals securely via pricing engine
+    const pricingResult = calculateCartPricing(cart.items as any)
+    const subtotal = pricingResult.rawSubtotal
+    const discountAmount = pricingResult.discountAmount
 
     // Get settings for shipping
     const settings = await db.storeSettings.findFirst()
+    
+    // Si tenemos modulo de envio avanzado, se recomienda pasar los params correctos.
+    // Por ahora reescribimos retrocompatibilidad de freeShippingMin.
     const freeShippingMin = settings?.freeShippingMin ? Number(settings.freeShippingMin) : 0
     const fixedShippingCost = settings?.fixedShippingCost ? Number(settings.fixedShippingCost) : 0
 
     const shippingCost = shippingMethod === "shipping"
-      ? (subtotal >= freeShippingMin ? 0 : fixedShippingCost)
+      ? (pricingResult.totalToPay >= freeShippingMin ? 0 : fixedShippingCost)
       : 0
 
-    const total = subtotal + shippingCost
+    const total = pricingResult.totalToPay + shippingCost
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
@@ -137,21 +140,48 @@ export async function createOrder(formData: FormData) {
       }
     }
 
-    // If still no userId, create or use guest user
-    if (!userId) {
-      let guestUser = await db.user.findFirst({
-        where: { email: "guest@tienda.com" }
+    // If still no userId, but we have an email, use/create that user
+    if (!userId && email) {
+      let guestUser = await db.user.findUnique({
+        where: { email }
       })
       if (!guestUser) {
         guestUser = await db.user.create({
           data: {
+            email,
+            name: name || "Invitado",
+            role: "CUSTOMER",
+            status: "PENDING",
+            isActive: false
+          }
+        })
+      } else {
+        // If guest user exists but has generic name, update it
+        if (guestUser.name === "Guest" || guestUser.name === "Cliente Guest" || !guestUser.name) {
+          await db.user.update({
+            where: { id: guestUser.id },
+            data: { name: name || guestUser.name || "Invitado" }
+          })
+        }
+      }
+      userId = guestUser.id
+    }
+
+    // Last resort: generic guest user (if somehow no email provided)
+    if (!userId) {
+      let genericGuest = await db.user.findFirst({
+        where: { email: "guest@tienda.com" }
+      })
+      if (!genericGuest) {
+        genericGuest = await db.user.create({
+          data: {
             email: "guest@tienda.com",
-            name: "Cliente Guest",
+            name: "Invitado",
             role: "CUSTOMER"
           }
         })
       }
-      userId = guestUser.id
+      userId = genericGuest.id
     }
 
     let finalPaymentMethod = paymentMethod
@@ -171,7 +201,7 @@ export async function createOrder(formData: FormData) {
         subtotal,
         shippingCost,
         taxAmount: 0,
-        discountAmount: 0,
+        discountAmount: discountAmount,
         total,
         shippingMethod,
         shippingAddress: {

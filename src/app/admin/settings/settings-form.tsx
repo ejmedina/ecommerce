@@ -263,12 +263,8 @@ export function SettingsForm() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Configuración de la Tienda</h1>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
+        <Button onClick={handleSave} isLoading={saving}>
+          <Save className="h-4 w-4 mr-2" />
           Guardar
         </Button>
       </div>

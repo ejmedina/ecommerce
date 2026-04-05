@@ -132,8 +132,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
       </div>
 
       <div className="pt-2">
-        <Button type="submit" disabled={isLoading || !hasChanges} className="w-full">
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+        <Button 
+          type="submit" 
+          isLoading={isLoading} 
+          disabled={!hasChanges} 
+          className="w-full"
+        >
           Guardar cambios
         </Button>
       </div>

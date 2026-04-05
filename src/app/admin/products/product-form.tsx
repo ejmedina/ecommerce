@@ -46,6 +46,8 @@ interface Product {
   stock: number
   price: any
   comparePrice: any | null
+  discountType: string
+  discountConfig: any | null
   description: string | null
   categoryId: string | null
   metaTitle: string | null
@@ -97,6 +99,20 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
   )
   const [uploading, setUploading] = useState(false)
 
+  // Descuentos
+  const [discountType, setDiscountType] = useState<string>(product?.discountType || "NONE")
+  const defaultDiscountConfig = useMemo(() => {
+    if (!product?.discountConfig) return null
+    return typeof product.discountConfig === "string" ? JSON.parse(product.discountConfig) : product.discountConfig
+  }, [product?.discountConfig])
+  
+  const [volumeDiscountThreshold, setVolumeDiscountThreshold] = useState<string>(
+    defaultDiscountConfig?.threshold?.toString() || "2"
+  )
+  const [volumeDiscountValue, setVolumeDiscountValue] = useState<string>(
+    defaultDiscountConfig?.value?.toString() || ""
+  )
+
   // Variantes
   const [hasVariants, setHasVariants] = useState(product?.hasVariants || false)
   const [options, setOptions] = useState<ProductOption[]>(product?.options || [])
@@ -126,6 +142,17 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
       formData.set("isFeatured", isFeatured ? "1" : "0")
       formData.set("hasPermanentStock", hasPermanentStock ? "1" : "0")
       formData.set("hasVariants", hasVariants ? "1" : "0")
+
+      // Descuentos
+      formData.set("discountType", discountType)
+      if (discountType === "VOLUME_FIXED") {
+        formData.set("discountConfig", JSON.stringify({
+          threshold: Number(volumeDiscountThreshold),
+          value: Number(volumeDiscountValue)
+        }))
+      } else {
+        formData.set("discountConfig", JSON.stringify(null))
+      }
       
       if (hasVariants) {
         formData.set("options", JSON.stringify(options))
@@ -322,12 +349,8 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
               Eliminar
             </Button>
           )}
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
+          <Button onClick={handleSave} isLoading={saving}>
+            <Save className="h-4 w-4 mr-2" />
             Guardar
           </Button>
         </div>
@@ -345,8 +368,8 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                   Esta acción no se puede deshacer.
                 </p>
               </div>
-              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Eliminando..." : "Sí, eliminar"}
+              <Button variant="destructive" onClick={handleDelete} isLoading={deleting}>
+                Sí, eliminar
               </Button>
               <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
                 Cancelar
@@ -427,38 +450,97 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Precio general *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input
-                      id="price"
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="pl-7"
-                      placeholder="0.00"
-                      min={0}
-                      step={0.01}
-                      required
-                    />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Precio general *</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="pl-7"
+                        placeholder="0.00"
+                        min={0}
+                        step={0.01}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="discountType">Estrategia de Descuento</Label>
+                    <select
+                      id="discountType"
+                      value={discountType}
+                      onChange={(e) => setDiscountType(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="NONE">Sin descuento / Normal</option>
+                      <option value="COMPARE_PRICE">Precio Tachado (Visual)</option>
+                      <option value="VOLUME_FIXED">Descuento por Volumen (Llevá N, pagá -$X)</option>
+                    </select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="comparePrice">Precio de comparación</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input
-                      id="comparePrice"
-                      type="number"
-                      value={comparePrice}
-                      onChange={(e) => setComparePrice(e.target.value)}
-                      className="pl-7"
-                      placeholder="0.00"
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
+
+                <div className="space-y-4">
+                  {discountType === "COMPARE_PRICE" && (
+                    <div className="space-y-2 p-4 bg-muted rounded-lg border border-primary/20">
+                      <Label htmlFor="comparePrice">Precio Tachado antes del descuento</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                        <Input
+                          id="comparePrice"
+                          type="number"
+                          value={comparePrice}
+                          onChange={(e) => setComparePrice(e.target.value)}
+                          className="pl-7"
+                          placeholder="0.00"
+                          min={0}
+                          step={0.01}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Muestra un ahorro visual. El cliente pagará el "Precio general".</p>
+                    </div>
+                  )}
+
+                  {discountType === "VOLUME_FIXED" && (
+                    <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                      <p className="text-sm font-medium text-green-800">Llevando agrupados del mismo producto (incluye colores/talles mixtos)</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="volumeDiscountThreshold">Cantidad (Umbral)</Label>
+                          <Input
+                            id="volumeDiscountThreshold"
+                            type="number"
+                            value={volumeDiscountThreshold}
+                            onChange={(e) => setVolumeDiscountThreshold(e.target.value)}
+                            placeholder="Ej: 2"
+                            min={2}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="volumeDiscountValue">Descuento aplicado</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                            <Input
+                              id="volumeDiscountValue"
+                              type="number"
+                              value={volumeDiscountValue}
+                              onChange={(e) => setVolumeDiscountValue(e.target.value)}
+                              className="pl-7"
+                              placeholder="1000"
+                              min={0}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-green-700 font-medium mt-2">
+                        Si lleva {volumeDiscountThreshold || "2"} unidades, se le descontarán ${volumeDiscountValue || "1000"} del total por cada combo.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -702,9 +784,10 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                     <Button 
                       size="sm" 
                       onClick={handleCreateCategory}
-                      disabled={creatingCategory || !newCategoryName.trim()}
+                      isLoading={creatingCategory}
+                      disabled={!newCategoryName.trim()}
                     >
-                      {creatingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
+                      Crear
                     </Button>
                   </div>
                 ) : (

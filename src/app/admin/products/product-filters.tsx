@@ -23,6 +23,7 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [category, setCategory] = useState(searchParams.get("category") || "all")
   const [sort, setSort] = useState(searchParams.get("sort") || "date_desc")
+  const [discount, setDiscount] = useState(searchParams.get("discount") || "all")
   
   const debouncedSearch = useDebounce(search, 500)
 
@@ -46,12 +47,18 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
     } else {
       params.delete("sort")
     }
+
+    if (discount !== "all") {
+      params.set("discount", discount)
+    } else {
+      params.delete("discount")
+    }
     
     // Al filtrar, siempre volvemos a la página 1
     params.set("page", "1")
     
     router.push(`/admin/products?${params.toString()}`)
-  }, [debouncedSearch, category, sort, router, searchParams])
+  }, [debouncedSearch, category, sort, discount, router, searchParams])
 
   return (
     <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border shadow-sm mb-6">
@@ -92,6 +99,20 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
             <SelectItem value="price_asc">Precio: Menor a Mayor</SelectItem>
             <SelectItem value="price_desc">Precio: Mayor a Menor</SelectItem>
             <SelectItem value="stock_asc">Stock: Crítico primero</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="w-full md:w-[200px]">
+        <Select value={discount} onValueChange={setDiscount}>
+          <SelectTrigger>
+            <SelectValue placeholder="Descuentos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los productos</SelectItem>
+            <SelectItem value="with_discount">Con descuento (Cualquiera)</SelectItem>
+            <SelectItem value="volume_fixed">Descuento por Volumen</SelectItem>
+            <SelectItem value="compare_price">Precio Tachado</SelectItem>
           </SelectContent>
         </Select>
       </div>

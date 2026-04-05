@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { addToCart } from "@/lib/actions/cart-actions"
 import { toast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
+import { QuantitySelector } from "@/components/ui/quantity-selector"
 
 interface ProductOption {
   id: string
@@ -66,6 +67,13 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock
   const isAvailable = product.hasPermanentStock || currentStock > 0
 
+  const [quantity, setQuantity] = useState(1)
+
+  // Reset quantity when variant changes
+  useMemo(() => {
+    setQuantity(1)
+  }, [selectedVariant])
+
   const handleAddToCart = async (formData: FormData) => {
     if (product.hasVariants && !selectedVariant) {
       toast({
@@ -78,6 +86,8 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
     setAdding(true)
     try {
+      // Ensure the quantity from the state is used
+      formData.set("quantity", quantity.toString())
       const result = await addToCart(formData)
       if (result?.error) {
         toast({
@@ -151,23 +161,21 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           )}
           
           <div className="flex gap-4">
-            <input
-              type="number"
-              name="quantity"
+            <QuantitySelector
+              value={quantity}
+              onChange={setQuantity}
               min={1}
               max={product.hasPermanentStock ? 100 : currentStock}
-              defaultValue={1}
-              className="w-20 h-11 border rounded-md px-3 bg-background"
+              disabled={adding}
+              size="lg"
             />
             <Button 
               type="submit" 
               size="lg" 
-              className="flex-1 h-11"
+              className="flex-1 h-12"
+              isLoading={adding}
               disabled={adding || (product.hasVariants && !selectedVariant)}
             >
-              {adding ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
               {product.hasVariants && !selectedVariant ? "Seleccioná opciones" : "Agregar al carrito"}
             </Button>
           </div>

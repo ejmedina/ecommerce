@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
+import { X, Trash2, ShoppingBag } from "lucide-react"
 import { useCart } from "@/components/cart-context"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
+import { QuantitySelector } from "@/components/ui/quantity-selector"
 
 export function FloatingCart() {
-  const { cart, isOpen, setIsOpen, refreshCart } = useCart()
+  const { cart, isOpen, setIsOpen, refreshCart, pricingResult } = useCart()
   const [isRemoving, setIsRemoving] = useState<string | null>(null)
 
   if (!isOpen) return null
@@ -41,10 +42,9 @@ export function FloatingCart() {
     }
   }
 
-  const subtotal = cart?.items.reduce(
-    (sum, item) => sum + Number(item.product.price) * item.quantity,
-    0
-  ) || 0
+  const rawSubtotal = pricingResult?.rawSubtotal || 0
+  const totalToPay = pricingResult?.totalToPay || 0
+  const appliedDiscounts = pricingResult?.discounts || []
 
   return (
     <>
@@ -115,28 +115,14 @@ export function FloatingCart() {
 
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2 mt-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      <QuantitySelector
+                        value={item.quantity}
+                        onChange={(val) => updateQuantity(item.id, val)}
+                        size="sm"
                         disabled={isRemoving === item.id}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="text-sm font-medium w-8 text-center">
-                        {item.quantity}
-                      </span>
+                      />
                       <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        disabled={isRemoving === item.id}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 ml-auto text-destructive"
@@ -144,6 +130,7 @@ export function FloatingCart() {
                         disabled={isRemoving === item.id}
                       >
                         <Trash2 className="h-3 w-3" />
+                        <span className="sr-only">Eliminar</span>
                       </Button>
                     </div>
                   </div>
@@ -156,10 +143,25 @@ export function FloatingCart() {
         {/* Footer */}
         {cart && cart.items.length > 0 && (
           <div className="border-t p-4 space-y-4">
-            <div className="flex justify-between text-lg font-semibold">
-              <span>Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Subtotal</span>
+                <span>{formatCurrency(rawSubtotal)}</span>
+              </div>
+              
+              {appliedDiscounts.map((discount, i) => (
+                <div key={i} className="flex justify-between text-sm text-green-600 font-medium">
+                  <span>{discount.description}</span>
+                  <span>-{formatCurrency(discount.amount)}</span>
+                </div>
+              ))}
+              
+              <div className="flex justify-between text-lg font-semibold pt-2 border-t">
+                <span>Total</span>
+                <span>{formatCurrency(totalToPay)}</span>
+              </div>
             </div>
+            
             <Button asChild className="w-full" size="lg" onClick={() => setIsOpen(false)}>
               <Link href="/cart">
                 Ver carrito

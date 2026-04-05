@@ -7,6 +7,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const productId = formData.get("productId") as string
+    const variantId = formData.get("variantId") as string || null
     const quantity = parseInt(formData.get("quantity") as string) || 1
 
     if (!productId) {
@@ -49,24 +50,50 @@ export async function POST(request: Request) {
       }
     }
 
-    const product = await db.product.findUnique({ where: { id: productId } })
+    const product = await db.product.findUnique({ 
+      where: { id: productId },
+      include: {
+        variants: variantId ? { where: { id: variantId } } : false
+      }
+    })
+
     if (!product) {
       return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 })
     }
 
-    if (product.stock < quantity) {
+    // Check stock
+    if (variantId) {
+      const variant = product.variants[0]
+      if (!variant) {
+        return NextResponse.json({ error: "Variante no encontrada" }, { status: 404 })
+      }
+      if (!product.hasPermanentStock && variant.stock < quantity) {
+        return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
+      }
+    } else if (!product.hasPermanentStock && product.stock < quantity) {
       return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
     }
 
-    const existingItem = await db.cartItem.findUnique({
-      where: { cartId_productId: { cartId: cart.id, productId } },
+    const existingItem = await db.cartItem.findFirst({
+      where: { 
+        cartId: cart.id, 
+        productId,
+        variantId: variantId || null
+      },
     })
 
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity
-      if (newQuantity > product.stock) {
+      
+      if (variantId) {
+        const variant = product.variants[0]
+        if (!product.hasPermanentStock && variant.stock < newQuantity) {
+          return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
+        }
+      } else if (!product.hasPermanentStock && newQuantity > product.stock) {
         return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
       }
+
       await db.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: newQuantity },
@@ -76,6 +103,7 @@ export async function POST(request: Request) {
         data: {
           cartId: cart.id,
           productId,
+          variantId,
           quantity,
         },
       })

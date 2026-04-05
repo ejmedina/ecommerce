@@ -139,8 +139,7 @@ export function CheckoutAuth() {
                   />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                <Button type="submit" className="w-full" isLoading={isLoading}>
                   Iniciar sesión
                 </Button>
               </form>
@@ -180,8 +179,7 @@ export function CheckoutAuth() {
                   />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                <Button type="submit" className="w-full" isLoading={isLoading}>
                   Crear cuenta
                 </Button>
               </form>
@@ -209,8 +207,7 @@ export function CheckoutAuth() {
                   />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading || guestSent}>
-                  {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                <Button type="submit" className="w-full" isLoading={isLoading} disabled={guestSent}>
                   {guestSent ? "¡Listo! Continuar" : "Continuar como invitado"}
                 </Button>
                 {guestSent && (

@@ -56,12 +56,8 @@ export function UpdateOrderStatus({ orderId, currentStatus }: UpdateOrderStatusP
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <ChevronDown className="h-4 w-4 mr-2" />
-          )}
+        <Button variant="outline" isLoading={isLoading}>
+          {!isLoading && <ChevronDown className="h-4 w-4 mr-2" />}
           Cambiar estado
         </Button>
       </DropdownMenuTrigger>

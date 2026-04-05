@@ -40,9 +40,24 @@ export async function PATCH(
     // Check stock
     const product = await db.product.findUnique({
       where: { id: item.productId },
+      include: {
+        variants: item.variantId ? { where: { id: item.variantId } } : false
+      }
     })
 
-    if (!product || product.stock < quantity) {
+    if (!product) {
+      return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 })
+    }
+
+    if (item.variantId) {
+      const variant = product.variants[0]
+      if (!variant) {
+        return NextResponse.json({ error: "Variante no encontrada" }, { status: 404 })
+      }
+      if (!product.hasPermanentStock && variant.stock < quantity) {
+        return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
+      }
+    } else if (!product.hasPermanentStock && product.stock < quantity) {
       return NextResponse.json({ error: "No hay suficiente stock" }, { status: 400 })
     }
 

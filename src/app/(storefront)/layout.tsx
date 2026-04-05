@@ -5,6 +5,7 @@ import { CartButton } from "@/components/cart-button"
 import { FloatingCart } from "@/components/floating-cart"
 import { StoreLogo } from "@/components/store-logo"
 import { StorefrontNav } from "@/components/storefront-nav"
+import { SearchBar } from "@/components/search-bar"
 import { getStorefrontCategories } from "@/lib/categories"
 import { auth, canAccessAdmin } from "@/lib/auth"
 import { LayoutDashboard } from "lucide-react"
@@ -40,20 +41,7 @@ export default async function StorefrontLayout({
 
               {/* Search Bar (Desktop only) */}
               <div className="hidden md:block flex-1 max-w-xl mx-4">
-                <form action="/products" method="get" className="flex">
-                  <input
-                    type="text"
-                    name="s"
-                    placeholder="Buscar productos..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-r-full hover:opacity-90 transition-opacity"
-                  >
-                    Buscar
-                  </button>
-                </form>
+                <SearchBar />
               </div>
 
               {/* Right Icons */}
@@ -79,20 +67,7 @@ export default async function StorefrontLayout({
             
             {/* Search Bar (Mobile only) */}
             <div className="md:hidden pb-3">
-              <form action="/products" method="get" className="flex">
-                <input
-                  type="text"
-                  name="s"
-                  placeholder="Buscar productos..."
-                  className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm bg-primary text-primary-foreground font-medium rounded-r-full hover:opacity-90 transition-opacity"
-                >
-                  Buscar
-                </button>
-              </form>
+              <SearchBar isMobile />
             </div>
           </div>
         </header>

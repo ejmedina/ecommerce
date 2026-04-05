@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { 
   ARGENTINE_PROVINCES, 
+  ProvinceId,
   ShippingZone, 
   ShippingConfig,
   getDefaultShippingConfig 
@@ -113,7 +114,7 @@ export default function ShippingZonesPage() {
     setShippingConfig({ zones: newZones })
   }
 
-  const toggleProvince = (zoneIndex: number, provinceId: string) => {
+  const toggleProvince = (zoneIndex: number, provinceId: ProvinceId) => {
     const zone = shippingConfig.zones[zoneIndex]
     const provinces = zone.provinces.includes(provinceId)
       ? zone.provinces.filter(p => p !== provinceId)
@@ -138,12 +139,8 @@ export default function ShippingZonesPage() {
             Configura el costo de envío por zona geográfica.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
+        <Button onClick={handleSave} isLoading={saving}>
+          <Save className="h-4 w-4 mr-2" />
           Guardar
         </Button>
       </div>

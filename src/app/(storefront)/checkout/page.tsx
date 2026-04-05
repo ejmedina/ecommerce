@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
 import { CheckoutSteps } from "@/components/checkout-steps"
+import { calculateCartPricing } from "@/lib/pricing"
 
 export const dynamic = "force-dynamic"
 
@@ -94,19 +95,17 @@ export default async function CheckoutPage() {
   }
 
   const hasCart = cart && cart.items.length > 0
-  const subtotal = hasCart 
-    ? cart.items.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0)
-    : 0
+  const pricingResult = hasCart ? calculateCartPricing(cart.items) : null
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-8">Finalizar compra</h1>
       
-      {hasCart ? (
+      {hasCart && pricingResult ? (
         <CheckoutSteps
           cart={cart}
           settings={settings}
-          subtotal={subtotal}
+          pricingResult={pricingResult}
           user={session?.user || null}
           addresses={addresses}
         />

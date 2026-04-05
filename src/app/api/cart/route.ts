@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { calculateCartPricing } from "@/lib/pricing"
 
 export async function GET() {
   try {
@@ -46,7 +47,7 @@ export async function GET() {
     }
 
     if (!cart) {
-      return NextResponse.json({ id: null, items: [] })
+      return NextResponse.json({ id: null, items: [], pricingResult: null })
     }
 
     // Convert Decimal to number for JSON serialization
@@ -65,7 +66,10 @@ export async function GET() {
       })),
     }
 
-    return NextResponse.json(serializedCart)
+    // Compute pricing and append to payload
+    const pricingResult = calculateCartPricing(serializedCart.items)
+
+    return NextResponse.json({ ...serializedCart, pricingResult })
   } catch (error) {
     console.error("Error fetching cart:", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })

@@ -257,8 +257,8 @@ export default function CatalogPage() {
                 </div>
                 <div className="flex-1 space-y-2">
                    <div className="relative">
-                      <Button variant="outline" size="sm" className="w-full" disabled={uploading}>
-                        {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                      <Button variant="outline" size="sm" className="w-full" isLoading={uploading}>
+                        {!uploading && <Upload className="h-4 w-4 mr-2" />}
                         Subir Imagen
                       </Button>
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} disabled={uploading} />
@@ -280,7 +280,7 @@ export default function CatalogPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCategoryModal(false)}>Cancelar</Button>
-            <Button onClick={handleSaveCategory} disabled={saving || !categoryForm.name}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar</Button>
+            <Button onClick={handleSaveCategory} isLoading={saving} disabled={!categoryForm.name}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

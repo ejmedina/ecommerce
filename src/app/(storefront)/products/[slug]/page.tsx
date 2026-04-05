@@ -87,6 +87,39 @@ export default async function ProductPage({ params }: Props) {
             )}
           </div>
 
+          {product.discountType === "VOLUME_FIXED" && product.discountConfig && (
+            (() => {
+              try {
+                const config = typeof product.discountConfig === "string" 
+                  ? JSON.parse(product.discountConfig) 
+                  : product.discountConfig;
+                  
+                if (config?.threshold && config?.value) {
+                  return (
+                    <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg my-4 shadow-sm relative overflow-hidden">
+                      <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-green-500 rounded-full opacity-10"></div>
+                      <div className="flex items-start gap-3 relative z-10">
+                        <div className="bg-green-100 p-2 rounded-full mt-0.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg mb-1">Promo por volumen</h3>
+                          <p className="text-sm">
+                            ¡Llevá <span className="font-bold">{config.threshold} unidades</span> y descontamos <span className="font-bold inline-block bg-green-200 px-1.5 py-0.5 rounded text-green-900">${config.value}</span> de tu carrito final!
+                          </p>
+                          <p className="text-xs mt-1 text-green-700/80">Válido combinando colores y talles del mismo producto.</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              } catch (e) {
+                return null;
+              }
+              return null;
+            })()
+          )}
+
           <ProductDetailsClient 
             product={{
               ...product,

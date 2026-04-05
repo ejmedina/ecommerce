@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       data: {
         email,
         passwordHash,
-        name: "Guest",
+        name: "Invitado",
         role: "CUSTOMER",
         status: "PENDING",
         isActive: false, // Start as inactive until they set their password
