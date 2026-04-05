@@ -31,24 +31,26 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
 
   return (
     <form onSubmit={handleSearch} className={className}>
-      <div className="flex relative items-center w-full">
+      <div className={cn(
+        "flex relative items-center w-full rounded-full border border-gray-300 bg-white transition-all focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent overflow-hidden",
+        isMobile ? "h-10" : "h-11"
+      )}>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
           className={cn(
-            "flex-1 border border-gray-300 rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
-            isMobile ? "text-sm px-4 h-10" : "px-4 h-11",
-            "border-r-0"
+            "flex-1 bg-transparent border-none rounded-l-full focus:outline-none focus:ring-0 transition-all",
+            isMobile ? "text-sm px-4 h-full" : "px-4 h-full"
           )}
         />
         <Button
           type="submit"
           isLoading={isPending}
           className={cn(
-            "rounded-r-full rounded-l-none font-medium hover:opacity-90 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[90px]",
-            isMobile ? "px-4 h-10 text-sm" : "px-6 h-11"
+            "rounded-r-full rounded-l-none font-medium hover:opacity-90 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[90px] h-full shadow-none",
+            isMobile ? "px-4 text-sm" : "px-6"
           )}
         >
           {!isPending && (
