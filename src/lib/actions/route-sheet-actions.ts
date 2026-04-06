@@ -588,15 +588,12 @@ export async function optimizeRouteOrder(routeSheetId: string, startDepotId?: st
 
     const vehicleObj: any = {
       id: 1,
-      profile: "driving-car"
+      profile: "driving-car",
     }
 
     if (startDepot && startDepot.lng && startDepot.lat) {
       vehicleObj.start = [startDepot.lng, startDepot.lat]
     } else if (jobs.length > 0) {
-      // If no start depot, use the first coordinates or just omit. 
-      // VROOM requires at least start or end if we have vehicles.
-      // If none, we will just use the first job's location as a virtual start.
       vehicleObj.start = jobs[0].location
     }
 
@@ -605,7 +602,7 @@ export async function optimizeRouteOrder(routeSheetId: string, startDepotId?: st
     }
 
     const payload = {
-      jobs: jobs.map(({mapped_id, ...rest}) => rest), // Remove mapped_id for payload
+      jobs: jobs.map(({mapped_id, ...rest}) => rest),
       vehicles: [vehicleObj]
     }
 
@@ -620,9 +617,21 @@ export async function optimizeRouteOrder(routeSheetId: string, startDepotId?: st
     })
 
     if (!res.ok) {
-      const err = await res.text()
-      console.error("ORS optimization failed:", err)
-      return { success: false, error: "El servicio de ruteo devolvió un error. Verifique las direcciones." }
+      const errText = await res.text()
+      let errData
+      try { errData = JSON.parse(errText) } catch (e) {}
+      
+      console.error("ORS optimization failed:", {
+        status: res.status,
+        error: errData || errText,
+        payloadSent: JSON.stringify(payload)
+      })
+
+      const errorMessage = errData?.error?.message || errData?.message || "Error en el servicio de ruteo"
+      return { 
+        success: false, 
+        error: `ORS Error: ${errorMessage}. Verifique las direcciones y la configuración.` 
+      }
     }
 
     const data = await res.json()
