@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions/route-sheet-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { UpdateCoordinatesDialog } from "@/components/logistics/update-coordinates-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useSortable } from "@dnd-kit/sortable"
@@ -33,7 +34,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe } from "lucide-react"
 
 interface OrderCardProps {
   item: {
@@ -98,6 +99,13 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [failureReason, setFailureReason] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Coordinate validation for UI highlighting
+  const hasBadCoords = shippingAddress?.lat && shippingAddress?.lng && (
+    shippingAddress.lat > -10 || shippingAddress.lat < -56 || 
+    shippingAddress.lng > -30 || shippingAddress.lng < -76
+  )
+  const hasNoCoords = !shippingAddress?.lat || !shippingAddress?.lng
 
   const {
     attributes,
@@ -366,13 +374,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     )
   }
 
-  // VISTA DE PREPARACIÓN - Tarjeta expandida
   const displayAddress = shippingAddress?.shippingMethod === "pickup" 
     ? "Retiro en tienda" 
     : `${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`
 
   return (
-    <Card>
+    <Card className={hasBadCoords ? "border-amber-500 bg-amber-50/30" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -438,13 +445,33 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                 </Button>
               </a>
             )}
-            <Link href={`/admin/orders/${item.order.id}`}>
-              <Button size="sm" variant="outline">
-                Ver pedido
-              </Button>
-            </Link>
+            <div className="flex flex-col gap-1">
+              <UpdateCoordinatesDialog 
+                orderId={item.order.id}
+                currentLat={shippingAddress?.lat}
+                currentLng={shippingAddress?.lng}
+              />
+              <Link href={`/admin/orders/${item.order.id}`}>
+                <Button size="sm" variant="outline" className="w-full">
+                  Ver pedido
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
+
+        {hasBadCoords && (
+          <div className="mt-2 bg-amber-100 text-amber-800 p-2 rounded-md text-xs flex items-center gap-2 border border-amber-200">
+            <AlertTriangle className="h-4 w-4" />
+            <span><strong>Ubicación detectada fuera de rango ({shippingAddress.lat}, {shippingAddress.lng}).</strong> El ruteo automático podría fallar. Por favor corrija las coordenadas manualmente.</span>
+          </div>
+        )}
+        {hasNoCoords && shippingAddress?.shippingMethod !== "pickup" && (
+          <div className="mt-2 bg-blue-50 text-blue-700 p-2 rounded-md text-xs flex items-center gap-2 border border-blue-100 italic">
+            <Globe className="h-4 w-4" />
+            <span>Sin datos geoespaciales. Se intentará geocodificar al optimizar.</span>
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="space-y-4">
