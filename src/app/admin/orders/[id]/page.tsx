@@ -10,6 +10,7 @@ import { OrderStatusManager } from "@/components/order-status-manager"
 import { OrderFulfillment } from "@/components/order-fulfillment"
 
 import { Button } from "@/components/ui/button"
+import { UpdateCoordinatesDialog } from "./update-coordinates-dialog"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -182,7 +183,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 {shippingAddress?.floor && <p>Piso: {shippingAddress.floor}</p>}
                 {shippingAddress?.apartment && <p>Depto: {shippingAddress.apartment}</p>}
                 <p>{shippingAddress?.city}, {shippingAddress?.state} {shippingAddress?.postalCode}</p>
-                <div className="mt-2">
+                <div className="mt-2 space-y-2">
                   <a 
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state}, Argentina`)}`}
                     target="_blank"
@@ -193,8 +194,18 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       Ver en mapa
                     </Button>
                   </a>
+                  <UpdateCoordinatesDialog 
+                    orderId={order.id} 
+                    currentLat={shippingAddress?.lat} 
+                    currentLng={shippingAddress?.lng} 
+                  />
                 </div>
                 <p><strong>País:</strong> {shippingAddress?.country || "Argentina"}</p>
+                {shippingAddress?.lat && shippingAddress?.lng && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Coordenadas: {shippingAddress.lat}, {shippingAddress.lng}
+                  </p>
+                )}
               </>
             )}
             {shippingAddress?.instructions && (

@@ -568,6 +568,15 @@ export async function optimizeRouteOrder(routeSheetId: string, startDepotId?: st
         return { success: false, error: `No se pudieron obtener coordenadas para el pedido #${item.order.orderNumber}` }
       }
 
+      // VALIDATION: Check if coordinates are reasonably near Argentina/South America 
+      // Prevents "Unfound route" errors from ORS when point falls in the ocean.
+      if (coords.lat > -10 || coords.lat < -56 || coords.lng > -30 || coords.lng < -76) {
+        return { 
+          success: false, 
+          error: `Las coordenadas para el pedido #${item.order.orderNumber} están fuera de rango (${coords.lat}, ${coords.lng}). Corrija la dirección o las coordenadas manualmente en el detalle del pedido.` 
+        }
+      }
+
       // Persist geocoded coordinates back to the order shipping address to save API calls in future
       if (!shippingAddress.lat || !shippingAddress.lng) {
         shippingAddress.lat = coords.lat

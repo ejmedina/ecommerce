@@ -254,10 +254,48 @@ export async function createOrder(formData: FormData) {
       // We don't fail the whole process if email fails
     }
 
-    // For demo: return success (in production, would integrate with payment gateway)
     return { orderId: order.id, paymentUrl: undefined }
   } catch (error) {
     console.error("Order creation error:", error)
     return { error: "Error al procesar el pedido. Intentalo de nuevo." }
+  }
+}
+
+// ============================================
+// UPDATE ORDER COORDINATES (Logistics)
+// ============================================
+
+export async function updateOrderCoordinates(orderId: string, lat: number, lng: number) {
+  try {
+    const session = await auth()
+    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as any).role)) {
+      return { error: "AUTH_REQUIRED", message: "No autorizado" }
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      select: { shippingAddress: true }
+    })
+
+    if (!order) return { error: "ORDER_NOT_FOUND", message: "Pedido no encontrado" }
+
+    const shippingAddress = {
+      ...(order.shippingAddress as any),
+      lat,
+      lng
+    }
+
+    await db.order.update({
+      where: { id: orderId },
+      data: { shippingAddress }
+    })
+
+    revalidatePath(`/admin/orders/${orderId}`)
+    revalidatePath("/admin/routes")
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error("Update coordinates error:", error)
+    return { error: "SERVER_ERROR", message: error.message }
   }
 }
