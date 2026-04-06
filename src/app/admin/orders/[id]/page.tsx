@@ -10,7 +10,7 @@ import { OrderStatusManager } from "@/components/order-status-manager"
 import { OrderFulfillment } from "@/components/order-fulfillment"
 
 import { Button } from "@/components/ui/button"
-import { UpdateCoordinatesDialog } from "./update-coordinates-dialog"
+import { UpdateCoordinatesDialog } from "@/components/logistics/update-coordinates-dialog"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
