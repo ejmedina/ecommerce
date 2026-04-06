@@ -21,14 +21,27 @@ interface UpdateCoordinatesDialogProps {
   currentLat?: number
   currentLng?: number
   addressLabel?: string
+  onUpdate?: () => void
 }
 
-export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addressLabel }: UpdateCoordinatesDialogProps) {
+export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addressLabel, onUpdate }: UpdateCoordinatesDialogProps) {
   const [open, setOpen] = useState(false)
   const [lat, setLat] = useState(currentLat?.toString() || "")
   const [lng, setLng] = useState(currentLng?.toString() || "")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pasteData = e.clipboardData.getData('text')
+    // Regex to match "lat, lng" or simply "lat lng"
+    const coordsMatch = pasteData.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || pasteData.match(/(-?\d+\.\d+)\s+(-?\d+\.\d+)/)
+    
+    if (coordsMatch) {
+      e.preventDefault()
+      setLat(coordsMatch[1])
+      setLng(coordsMatch[2])
+    }
+  }
 
   const handleSave = async () => {
     if (!lat || !lng) return
@@ -38,7 +51,11 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addre
       const result = await updateOrderCoordinates(orderId, parseFloat(lat), parseFloat(lng))
       if (result.success) {
         setOpen(false)
-        router.refresh()
+        if (onUpdate) {
+          onUpdate()
+        } else {
+          router.refresh()
+        }
       } else {
         alert(result.message || "Error al actualizar coordenadas")
       }
@@ -87,10 +104,10 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addre
             <Label htmlFor="lat" className="text-right">Latitud</Label>
             <Input
               id="lat"
-              type="number"
-              step="any"
+              type="text"
               value={lat}
               onChange={(e) => setLat(e.target.value)}
+              onPaste={handlePaste}
               className="col-span-3"
               placeholder="-34.6037"
             />
@@ -99,10 +116,10 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addre
             <Label htmlFor="lng" className="text-right">Longitud</Label>
             <Input
               id="lng"
-              type="number"
-              step="any"
+              type="text"
               value={lng}
               onChange={(e) => setLng(e.target.value)}
+              onPaste={handlePaste}
               className="col-span-3"
               placeholder="-58.3816"
             />

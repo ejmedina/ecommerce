@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { 
@@ -99,6 +99,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [failureReason, setFailureReason] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
   // Coordinate validation for UI highlighting
   // Range expanded slightly but strict enough to catch ocean or weird locations
@@ -453,15 +454,16 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                 </Button>
               </a>
             )}
-            <div className="flex flex-col gap-2 min-w-[140px]">
+            <div className="flex gap-2">
               <UpdateCoordinatesDialog 
                 orderId={item.order.id}
                 currentLat={shippingAddress?.lat}
                 currentLng={shippingAddress?.lng}
                 addressLabel={`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`}
+                onUpdate={() => startTransition(() => router.refresh())}
               />
-              <Link href={`/admin/orders/${item.order.id}`} className="w-full">
-                <Button size="sm" variant="outline" className="w-full h-9">
+              <Link href={`/admin/orders/${item.order.id}`}>
+                <Button size="sm" variant="outline" className="h-9">
                   Ver pedido
                 </Button>
               </Link>
