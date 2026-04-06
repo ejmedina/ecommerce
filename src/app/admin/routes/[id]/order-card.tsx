@@ -101,6 +101,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [isLoading, setIsLoading] = useState(false)
 
   // Coordinate validation for UI highlighting
+  // Range expanded slightly but strict enough to catch ocean or weird locations
   const hasBadCoords = shippingAddress?.lat && shippingAddress?.lng && (
     shippingAddress.lat > -10 || shippingAddress.lat < -56 || 
     shippingAddress.lng > -30 || shippingAddress.lng < -76
@@ -432,6 +433,13 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                 <p className="text-sm text-muted-foreground">
                   Pedido #{item.order.orderNumber} • {formatCurrency(Number(item.order.total))}
                 </p>
+                {shippingAddress?.lat && shippingAddress?.lng && (
+                  <div className={`flex items-center gap-1.5 text-[11px] font-mono mt-1 ${hasBadCoords ? "text-amber-600 font-bold" : "text-muted-foreground"}`}>
+                    <Globe className="h-3 w-3" />
+                    <span>GPS: {shippingAddress.lat.toFixed(6)}, {shippingAddress.lng.toFixed(6)}</span>
+                    {hasBadCoords && <AlertTriangle className="h-3 w-3 animate-pulse" />}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -445,14 +453,15 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                 </Button>
               </a>
             )}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2 min-w-[140px]">
               <UpdateCoordinatesDialog 
                 orderId={item.order.id}
                 currentLat={shippingAddress?.lat}
                 currentLng={shippingAddress?.lng}
+                addressLabel={`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`}
               />
-              <Link href={`/admin/orders/${item.order.id}`}>
-                <Button size="sm" variant="outline" className="w-full">
+              <Link href={`/admin/orders/${item.order.id}`} className="w-full">
+                <Button size="sm" variant="outline" className="w-full h-9">
                   Ver pedido
                 </Button>
               </Link>

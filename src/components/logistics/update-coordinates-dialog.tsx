@@ -20,9 +20,10 @@ interface UpdateCoordinatesDialogProps {
   orderId: string
   currentLat?: number
   currentLng?: number
+  addressLabel?: string
 }
 
-export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng }: UpdateCoordinatesDialogProps) {
+export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng, addressLabel }: UpdateCoordinatesDialogProps) {
   const [open, setOpen] = useState(false)
   const [lat, setLat] = useState(currentLat?.toString() || "")
   const [lng, setLng] = useState(currentLng?.toString() || "")
@@ -48,11 +49,15 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng }: Upd
     }
   }
 
+  const mapLink = addressLabel 
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${addressLabel}, Argentina`)}`
+    : null
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1">
-          <MapPin className="h-3 w-3" />
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 w-full font-medium">
+          <MapPin className="h-4 w-4" />
           Editar Coordenadas
         </Button>
       </DialogTrigger>
@@ -61,9 +66,23 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng }: Upd
           <DialogTitle>Ajustar Coordenadas</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            Si la ubicación automática es incorrecta, puedes buscar las coordenadas en Google Maps (botón derecho → copiar coordenadas) y pegarlas aquí.
-          </p>
+          <div className="text-sm space-y-2">
+            <p className="text-muted-foreground">
+              Si la ubicación es incorrecta, busca las coordenadas en Google Maps (clic derecho → "Qué hay aquí?" → copiar decimales) y pégalas abajo.
+            </p>
+            {mapLink && (
+              <a 
+                href={mapLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-blue-600 hover:underline font-medium"
+              >
+                <MapPin className="h-4 w-4" />
+                Buscar "{addressLabel}" en Google Maps
+              </a>
+            )}
+          </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="lat" className="text-right">Latitud</Label>
             <Input
@@ -95,7 +114,7 @@ export function UpdateCoordinatesDialog({ orderId, currentLat, currentLng }: Upd
           </Button>
           <Button onClick={handleSave} disabled={isLoading || !lat || !lng}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar
+            Guardar Coordenadas
           </Button>
         </DialogFooter>
       </DialogContent>
