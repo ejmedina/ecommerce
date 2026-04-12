@@ -6,18 +6,33 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Pagination } from "@/components/pagination"
 
-export default async function OrdersPage() {
+interface Props {
+  searchParams: Promise<{ page?: string }>
+}
+
+const ITEMS_PER_PAGE = 10
+
+export default async function OrdersPage({ searchParams }: Props) {
   const session = await auth()
   if (!session?.user?.id) {
     redirect("/login")
   }
 
-  const orders = await db.order.findMany({
-    where: { userId: session.user.id },
-    include: { items: true },
-    orderBy: { createdAt: "desc" },
-  })
+  const params = await searchParams
+  const currentPage = parseInt(params.page || "1")
+
+  const [orders, totalItems] = await Promise.all([
+    db.order.findMany({
+      where: { userId: session.user.id },
+      include: { items: true },
+      orderBy: { createdAt: "desc" },
+      skip: (currentPage - 1) * ITEMS_PER_PAGE,
+      take: ITEMS_PER_PAGE,
+    }),
+    db.order.count({ where: { userId: session.user.id } })
+  ])
 
   function getOrderStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
@@ -43,7 +58,7 @@ export default async function OrdersPage() {
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>
   }
 
-  if (orders.length === 0) {
+  if (orders.length === 0 && currentPage === 1) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground mb-6">Aún no tenés pedidos</p>
@@ -58,34 +73,43 @@ export default async function OrdersPage() {
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Mis pedidos</h2>
       
-      {orders.map((order) => (
-        <Card key={order.id}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">
-                Pedido #{order.orderNumber}
-              </CardTitle>
-              {getOrderStatusBadge(order.orderStatus)}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {formatDate(order.createdAt)}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {order.items.length} producto{order.items.length !== 1 ? "s" : ""}
-                </p>
-                <p className="font-semibold">{formatCurrency(Number(order.total))}</p>
+      <div className="space-y-4">
+        {orders.map((order) => (
+          <Card key={order.id}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  Pedido #{order.orderNumber}
+                </CardTitle>
+                {getOrderStatusBadge(order.orderStatus)}
               </div>
-              <Button asChild variant="outline">
-                <Link href={`/account/orders/${order.id}`}>Ver detalle</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <p className="text-sm text-muted-foreground">
+                {formatDate(order.createdAt)}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {order.items.length} producto{order.items.length !== 1 ? "s" : ""}
+                  </p>
+                  <p className="font-semibold">{formatCurrency(Number(order.total))}</p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link href={`/account/orders/${order.id}`}>Ver detalle</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Pagination 
+        currentPage={currentPage}
+        totalItems={totalItems}
+        itemsPerPage={ITEMS_PER_PAGE}
+      />
     </div>
   )
 }
+

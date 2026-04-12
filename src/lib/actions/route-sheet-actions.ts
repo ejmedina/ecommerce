@@ -428,22 +428,28 @@ export async function getRouteSheet(routeSheetId: string) {
 // GET ALL ROUTE SHEETS
 // ============================================
 
-export async function getRouteSheets() {
+export async function getRouteSheets(skip = 0, take = 10) {
   try {
-    const routeSheets = await db.routeSheet.findMany({
-      include: {
-        createdBy: { select: { name: true } },
-        items: true,
-      },
-      orderBy: { createdAt: "desc" },
-    })
+    const [routeSheets, total] = await Promise.all([
+      db.routeSheet.findMany({
+        include: {
+          createdBy: { select: { name: true } },
+          items: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+      db.routeSheet.count()
+    ])
 
-    return routeSheets
+    return { routeSheets, total }
   } catch (error) {
     console.error("Get route sheets error:", error)
-    return []
+    return { routeSheets: [], total: 0 }
   }
 }
+
 
 // ============================================
 // BATCH REORDER ROUTE SHEET ITEMS (For Drag & Drop)

@@ -1,0 +1,10 @@
+# Project Rules & Policies
+
+## Vercel Deployment Optimization
+- **Rule:** Limit the frequency of pushes to branches that trigger Vercel deployments (e.g., `main`, `master`, `production`).
+- **Reason:** To reduce infrastructure costs associated with high build frequency.
+- **Protocol:**
+  - **Local Testing:** Test all changes extensively in the local development environment (`npm run dev`) before committing.
+  - **Git Flow:** Make frequent **local commits** to save progress, but **DO NOT PUSH** to `main`, `develop`, or any deployment branches unless explicitly requested by the user.
+  - **Batching:** Accumulate several features or fixes in local commits and push them in a single batch only when authorized.
+  - **Validation:** Double-check configurations and critical logic locally to avoid "push-to-fix" cycles.
