@@ -30,39 +30,76 @@ export default async function ProductsPage({ searchParams }: Props) {
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Filters Sidebar */}
-        <aside className={cn(
-          "w-full md:w-64 shrink-0",
-          params.s && "hidden md:block"
-        )}>
-          <h2 className="font-semibold mb-4">Categorías</h2>
-          <nav className="space-y-2">
+        <aside className="w-full md:w-64 shrink-0">
+          <h2 className="font-semibold mb-4 hidden md:block">Categorías</h2>
+          
+          {/* Mobile Horizontal Categories */}
+          <nav className="flex md:hidden overflow-x-auto pb-4 gap-2 no-scrollbar -mx-4 px-4 sticky top-0 bg-background z-10">
             <Link
               href="/products"
-              className={`block px-2 py-1 rounded ${
-                !params.category ? "bg-muted" : ""
-              }`}
+              className={cn(
+                "whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                !params.category 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              Todos
+            </Link>
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/products?category=${category.slug}`}
+                className={cn(
+                  "whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                  params.category === category.slug 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {category.name}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Desktop Sidebar Categories */}
+          <nav className="hidden md:block space-y-2">
+            <Link
+              href="/products"
+              className={cn(
+                "block px-2 py-1.5 rounded-md transition-colors",
+                !params.category 
+                  ? "bg-muted font-medium" 
+                  : "hover:bg-muted/50"
+              )}
             >
               Todos los productos
             </Link>
             {categories.map((category) => (
-              <div key={category.id}>
+              <div key={category.id} className="space-y-1">
                 <Link
                   href={`/products?category=${category.slug}`}
-                  className={`block px-2 py-1 rounded ${
-                    params.category === category.slug ? "bg-muted font-medium" : ""
-                  }`}
+                  className={cn(
+                    "block px-2 py-1.5 rounded-md transition-colors",
+                    params.category === category.slug 
+                      ? "bg-muted font-medium" 
+                      : "hover:bg-muted/50"
+                  )}
                 >
                   {category.name}
                 </Link>
                 {category.children.length > 0 && (
-                  <nav className="ml-4 space-y-1 mt-1">
+                  <nav className="ml-4 space-y-1 mt-1 border-l pl-2">
                     {category.children.map((child) => (
                       <Link
                         key={child.id}
                         href={`/products?category=${child.slug}`}
-                        className={`block px-2 py-1 text-sm rounded ${
-                          params.category === child.slug ? "bg-muted" : ""
-                        }`}
+                        className={cn(
+                          "block px-2 py-1 text-sm rounded-md transition-colors",
+                          params.category === child.slug 
+                            ? "bg-muted font-medium" 
+                            : "text-muted-foreground hover:bg-muted/50"
+                        )}
                       >
                         {child.name}
                       </Link>
