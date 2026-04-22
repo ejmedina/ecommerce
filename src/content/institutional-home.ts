@@ -82,9 +82,9 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
   es: {
     locale: "es",
     eyebrow: "PGI Argentina | Potenciador Germinativo Inteligente",
-    title: "Una home institucional para explicar mejor por qué PGI aporta valor desde la raíz.",
+    title: "PGI convierte el suelo en un sistema más inteligente para nutrir, hidratar y airear la planta.",
     description:
-      "PGI combina una narrativa cercana con una promesa técnica simple: ayudar a que plantas, cultivos y céspedes se desarrollen con más fuerza, mejor retención de humedad y un suelo más activo.",
+      "Desarrollado a partir de zeolita volcanica de alta pureza enriquecida con acidos humicos y fulvicos, PGI captura nutrientes, regula la humedad y acompana un desarrollo radicular mas fuerte y eficiente.",
     whatsappUrl:
       "https://wa.me/5491128865141?text=Hola%20PGI%2C%20quiero%20hacer%20una%20consulta%20sobre%20el%20producto.",
     whatsappLabel: "+54 9 11 2886-5141",
@@ -93,34 +93,34 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
     location: "Buenos Aires, Argentina",
     heroHighlights: [
       "100% orgánico",
-      "Uso agrícola y urbano",
-      "Pet & kid friendly",
-      "Compatible con múltiples audiencias",
+      "Zeolita volcanica de alta pureza",
+      "Con acidos humicos y fulvicos",
+      "Uso agricola, urbano y profesional",
     ],
     productNarrative: [
-      "La comunicación actual de PGI repite una idea clara: el producto acompaña el crecimiento desde el suelo, favoreciendo germinación, raíces, floración y retención de humedad.",
-      "Para esta primera versión institucional tomamos esa base real del contenido publicado y la ordenamos para que le sirva tanto a consumidores finales como a viveros, paisajistas, productores y canchas deportivas.",
+      "PGI actua como un gestor biologico del suelo: captura nutrientes, los administra de forma eficiente y los libera segun la demanda de la planta. No reemplaza la fertilizacion; la potencia y ayuda a reducir perdidas.",
+      "Gracias a su estructura de micro y macroporos, mejora la aireacion del suelo, regula la humedad y favorece procesos biologicos mas eficientes. Eso lo vuelve relevante tanto para hogar y jardin como para viveros, paisajismo, produccion y cesped deportivo.",
     ],
     benefits: [
       {
-        title: "Mejor arranque y germinación",
+        title: "Nutricion mas eficiente",
         description:
-          "Ayuda a que el inicio del cultivo tenga mejores condiciones de humedad, aireación y actividad en el suelo.",
+          "Captura y administra nutrientes en el suelo para que esten mas disponibles cuando la planta los necesita.",
       },
       {
-        title: "Raíces más activas",
+        title: "Mayor desarrollo radicular",
         description:
-          "Refuerza el desarrollo radicular, uno de los beneficios más repetidos en la comunicación actual de la marca.",
+          "Acompana un sistema radicular mas fuerte, mejor anclaje y una respuesta mas estable desde la raiz.",
       },
       {
-        title: "Retención de humedad",
+        title: "Regulacion de humedad y aireacion",
         description:
-          "Aporta estabilidad en el entorno de crecimiento y acompaña mejor periodos de estrés hídrico o climático.",
+          "Su estructura porosa ayuda a sostener humedad util y a mejorar la oxigenacion del suelo, incluso en terrenos castigados.",
       },
       {
-        title: "Aplicaciones diversas",
+        title: "Mas resistencia al estres",
         description:
-          "Puede presentarse como una solución útil para jardín urbano, producción, paisajismo y mantenimiento de césped.",
+          "Contribuye a una planta mas preparada frente a estres hidrico y climatico, con impacto en fotosintesis, floracion y vigor general.",
       },
     ],
     variants: [
@@ -129,12 +129,12 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
         name: "PGI Regular",
         badge: "Versión base",
         description:
-          "La línea principal para comunicar los beneficios generales del producto en jardinería, viveros, paisajismo y producción.",
+          "La linea principal para comunicar la propuesta tecnica completa de PGI en suelo, nutricion, hidratacion y desarrollo radicular.",
         useCases: [
           "Hogar y jardín",
           "Huerta urbana",
           "Viveros",
-          "Producción general",
+          "Produccion general",
         ],
       },
       {
@@ -142,12 +142,12 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
         name: "PGI con citronela",
         badge: "Línea especial",
         description:
-          "Versión pensada para contextos donde interesa sumar una experiencia más específica de uso y diferenciación comercial.",
+          "Version pensada para sumar una presentacion diferencial en contextos residenciales, exteriores y propuestas comerciales con foco en hogar y jardin.",
         useCases: [
           "Espacios exteriores",
           "Patios y balcones",
           "Paisajismo residencial",
-          "Presentación diferencial",
+          "Presentacion diferencial",
         ],
       },
       {
@@ -155,12 +155,12 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
         name: "PGI Cannabis",
         badge: "Línea segmentada",
         description:
-          "Versión orientada a un público que necesita una comunicación dedicada, lenguaje propio y casos de uso específicos.",
+          "Version reservada para una comunicacion segmentada. Por ahora la dejamos en un marco descriptivo y prudente hasta consolidar beneficios y casos de uso especificos.",
         useCases: [
-          "Cultivo específico",
+          "Cultivo especifico",
           "Growshops",
           "Productores especializados",
-          "Comunidad cannábica",
+          "Comunidad cannabica",
         ],
       },
     ],
@@ -168,57 +168,57 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
       {
         id: "hogar-jardin",
         label: "Hogar y jardín",
-        title: "Para personas que quieren cuidar mejor sus plantas",
+        title: "Para personas que quieren plantas mas fuertes y suelos mejor equilibrados",
         description:
-          "El feed actual ya conecta bien con esta audiencia: plantas de interior, árboles, cactus y situaciones de antes y después.",
+          "Aca PGI se presenta como una ayuda simple pero tecnica: mejor retencion de humedad, mejor aireacion y una base mas estable para macetas, balcones, jardines y huertas.",
         highlights: [
-          "Lenguaje simple y cercano",
-          "Valor visible en macetas y jardín",
-          "Apto para una narrativa de uso cotidiano",
+          "Lenguaje simple con respaldo tecnico",
+          "Valor visible en macetas y jardin",
+          "Uso cotidiano con mejor base de suelo",
         ],
       },
       {
         id: "viveros-paisajismo",
         label: "Viveros y paisajismo",
-        title: "Para quienes venden, recomiendan o mantienen verde en escala media",
+        title: "Para quienes recomiendan soluciones y necesitan argumentos claros de uso",
         description:
-          "Acá la web tiene que completar más de lo que hoy cuenta Instagram: respaldo comercial, aplicaciones y consistencia de uso.",
+          "En viveros y paisajismo importa tanto el resultado como la explicacion comercial. PGI permite hablar de suelo, humedad, nutrientes y continuidad del mantenimiento en una misma narrativa.",
         highlights: [
-          "Argumentos para recomendación",
+          "Argumentos para recomendacion",
           "Uso profesional y repetible",
-          "Presentación clara por variante",
+          "Presentacion clara por variante",
         ],
       },
       {
         id: "agro-produccion",
         label: "Producción y agro",
-        title: "Para productores, distribuidores y mayoristas",
+        title: "Para productores, distribuidores y canal tecnico-comercial",
         description:
-          "Es uno de los ejes más visibles del feed, especialmente por las menciones a suelo vivo, bioinsumos y agricultura sustentable.",
+          "En agro la propuesta gana fuerza cuando se entiende como mejorador del suelo y complemento de fertilizacion, con foco en eficiencia, retencion y administracion de nutrientes.",
         highlights: [
           "Mejorador de suelo",
-          "Enfoque orgánico",
+          "Complemento de fertilizacion",
           "Narrativa apta para canal comercial",
         ],
       },
       {
         id: "cesped-deportivo",
         label: "Césped deportivo",
-        title: "Para golf, fútbol, hockey y mantenimiento de campos",
+        title: "Para golf, futbol, hockey y mantenimiento de superficies exigentes",
         description:
-          "Es una vertical con mucho potencial y todavía poco desarrollada en la comunicación actual, por eso le damos una sección propia.",
+          "Esta vertical puede apoyarse en una promesa concreta: mejor suelo, mejor manejo de humedad y mejor respuesta del cesped bajo uso intensivo y mantenimiento tecnico.",
         highlights: [
           "Greens y superficies exigentes",
-          "Mantenimiento técnico",
+          "Mantenimiento tecnico",
           "Valor visible desde el suelo",
         ],
       },
       {
         id: "cannabis",
         label: "Cannabis",
-        title: "Para una audiencia que necesita código y enfoque específicos",
+        title: "Para una audiencia que necesita lenguaje, validacion y enfoque propios",
         description:
-          "La línea cannabis va a requerir un discurso dedicado. La web ya puede dejar preparada la estructura para esa expansión.",
+          "La linea cannabis va a requerir validacion mas fina de beneficios, casos y tono. La web ya deja preparada la estructura para crecer cuando esa informacion este consolidada.",
         highlights: [
           "Landing preparada para crecer",
           "Tono segmentado",
@@ -432,7 +432,17 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
       {
         question: "¿PGI está pensado solo para consumidores finales?",
         answer:
-          "No. La estructura de esta home ya contempla varios públicos: consumidores, viveros, paisajistas, producción, distribuidores y mantenimiento de césped deportivo.",
+          "No. PGI puede presentarse tanto para uso residencial como para viveros, paisajismo, produccion, distribuidores y mantenimiento de cesped deportivo.",
+      },
+      {
+        question: "¿PGI reemplaza la fertilizacion tradicional?",
+        answer:
+          "No. PGI no reemplaza la fertilizacion; la potencia. Funciona en conjunto con fertilizantes quimicos, organicos o biologicos para mejorar su aprovechamiento y reducir perdidas.",
+      },
+      {
+        question: "¿Que aporta tecnicamente PGI al suelo?",
+        answer:
+          "Aporta una estructura de micro y macroporos que ayuda a capturar nutrientes, regular humedad y mejorar aireacion. Eso favorece un suelo mas equilibrado y procesos biologicos mas eficientes.",
       },
       {
         question: "¿La tienda cambia o se mantiene separada?",
@@ -442,7 +452,7 @@ export const pgiInstitutionalHomeContent: Record<InstitutionalLocale, Institutio
       {
         question: "¿Qué variantes del producto se contemplan en esta etapa?",
         answer:
-          "Esta versión contempla tres líneas iniciales para comunicar: Regular, Con citronela y Cannabis. Algunas descripciones son base de trabajo y se van a validar con el equipo comercial.",
+          "Esta version contempla tres lineas iniciales para comunicar: Regular, con citronela y Cannabis. La linea cannabis queda deliberadamente mas prudente hasta tener mejor informacion especifica.",
       },
       {
         question: "¿Los testimonios ya son definitivos?",

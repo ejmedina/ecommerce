@@ -86,46 +86,46 @@ const institutionalHomeFlavorDefinitions: Record<HomeFlavor, InstitutionalHomeFl
     hero: {
       mediaSrc: "/pgi/flyer-pgi.png",
       mediaAlt: "Flyer de producto PGI",
-      mediaBadgeTitle: "Beneficios visibles",
+      mediaBadgeTitle: "Tecnologia natural para el suelo",
       mediaBadgeDescription:
-        "Raíces, humedad, floración y salud vegetal ordenadas en una narrativa mucho más clara para la web.",
+        "Zeolita volcanica de alta pureza con acidos humicos y fulvicos para gestionar nutrientes, humedad y aireacion de forma mas eficiente.",
     },
     visualDirection: {
       eyebrow: "Dirección visual",
       title: "Naturaleza inteligente",
       description:
-        "Tomamos el contenido real del Instagram, pero elevamos la presentación a una experiencia más institucional, técnica y preparada para vender.",
+        "La nueva narrativa baja el producto a una propuesta comercial mas clara: mejor suelo, mejor administracion de nutrientes y una planta mas fuerte desde la raiz.",
     },
     stats: [
       {
         value: "3",
-        label: "Variantes iniciales",
+        label: "Lineas iniciales",
         description: "Regular, con citronela y cannabis.",
       },
       {
-        value: "5",
-        label: "Audiencias prioritarias",
-        description: "Desde hogar y jardín hasta césped deportivo.",
+        value: "4",
+        label: "Beneficios clave",
+        description: "Nutrientes, humedad, aireacion y raiz.",
       },
     ],
     sections: {
       product: {
         eyebrow: "Producto",
-        title: "PGI como solución institucional: menos ruido, más claridad sobre lo que aporta.",
+        title: "PGI como solucion institucional: una propuesta tecnica mas clara para explicar que pasa en el suelo.",
         description:
-          "La web tiene que explicar el producto mejor que el feed. Por eso reorganizamos los beneficios, los casos de uso y las variantes en una estructura que también sirva para venta consultiva.",
+          "La web ahora ordena la propuesta alrededor de su valor tecnico: capturar nutrientes, regular humedad, mejorar aireacion y potenciar la fertilizacion sin reemplazarla.",
       },
       audiences: {
         eyebrow: "Audiencias",
-        title: "Una sola home, varias puertas de entrada.",
+        title: "Una sola tecnologia, varias puertas de entrada comerciales.",
         description:
-          "PGI no se vende solo a un tipo de cliente. La home institucional tiene que ordenar esa amplitud sin perder foco comercial.",
+          "PGI no se vende a una sola audiencia. La home institucional tiene que mostrar como cambia el enfoque segun el tipo de uso, sin perder consistencia tecnica.",
       },
       testimonials: {
         eyebrow: "Testimonios",
-        title: "El visitante puede filtrar testimonios según su interés.",
+        title: "Los testimonios ayudan a traducir la promesa tecnica en escenarios concretos.",
         description:
-          "Esta parte ya queda armada como pidió negocio: si alguien llega por hogar, agro, césped o cannabis, ve mensajes que hablan su idioma y una variante de producto asociada.",
+          "La estructura ya permite ordenar mensajes por audiencia y variante. El contenido puede seguir afinandose a medida que consigamos mas casos reales y mejor respaldo para cada vertical.",
       },
       store: {
         eyebrow: "Tienda",
@@ -136,20 +136,20 @@ const institutionalHomeFlavorDefinitions: Record<HomeFlavor, InstitutionalHomeFl
       },
       faq: {
         eyebrow: "FAQ",
-        title: "Preguntas frecuentes para una etapa donde todavía convivimos con contenido real y contenido en construcción.",
+        title: "Preguntas frecuentes para explicar mejor como funciona PGI y donde aporta valor.",
         description:
-          "Esta versión ya ordena las preguntas que aparecen naturalmente cuando una marca está creciendo y empieza a hablarle a más de una audiencia.",
+          "Esta version ordena las dudas comerciales y tecnicas mas probables mientras seguimos consolidando material especifico por vertical.",
       },
       contact: {
         eyebrow: "Contacto",
-        title: "Institucional primero, conversación después.",
+        title: "Primero claridad tecnica, despues conversacion comercial.",
         description:
-          "La intención de esta sección es simple: bajar la barrera para consultas institucionales, comerciales o técnicas, y dejar listo el terreno para sumar WhatsApp conversacional más adelante.",
+          "La intencion de esta seccion es bajar la barrera para consultas comerciales o tecnicas y abrir conversaciones mas calificadas sobre aplicaciones, variantes y canal.",
         whatsappTitle: "WhatsApp",
-        emailTitle: "Email previsto",
+        emailTitle: "Email comercial",
         locationTitle: "Base operativa",
         locationDescription:
-          "Pensado para acompañar uso urbano, agrícola y profesional desde Argentina.",
+          "Pensado para acompanar uso urbano, agricola y profesional desde Argentina.",
       },
     },
     contentByLocale: pgiInstitutionalHomeContent,
@@ -192,4 +192,3 @@ export function getInstitutionalHomeFlavor(
     content: definition.contentByLocale[locale],
   }
 }
-
