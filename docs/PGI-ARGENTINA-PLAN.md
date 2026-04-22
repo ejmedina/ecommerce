@@ -1,7 +1,7 @@
 # PGI Argentina - Plan de trabajo
 
 Fecha: 2026-04-21
-Estado: En preparacion
+Estado: En curso
 
 ## 0. Pre-etapa 0
 
@@ -18,6 +18,9 @@ Antes de tocar comportamiento de la app, resolver estos habilitadores:
 - Permitido hacer commits locales
 - No hacer push a `main` porque dispara deploy en Vercel para `elpanatucasa`
 - Validacion inicial y pruebas deben hacerse localmente
+- `pgiweb` ya fue creado en Vercel como proyecto separado
+- `pgi.com.ar` ya apunta y responde desde Vercel
+- La home institucional PGI ya esta publicada y verificada
 
 #### Vercel MCP
 
@@ -26,6 +29,7 @@ Antes de tocar comportamiento de la app, resolver estos habilitadores:
 - La autorizacion OAuth ya fue completada
 - Para que quede utilizable dentro de una sesion nueva del agente, puede hacer falta reiniciar la sesion actual
 - En esta sesion aun no hay recursos MCP de Vercel disponibles desde las herramientas cargadas al inicio
+- `pgiweb` ya quedo asociado al repo `ecommerce` y se administran env vars y deploys desde CLI
 
 #### Instagram
 
@@ -46,6 +50,13 @@ Antes de tocar comportamiento de la app, resolver estos habilitadores:
 - No se detectaron menciones solidas a las variantes `citronela` y `cannabis`
 - Los beneficios mas repetidos son germinacion, enraizamiento, retencion de humedad, floracion y enfoque organico
 - Conclusion: Instagram sirve como base de tono y beneficios, pero la home debera completar audiencias y variantes que el feed aun no cubre bien
+
+### Estado operativo actual
+
+- `pgiweb` esta publicado en Vercel
+- `pgi.com.ar` ya fue apuntado a Vercel y esta funcionando
+- La home institucional ya usa el contenido base de PGI y queda abierta a refinarse con material de marca
+- El siguiente paso operativo principal es el alta de correo corporativo y transaccional
 
 ## 1. Decision de arquitectura
 
@@ -191,6 +202,24 @@ Entregable:
 
 - Primera capa de CMS liviano para la home institucional
 
+### Etapa 3.1 - Correo y entregabilidad
+
+Objetivo:
+
+Dejar resuelto el circuito de correo de marca y el envio transaccional de la tienda.
+
+Tareas:
+
+- Elegir proveedor de correo corporativo para `@pgi.com.ar`
+- Configurar casillas principales
+- Definir si el envio transaccional va por ZeptoMail u otro proveedor
+- Cargar SPF, DKIM y DMARC
+- Alinear `EMAIL_FROM`, `RESEND_API_KEY` o la alternativa elegida en Vercel
+
+Entregable:
+
+- Correo corporativo operativo y envios transaccionales funcionando desde la tienda
+
 ### Etapa 4 - Endurecimiento operativo
 
 Objetivo:
@@ -255,8 +284,15 @@ Cada testimonio deberia poder etiquetarse con:
 - Definir si la home institucional tendra contenido administrable desde el inicio o en una segunda pasada
 - Definir si el formulario de contacto enviara email real desde el primer release o quedara stub temporal
 - Confirmar si queremos namespacing de uploads ya en esta etapa o mas adelante
+- Definir el proveedor final de correo corporativo para `@pgi.com.ar`
+- Definir el proveedor final de envio transaccional de la tienda
 
 ## 8. Proximo paso recomendado
+
+1. Cerrar alta de correo corporativo en Zoho u otra alternativa elegida.
+2. Configurar la casilla de salida transaccional para la tienda.
+3. Revisar y ajustar SPF, DKIM y DMARC.
+4. Validar que el formulario de contacto institucional y los mails de tienda salgan con el dominio correcto.
 
 Estado actual del hardening:
 
