@@ -1,0 +1,21 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="780" rx="44" fill="#F2F9E8"/>
+  <rect x="40" y="40" width="1120" height="700" rx="36" fill="#FDFBF5"/>
+  <rect x="84" y="84" width="198" height="44" rx="22" fill="#E2F2CB"/>
+  <text x="183" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#245331">SEGUIMIENTO DE LOTE</text>
+  <rect x="90" y="166" width="1020" height="508" rx="30" fill="#D8E9C2"/>
+  <path d="M90 424C208 394 318 364 430 338C548 310 668 290 806 264C928 242 1030 214 1110 186V674H90V424Z" fill="#AA804F"/>
+  <g stroke="#7F5A34" stroke-width="8" stroke-linecap="round">
+    <path d="M156 408C256 378 364 350 480 324"/>
+    <path d="M220 470C330 440 450 408 578 382"/>
+    <path d="M308 546C442 514 578 486 714 462"/>
+    <path d="M420 618C562 588 708 560 858 536"/>
+  </g>
+  <g fill="#5E973D">
+    <path d="M242 362C234 334 238 314 254 302C272 290 290 302 292 324C294 340 284 352 242 362Z"/>
+    <path d="M458 316C450 288 454 268 470 256C488 244 506 256 508 278C510 294 500 306 458 316Z"/>
+    <path d="M672 286C664 260 668 242 684 230C700 220 718 230 722 252C724 268 714 278 672 286Z"/>
+    <path d="M874 246C868 224 874 210 888 200C902 190 918 198 922 216C926 232 916 242 874 246Z"/>
+  </g>
+  <text x="86" y="712" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#204B2D">Mock para producción: suelo, humedad y visual comparativa apta para canal técnico-comercial.</text>
+</svg>

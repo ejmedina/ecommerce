@@ -1,0 +1,20 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="780" rx="44" fill="#ECF8E1"/>
+  <rect x="42" y="42" width="1116" height="696" rx="36" fill="#FDFBF7"/>
+  <rect x="82" y="84" width="176" height="44" rx="22" fill="#DFF3C4"/>
+  <text x="170" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#245331">CESPED TECNICO</text>
+  <rect x="90" y="168" width="1020" height="520" rx="30" fill="#8CCB5A"/>
+  <path d="M90 248H1110" stroke="#72B348" stroke-width="40"/>
+  <path d="M90 328H1110" stroke="#7CBD4B" stroke-width="40"/>
+  <path d="M90 408H1110" stroke="#6EAF45" stroke-width="40"/>
+  <path d="M90 488H1110" stroke="#78B94A" stroke-width="40"/>
+  <path d="M90 568H1110" stroke="#6AA743" stroke-width="40"/>
+  <circle cx="262" cy="428" r="104" fill="#F2F6EA" fill-opacity="0.9"/>
+  <circle cx="262" cy="428" r="74" fill="#FFFFFF"/>
+  <path d="M250 362C246 346 252 334 266 334C280 334 286 346 282 362L272 428H260L250 362Z" fill="#5F9640"/>
+  <circle cx="262" cy="458" r="14" fill="#5F9640"/>
+  <path d="M914 344C964 316 1016 300 1070 296V560C1008 544 956 518 914 484V344Z" fill="#EAF4DD" fill-opacity="0.9"/>
+  <text x="930" y="382" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#245331">TURF</text>
+  <text x="926" y="422" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#3E5F33">uso intensivo</text>
+  <text x="84" y="718" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#204B2D">Mock para greens, canchas y mantenimiento profesional de superficies deportivas.</text>
+</svg>

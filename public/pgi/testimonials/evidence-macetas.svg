@@ -1,0 +1,30 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="780" rx="44" fill="#EAF8DA"/>
+  <rect x="34" y="34" width="1132" height="336" rx="32" fill="#FFFDF7"/>
+  <rect x="34" y="410" width="1132" height="336" rx="32" fill="#F5FFF0"/>
+  <rect x="72" y="72" width="120" height="44" rx="22" fill="#EEF2E5"/>
+  <text x="132" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#47603D">ANTES</text>
+  <rect x="72" y="448" width="150" height="44" rx="22" fill="#DDF6C5"/>
+  <text x="147" y="476" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#245331">DESPUES</text>
+  <rect x="96" y="166" width="216" height="126" rx="20" fill="#DCC4A2"/>
+  <rect x="370" y="154" width="196" height="138" rx="20" fill="#CDB28E"/>
+  <rect x="644" y="142" width="204" height="150" rx="20" fill="#D8C5A4"/>
+  <rect x="900" y="160" width="168" height="132" rx="20" fill="#D4BC9C"/>
+  <ellipse cx="204" cy="166" rx="78" ry="18" fill="#7A5C3F"/>
+  <ellipse cx="468" cy="154" rx="70" ry="18" fill="#72563C"/>
+  <ellipse cx="746" cy="142" rx="74" ry="18" fill="#75583B"/>
+  <ellipse cx="984" cy="160" rx="62" ry="18" fill="#76573B"/>
+  <path d="M204 160C188 136 184 118 190 102C198 80 214 74 224 94C232 110 228 128 204 160Z" fill="#95C56A"/>
+  <path d="M468 148C450 128 446 110 452 94C458 78 472 78 480 96C486 110 484 126 468 148Z" fill="#8EBB60"/>
+  <path d="M746 136C736 118 734 102 740 88C748 70 760 72 768 92C774 108 770 120 746 136Z" fill="#9FCB71"/>
+  <path d="M984 154C972 136 970 118 976 104C984 84 998 86 1006 106C1012 122 1008 136 984 154Z" fill="#91BE66"/>
+  <ellipse cx="202" cy="542" rx="86" ry="20" fill="#6B5B3D"/>
+  <ellipse cx="472" cy="528" rx="82" ry="20" fill="#6B5B3D"/>
+  <ellipse cx="744" cy="520" rx="84" ry="20" fill="#6B5B3D"/>
+  <ellipse cx="994" cy="532" rx="72" ry="20" fill="#6B5B3D"/>
+  <path d="M202 532C176 482 174 438 192 402C214 358 248 364 266 408C282 446 270 488 202 532Z" fill="#4E9236"/>
+  <path d="M472 518C444 474 440 430 458 398C480 360 512 368 528 410C542 446 532 484 472 518Z" fill="#3F8533"/>
+  <path d="M744 510C714 466 708 424 726 390C746 354 778 360 796 402C810 438 800 478 744 510Z" fill="#54993B"/>
+  <path d="M994 522C966 482 962 444 978 410C996 376 1026 382 1042 418C1054 446 1048 484 994 522Z" fill="#3E7F30"/>
+  <text x="72" y="708" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#204B2D">Evidencia mock para testimonios de macetas, patio y huerta.</text>
+</svg>

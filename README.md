@@ -34,6 +34,9 @@ Completar las variables en `.env`:
 - `MERCADOPAGO_ACCESS_TOKEN` - Token de Mercado Pago
 - `RESEND_API_KEY` - API key de Resend
 - `UPLOADTHING_SECRET` y `UPLOADTHING_APP_ID` - Configuración de Uploadthing
+- `HOME_MODE` - `storefront` por defecto. Usar `institutional` para que `"/"` deje de redirigir a `"/home"`
+- `HOME_FLAVOR` - preset de home institucional a usar. Hoy el primer preset disponible es `pgi`
+- `CONTACT_FORM_TO` - Casilla que recibe las consultas del formulario institucional
 
 ### 3. Configurar base de datos
 
@@ -55,6 +58,20 @@ npm run dev
 ```
 
 Abrir [http://localhost:3000](http://localhost:3000)
+
+### Variantes de home por deploy
+
+La app soporta dos modos de entrada en la raíz:
+
+- `HOME_MODE=storefront` - comportamiento actual, `"/"` redirige a `"/home"`
+- `HOME_MODE=institutional` - `"/"` queda reservado para una home institucional independiente
+
+Además, la home institucional ahora requiere un flavor explícito:
+
+- `HOME_FLAVOR=pgi` - habilita la home institucional de PGI
+- si `HOME_MODE=institutional` pero `HOME_FLAVOR` falta o es inválido, la app vuelve al fallback seguro de `"/home"`
+
+Esto permite reutilizar el mismo codebase para múltiples tiendas sin afectar deployments existentes mientras no se cambie esa variable de entorno.
 
 ## Deploy en Vercel
 

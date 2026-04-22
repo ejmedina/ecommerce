@@ -1,0 +1,23 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="780" rx="44" fill="#EEF7EF"/>
+  <rect x="42" y="42" width="1116" height="696" rx="36" fill="#FCFBFF"/>
+  <rect x="82" y="84" width="214" height="44" rx="22" fill="#DDEEDC"/>
+  <text x="189" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#245331">LINEA SEGMENTADA</text>
+  <rect x="90" y="166" width="484" height="520" rx="30" fill="#202831"/>
+  <rect x="626" y="166" width="484" height="520" rx="30" fill="#F1F6EE"/>
+  <path d="M332 562C298 498 294 430 318 368C344 304 390 268 436 270V686H332V562Z" fill="#3F8B4E"/>
+  <path d="M870 558C834 498 832 432 854 378C880 314 922 282 964 282V686H870V558Z" fill="#6AAE58"/>
+  <g fill="#80C36D">
+    <path d="M444 340C398 332 374 298 370 242C418 248 448 274 444 340Z"/>
+    <path d="M444 394C386 384 352 342 340 276C404 286 442 328 444 394Z"/>
+    <path d="M444 450C378 442 336 392 320 320C392 332 438 382 444 450Z"/>
+  </g>
+  <g fill="#5C8E52">
+    <path d="M972 354C930 348 904 320 896 270C944 274 976 302 972 354Z"/>
+    <path d="M972 408C914 400 880 366 868 318C930 324 968 356 972 408Z"/>
+    <path d="M972 464C906 458 862 418 848 362C920 370 966 406 972 464Z"/>
+  </g>
+  <text x="140" y="618" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#E8F4E1">Mock visual con tono dedicado y narrativa de nicho.</text>
+  <text x="664" y="618" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#245331">Preparado para testimonios con identidad propia.</text>
+  <text x="84" y="718" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#204B2D">Mock para una línea segmentada con estética y prueba visual diferenciadas.</text>
+</svg>

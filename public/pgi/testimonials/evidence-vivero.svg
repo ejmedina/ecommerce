@@ -1,0 +1,27 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="780" rx="44" fill="#F3FBEA"/>
+  <rect x="40" y="44" width="1120" height="692" rx="36" fill="#FFFDF6"/>
+  <rect x="82" y="84" width="180" height="44" rx="22" fill="#E2F3CC"/>
+  <text x="172" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#245331">SEGUIMIENTO</text>
+  <rect x="110" y="170" width="980" height="436" rx="28" fill="#E3C79B"/>
+  <g fill="#725C38">
+    <rect x="150" y="226" width="180" height="150" rx="16"/>
+    <rect x="358" y="226" width="180" height="150" rx="16"/>
+    <rect x="566" y="226" width="180" height="150" rx="16"/>
+    <rect x="774" y="226" width="180" height="150" rx="16"/>
+    <rect x="254" y="402" width="180" height="150" rx="16"/>
+    <rect x="462" y="402" width="180" height="150" rx="16"/>
+    <rect x="670" y="402" width="180" height="150" rx="16"/>
+  </g>
+  <g fill="#74B54F">
+    <path d="M240 226C224 184 232 160 256 150C280 140 296 160 290 188C286 208 274 220 240 226Z"/>
+    <path d="M446 226C430 184 438 160 462 150C486 140 502 160 496 188C492 208 480 220 446 226Z"/>
+    <path d="M654 226C638 184 646 160 670 150C694 140 710 160 704 188C700 208 688 220 654 226Z"/>
+    <path d="M862 226C846 184 854 160 878 150C902 140 918 160 912 188C908 208 896 220 862 226Z"/>
+    <path d="M344 402C326 352 336 326 362 316C388 306 406 326 398 356C394 376 380 392 344 402Z"/>
+    <path d="M552 402C534 352 544 326 570 316C596 306 614 326 606 356C602 376 588 392 552 402Z"/>
+    <path d="M760 402C742 352 752 326 778 316C804 306 822 326 814 356C810 376 796 392 760 402Z"/>
+  </g>
+  <path d="M98 644H1102" stroke="#C6DAB2" stroke-width="12" stroke-linecap="round"/>
+  <text x="84" y="694" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#204B2D">Mock de vivero para testimonios con bandejas, plantines y seguimiento por etapas.</text>
+</svg>
