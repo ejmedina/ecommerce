@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { formatCurrency } from "@/lib/utils"
 import { AddToCartButton } from "@/components/add-to-cart-button"
 import { getProductsAction } from "./actions"
@@ -83,19 +84,21 @@ export function ProductList({ initialProducts, initialHasMore, category, s }: Pr
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <div key={product.id} className="group flex flex-col">
             <Link
               href={`/products/${product.slug}`}
               className="block"
             >
-              <div className="aspect-square bg-muted rounded-lg mb-3 overflow-hidden">
+              <div className="relative aspect-square bg-muted rounded-lg mb-3 overflow-hidden">
                 {product.images[0] ? (
-                  <img
+                  <Image
                     src={product.images[0].url}
                     alt={product.images[0].alt || product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    loading="lazy"
+                    fill
+                    priority={index < 4}
+                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                    className="object-cover group-hover:scale-105 transition-transform"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">

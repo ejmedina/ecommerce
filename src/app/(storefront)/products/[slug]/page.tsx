@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { db } from "@/lib/db"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -46,11 +47,14 @@ export default async function ProductPage({ params }: Props) {
         <div className="space-y-4">
           {product.images.length > 0 ? (
             <>
-              <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-                <img
+              <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                <Image
                   src={product.images[0].url}
                   alt={product.images[0].alt || product.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
                 />
               </div>
               {product.images.length > 1 && (
@@ -58,12 +62,14 @@ export default async function ProductPage({ params }: Props) {
                   {product.images.map((image) => (
                     <div
                       key={image.id}
-                      className="w-20 h-20 shrink-0 rounded-md overflow-hidden border"
+                      className="relative w-20 h-20 shrink-0 rounded-md overflow-hidden border"
                     >
-                      <img
+                      <Image
                         src={image.url}
                         alt={image.alt || product.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="80px"
+                        className="object-cover"
                       />
                     </div>
                   ))}

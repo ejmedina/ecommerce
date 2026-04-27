@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { X, Trash2, ShoppingBag } from "lucide-react"
 import { useCart } from "@/components/cart-context"
 import { Button } from "@/components/ui/button"
@@ -86,12 +87,14 @@ export function FloatingCart() {
                   className="flex gap-3 p-3 border rounded-lg"
                 >
                   {/* Image */}
-                  <div className="w-20 h-20 bg-muted rounded overflow-hidden shrink-0">
+                  <div className="relative w-20 h-20 bg-muted rounded overflow-hidden shrink-0">
                     {item.product.images[0] ? (
-                      <img
+                      <Image
                         src={item.product.images[0].url}
                         alt={item.product.images[0].alt || item.product.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="80px"
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">

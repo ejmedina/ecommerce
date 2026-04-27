@@ -34,7 +34,7 @@ export default async function ProductsPage({ searchParams }: Props) {
           <h2 className="font-semibold mb-4 hidden md:block">Categorías</h2>
           
           {/* Mobile Horizontal Categories */}
-          <nav className="flex md:hidden overflow-x-auto pb-4 gap-2 no-scrollbar -mx-4 px-4 sticky top-0 bg-background z-10">
+          <nav className="flex md:hidden overflow-x-auto pb-4 gap-2 no-scrollbar -mx-4 px-4">
             <Link
               href="/products"
               className={cn(

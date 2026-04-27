@@ -19,7 +19,7 @@ export function AddToCartButton({
   size = "default",
 }: AddToCartButtonProps) {
   const [isPending, startTransition] = useTransition()
-  const { refreshCart, setIsOpen } = useCart()
+  const { refreshCart } = useCart()
   const { toast } = useToast()
 
   const handleAddToCart = () => {
@@ -47,7 +47,6 @@ export function AddToCartButton({
         })
 
         await refreshCart()
-        setIsOpen(true)
       } catch (error) {
         toast({
           title: "Error",

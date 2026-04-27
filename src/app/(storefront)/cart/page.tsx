@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -91,12 +92,14 @@ export default async function CartPage() {
                 <CardContent className="p-4">
                   <div className="flex gap-4">
                     {/* Image */}
-                    <div className="w-24 h-24 shrink-0 rounded-md bg-muted overflow-hidden">
+                    <div className="relative w-24 h-24 shrink-0 rounded-md bg-muted overflow-hidden">
                       {item.product.images[0] ? (
-                        <img
+                        <Image
                           src={item.product.images[0].url}
                           alt={item.product.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="96px"
+                          className="object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
