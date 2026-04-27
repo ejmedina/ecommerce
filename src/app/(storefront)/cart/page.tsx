@@ -7,7 +7,7 @@ import { db } from "@/lib/db"
 import { formatCurrency } from "@/lib/utils"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
-import { removeFromCart, updateCartItem } from "@/lib/actions/cart-actions"
+import { CartItemControls } from "./cart-item-controls"
 
 export const dynamic = "force-dynamic"
 
@@ -131,44 +131,8 @@ export default async function CartPage() {
                       </p>
                     </div>
 
-                  {/* Quantity */}
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
-                      <form action={async () => {
-                        "use server"
-                        const newQty = Math.max(1, item.quantity - 1)
-                        await updateCartItem(item.id, newQty)
-                      }}>
-                        <Button type="submit" variant="outline" size="icon" className="h-8 w-8">
-                          <span>-</span>
-                        </Button>
-                      </form>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <form action={async () => {
-                        "use server"
-                        await updateCartItem(item.id, item.quantity + 1)
-                      }}>
-                        <Button type="submit" variant="outline" size="icon" className="h-8 w-8">
-                          <span>+</span>
-                        </Button>
-                      </form>
-                    </div>
-
-                    {/* Remove */}
-                    <form action={async () => {
-                      "use server"
-                      await removeFromCart(item.id)
-                    }}>
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </form>
-                  </div>
+                  {/* Controls */}
+                  <CartItemControls itemId={item.id} quantity={item.quantity} />
                 </div>
               </CardContent>
             </Card>

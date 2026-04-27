@@ -10,7 +10,7 @@ import { formatCurrency } from "@/lib/utils"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 
 export function FloatingCart() {
-  const { cart, isOpen, setIsOpen, refreshCart, pricingResult } = useCart()
+  const { cart, isOpen, setIsOpen, refreshCart, pricingResult, settings } = useCart()
   const [isRemoving, setIsRemoving] = useState<string | null>(null)
 
   if (!isOpen) return null
@@ -129,7 +129,11 @@ export function FloatingCart() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 ml-auto text-destructive"
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => {
+                          if (window.confirm("¿Seguro que querés eliminar este producto?")) {
+                            removeItem(item.id)
+                          }
+                        }}
                         disabled={isRemoving === item.id}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -166,10 +170,10 @@ export function FloatingCart() {
             </div>
 
             {/* Minimum Order Warning */}
-            {useCart().settings?.minShippingOrderAmount > 0 && rawSubtotal < useCart().settings.minShippingOrderAmount && (
+            {settings?.minShippingOrderAmount > 0 && rawSubtotal < settings.minShippingOrderAmount && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                 <p className="font-medium">Mínimo para envío a domicilio</p>
-                <p>Te faltan <strong>{formatCurrency(useCart().settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(useCart().settings.minShippingOrderAmount)}.</p>
+                <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
                 <p className="text-xs mt-1 opacity-80">(Podés seguir para retirar en tienda sin mínimo)</p>
               </div>
             )}

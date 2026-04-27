@@ -1,6 +1,7 @@
 "use server"
 
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -23,6 +24,7 @@ async function getOrCreateCart() {
         where: { userId: session.user.id },
         include: {
           items: {
+            orderBy: { id: "asc" },
             include: { product: { include: { images: { take: 1, orderBy: { order: "asc" } } } } },
           },
         },
@@ -50,6 +52,7 @@ async function getOrCreateCart() {
         where: { sessionId },
         include: {
           items: {
+            orderBy: { id: "asc" },
             include: { product: { include: { images: true } } },
           },
         },
@@ -183,11 +186,13 @@ export async function updateCartItem(itemId: string, quantity: number) {
     data: { quantity },
   })
 
+  revalidatePath("/cart")
   return { success: true }
 }
 
 export async function removeFromCart(itemId: string) {
   await db.cartItem.delete({ where: { id: itemId } })
+  revalidatePath("/cart")
   return { success: true }
 }
 
@@ -206,6 +211,7 @@ export async function clearCart() {
     })
   }
 
+  revalidatePath("/cart")
   return { success: true }
 }
 
