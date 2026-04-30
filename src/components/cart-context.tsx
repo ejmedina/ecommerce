@@ -51,8 +51,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const refreshCart = async () => {
     try {
       const [cartRes, settingsRes] = await Promise.all([
-        fetch("/api/cart"),
-        fetch("/api/settings")
+        fetch(`/api/cart?t=${Date.now()}`, { cache: "no-store" }),
+        fetch("/api/settings", { cache: "no-store" })
       ])
       
       if (cartRes.ok) {

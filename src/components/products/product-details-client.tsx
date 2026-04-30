@@ -74,6 +74,43 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
     setQuantity(1)
   }, [selectedVariant])
 
+  const { cart, refreshCart } = useCart()
+  const cartItem = cart?.items.find((item: any) => 
+    item.productId === product.id && 
+    (product.hasVariants ? item.variantId === selectedVariant?.id : !item.variantId)
+  )
+
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  const handleUpdateCartQuantity = async (newQuantity: number) => {
+    if (!cartItem) return
+    
+    if (newQuantity <= 0) {
+      if (window.confirm(`¿Seguro que querés eliminar este producto del carrito?`)) {
+        setIsUpdating(true)
+        try {
+          await fetch(`/api/cart/items/${cartItem.id}`, { method: "DELETE" })
+          await refreshCart()
+        } finally {
+          setIsUpdating(false)
+        }
+      }
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      await fetch(`/api/cart/items/${cartItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: newQuantity }),
+      })
+      await refreshCart()
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   const handleAddToCart = async (formData: FormData) => {
     if (product.hasVariants && !selectedVariant) {
       toast({
@@ -95,6 +132,8 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           title: "Error",
           description: result.error
         })
+      } else {
+        await refreshCart()
       }
     } catch (error) {
       console.error("Cart error:", error)
@@ -152,34 +191,46 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
         </div>
       ))}
 
-      {/* Add to Cart Form */}
+      {/* Add to Cart Form / Cart Quantity Updater */}
       {isAvailable && (
-        <form action={handleAddToCart} className="space-y-4 pt-4 border-t">
-          <input type="hidden" name="productId" value={product.id} />
-          {selectedVariant && (
-            <input type="hidden" name="variantId" value={selectedVariant.id} />
-          )}
-          
-          <div className="flex gap-4">
+        <div className="space-y-4 pt-4 border-t">
+          {cartItem ? (
             <QuantitySelector
-              value={quantity}
-              onChange={setQuantity}
-              min={1}
-              max={product.hasPermanentStock ? 100 : currentStock}
-              disabled={adding}
+              value={cartItem.quantity}
+              onChange={handleUpdateCartQuantity}
+              min={0}
+              max={product.hasPermanentStock ? undefined : currentStock}
+              disabled={isUpdating}
               size="lg"
+              className="w-full justify-center"
             />
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="flex-1 h-12"
-              isLoading={adding}
-              disabled={adding || (product.hasVariants && !selectedVariant)}
-            >
-              {product.hasVariants && !selectedVariant ? "Seleccioná opciones" : "Agregar al carrito"}
-            </Button>
-          </div>
-        </form>
+          ) : (
+            <form action={handleAddToCart} className="flex gap-4">
+              <input type="hidden" name="productId" value={product.id} />
+              {selectedVariant && (
+                <input type="hidden" name="variantId" value={selectedVariant.id} />
+              )}
+              
+              <QuantitySelector
+                value={quantity}
+                onChange={setQuantity}
+                min={1}
+                max={product.hasPermanentStock ? 100 : currentStock}
+                disabled={adding}
+                size="lg"
+              />
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="flex-1 h-12"
+                isLoading={adding}
+                disabled={adding || (product.hasVariants && !selectedVariant)}
+              >
+                {product.hasVariants && !selectedVariant ? "Seleccioná opciones" : "Agregar al carrito"}
+              </Button>
+            </form>
+          )}
+        </div>
       )}
     </div>
   )
