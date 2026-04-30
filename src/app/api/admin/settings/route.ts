@@ -65,6 +65,8 @@ export async function PUT(req: NextRequest) {
       requiresPaymentToFulfill,
       minShippingOrderAmount,
       storeUrl,
+      // Store Pickup
+      storePickupEnabled,
       // Home page fields
       heroSliderEnabled,
       heroSlides,
@@ -97,6 +99,7 @@ export async function PUT(req: NextRequest) {
       requiresPaymentToFulfill,
       minShippingOrderAmount,
       whatsappPreArrivalMessage,
+      storePickupEnabled,
     }
 
     // Only update logo/favicon if provided

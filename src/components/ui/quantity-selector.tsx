@@ -37,8 +37,11 @@ export function QuantitySelector({
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseInt(e.target.value)
-    if (isNaN(newValue)) return
+    // Solo permitir dígitos
+    const numericStr = e.target.value.replace(/\D/g, "")
+    if (!numericStr) return
+
+    const newValue = parseInt(numericStr)
 
     if (newValue < min) {
       onChange(min)
@@ -68,16 +71,16 @@ export function QuantitySelector({
       </Button>
       
       <Input
-        type="number"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
         value={value}
         onChange={handleInputChange}
         className={cn(
           inputSize,
-          "rounded-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+          "rounded-none text-center border-x-0 focus-visible:ring-0 focus-visible:ring-offset-0",
           disabled && "opacity-50 cursor-not-allowed"
         )}
-        min={min}
-        max={max}
         disabled={disabled}
       />
 

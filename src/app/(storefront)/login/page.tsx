@@ -318,8 +318,13 @@ export default function LoginPage() {
                   <Input
                     id="register-phone"
                     type="tel"
+                    inputMode="numeric"
                     placeholder="11 1234 5678"
-                    {...registerForm.register("phone")}
+                    {...registerForm.register("phone", {
+                      onChange: (e) => {
+                        e.target.value = e.target.value.replace(/\D/g, "")
+                      }
+                    })}
                   />
                   {registerForm.formState.errors.phone && (
                     <p className="text-sm text-destructive">{registerForm.formState.errors.phone.message}</p>

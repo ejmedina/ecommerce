@@ -38,6 +38,7 @@ interface StoreSettings {
   themeColors: ThemeColors | null
   paymentMethods: Record<string, { isActive: boolean, label: string, description: string }> | null
   minShippingOrderAmount: any
+  storePickupEnabled: boolean
 }
 
 export function SettingsForm() {
@@ -59,6 +60,7 @@ export function SettingsForm() {
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
   const [minShippingOrderAmount, setMinShippingOrderAmount] = useState(0)
   const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
+  const [storePickupEnabled, setStorePickupEnabled] = useState(true)
 
   // Theme colors state
   const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
@@ -92,6 +94,7 @@ export function SettingsForm() {
       setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
       setMinShippingOrderAmount(Number(data.minShippingOrderAmount) || 0)
       setWhatsappPreArrivalMessage(data.whatsappPreArrivalMessage || "")
+      setStorePickupEnabled(data.storePickupEnabled ?? true)
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -136,6 +139,7 @@ export function SettingsForm() {
           requiresPaymentToFulfill,
           minShippingOrderAmount,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
+          storePickupEnabled,
           themeColors,
           paymentMethods,
           storeUrl: storeUrl || null,
@@ -544,6 +548,24 @@ export function SettingsForm() {
                   <p className="text-sm text-muted-foreground">
                     Solo avanzar con la preparación del pedido cuando el pago esté confirmado. 
                     Si está desactivado, se puede preparar pedidos con pago pendiente (contra entrega).
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="storePickupEnabled"
+                  checked={storePickupEnabled}
+                  onCheckedChange={(checked) => setStorePickupEnabled(!!checked)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="storePickupEnabled" className="font-medium cursor-pointer">
+                    Habilitar retiro en tienda
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permite a los clientes elegir retirar su pedido en la tienda física (sin costo de envío).
                   </p>
                 </div>
               </div>

@@ -455,6 +455,9 @@ model StoreSettings {
   // Shipping configuration (JSON structure for flexibility)
   shippingConfig      Json?    // { zones: [{ id, name, provinces, cities?, cost, freeFrom, isActive }] }
   
+  // Store Pickup
+  storePickupEnabled  Boolean  @default(true)
+  
   // Legacy fields (for backward compatibility)
   freeShippingMin     Decimal  @db.Decimal(10, 2) @default(0)
   fixedShippingCost   Decimal  @db.Decimal(10, 2) @default(0)

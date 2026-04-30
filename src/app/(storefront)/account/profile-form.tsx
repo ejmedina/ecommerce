@@ -125,8 +125,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
         <Input
           id="phone"
           type="tel"
+          inputMode="numeric"
           value={formData.phone}
-          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "") }))}
           placeholder="11 1234 5678"
         />
       </div>

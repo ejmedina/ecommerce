@@ -56,7 +56,7 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                 )}
               </div>
               <div className="p-3">
-                <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">
+                <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1 leading-snug">
                   {product.name}
                 </h3>
                 <p className="text-primary font-bold">

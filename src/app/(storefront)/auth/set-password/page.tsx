@@ -213,10 +213,12 @@ function SetPasswordForm() {
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="phone"
+                    type="tel"
+                    inputMode="numeric"
                     placeholder="11 1234 5678"
                     className="pl-10"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                   />
                 </div>
               </div>

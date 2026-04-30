@@ -106,12 +106,9 @@ export function ProductList({ initialProducts, initialHasMore, category, s }: Pr
                   </div>
                 )}
               </div>
-              <h3 className="font-medium truncate">{product.name}</h3>
-              {product.category && (
-                <p className="text-xs text-muted-foreground">
-                  {product.category.name}
-                </p>
-              )}
+              <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1 leading-snug">
+                {product.name}
+              </h3>
               <p className="text-lg font-semibold mt-1">
                 {formatCurrency(Number(product.price))}
               </p>

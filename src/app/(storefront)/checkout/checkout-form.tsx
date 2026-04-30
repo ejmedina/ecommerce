@@ -64,7 +64,11 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
   const total = subtotal + shippingCost
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    let value = e.target.value
+    if (e.target.name === "phone") {
+      value = value.replace(/\D/g, "")
+    }
+    setFormData(prev => ({ ...prev, [e.target.name]: value }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -137,7 +141,7 @@ export default function CheckoutForm({ cart, settings, subtotal, user }: Checkou
               </div>
               <div>
                 <Label htmlFor="phone">Teléfono *</Label>
-                <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} required />
+                <Input id="phone" name="phone" type="tel" inputMode="numeric" value={formData.phone} onChange={handleInputChange} required />
               </div>
             </div>
           </CardContent>

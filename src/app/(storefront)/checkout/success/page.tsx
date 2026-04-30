@@ -3,6 +3,7 @@ import { CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
 import { formatCurrency } from "@/lib/utils"
+import { auth } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -13,6 +14,8 @@ interface Props {
 export default async function CheckoutSuccessPage({ searchParams }: Props) {
   const params = await searchParams
   const orderId = params.order
+  const session = await auth()
+  const isLoggedIn = !!session?.user
 
   let order = null
   if (orderId) {
@@ -69,9 +72,16 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
         )}
 
         <div className="flex flex-col gap-3">
-          <Button asChild>
-            <Link href="/account/orders">Ver mis pedidos</Link>
-          </Button>
+          {isLoggedIn ? (
+            <Button asChild>
+              <Link href="/account/orders">Ver mis pedidos</Link>
+            </Button>
+          ) : (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left text-sm text-blue-800">
+              <p className="font-medium mb-1">¿Querés seguir el estado de tu pedido?</p>
+              <p>Revisá tu correo electrónico. Te enviamos un enlace para que puedas establecer una contraseña y acceder a tu cuenta.</p>
+            </div>
+          )}
           <Button variant="outline" asChild>
             <Link href="/products">Seguir comprando</Link>
           </Button>

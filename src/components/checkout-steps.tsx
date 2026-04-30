@@ -15,6 +15,7 @@ import { createOrder } from "@/lib/actions/order-actions"
 import { Check, ChevronRight, Truck, MapPin } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Mail } from "lucide-react"
+import { useCart } from "@/components/cart-context"
 import { 
   ARGENTINE_PROVINCES, 
   ProvinceId,
@@ -60,6 +61,7 @@ interface CheckoutStepsProps {
     shippingConfig: any
     paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
     minShippingOrderAmount?: unknown
+    storePickupEnabled?: boolean
   }
   pricingResult: PricingResult
   user?: { id: string; email?: string | null; name?: string | null } | null
@@ -78,6 +80,7 @@ const STEPS: { id: Step; label: string }[] = [
 
 export function CheckoutSteps({ cart, settings, pricingResult, user, addresses = [] }: CheckoutStepsProps) {
   const router = useRouter()
+  const { refreshCart } = useCart()
   
   // Si el usuario está logueado, empezar desde "shipping" y marcar "account" como completado
   const initialStep: Step = user ? "shipping" : "account"
@@ -86,7 +89,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   const [currentStep, setCurrentStep] = useState<Step>(initialStep)
   const [completedSteps, setCompletedSteps] = useState<Set<Step>>(initialCompleted)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">("pickup")
+  
+  const storePickupEnabled = settings.storePickupEnabled !== false;
+  const initialShippingMethod = storePickupEnabled ? "pickup" : "shipping";
+  const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">(initialShippingMethod)
   
   const defaultPaymentMethods: Record<string, { isActive: boolean; label: string; description: string }> = {
     ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
@@ -137,6 +143,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
 
   // Get shipping config
   const shippingConfig = settings.shippingConfig || getDefaultShippingConfig()
+
+  // Get allowed provinces from shipping config
+  const allowedProvinceIds = new Set(shippingConfig.zones.flatMap((zone: any) => zone.provinces))
+  const availableProvinces = ARGENTINE_PROVINCES.filter(p => allowedProvinceIds.has(p.id))
   
   // Calculate shipping when province or city changes
   useEffect(() => {
@@ -336,8 +346,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       }
 
       if (result.paymentUrl) {
+        await refreshCart()
         window.location.href = result.paymentUrl
       } else if (result.orderId) {
+        await refreshCart()
         router.push(`/checkout/success?order=${result.orderId}`)
       }
     } catch (error) {
@@ -439,7 +451,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                         </div>
                         <div>
                           <Label htmlFor="register-phone">Teléfono</Label>
-                          <Input id="register-phone" type="tel" value={registerData.phone} onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))} required />
+                          <Input id="register-phone" type="tel" inputMode="numeric" value={registerData.phone} onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "") }))} required />
                         </div>
                         <div>
                           <Label htmlFor="register-email">Email</Label>
@@ -489,13 +501,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col">
                 <RadioGroup value={shippingMethod} onValueChange={(v) => setShippingMethod(v as "pickup" | "shipping")}>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4 mb-2">
-                    <RadioGroupItem value="pickup" id="pickup" />
-                    <Label htmlFor="pickup" className="flex-1 cursor-pointer">
-                      <strong>Retiro en tienda</strong>
-                      <span className="text-muted-foreground ml-2">Gratis</span>
-                    </Label>
-                  </div>
+                  {storePickupEnabled && (
+                    <div className="flex items-center space-x-2 border rounded-lg p-4 mb-2">
+                      <RadioGroupItem value="pickup" id="pickup" />
+                      <Label htmlFor="pickup" className="flex-1 cursor-pointer">
+                        <strong>Retiro en tienda</strong>
+                        <span className="text-muted-foreground ml-2">Gratis</span>
+                      </Label>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
                     <RadioGroupItem value="shipping" id="shipping" />
                     <Label htmlFor="shipping" className="flex-1 cursor-pointer">
@@ -521,7 +535,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                         className="w-full h-10 px-3 border rounded-md bg-background"
                       >
                         <option value="">Seleccionar provincia...</option>
-                        {ARGENTINE_PROVINCES.map(province => (
+                        {availableProvinces.map(province => (
                           <option key={province.id} value={province.id}>
                             {province.name}
                           </option>
@@ -693,7 +707,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           required
                         >
                           <option value="">Seleccioná una provincia</option>
-                          {ARGENTINE_PROVINCES.map((province) => (
+                          {availableProvinces.map((province) => (
                             <option key={province.id} value={province.id}>
                               {province.name}
                             </option>
