@@ -24,7 +24,7 @@ export function AddToCartButton({
   const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
   const { toast } = useToast()
 
-  const cartItem = cart?.items.find((item: any) => item.productId === productId && !item.variantId)
+  const cartItem = cart?.items.find((item: { productId: string; variantId: string | null }) => item.productId === productId && !item.variantId)
 
   const handleAddToCart = () => {
     startTransition(async () => {
@@ -45,8 +45,9 @@ export function AddToCartButton({
         }
 
         toast({
-          title: "Producto agregado",
-          description: `${productName} se agregó al carrito`,
+          title: "Agregado al carrito",
+          description: productName,
+          variant: "success",
           duration: 3000,
         })
 

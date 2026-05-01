@@ -13,6 +13,7 @@ interface Product {
   name: string
   slug: string
   price: string
+  comparePrice?: string | null
   category: { name: string } | null
   images: { url: string; alt: string | null }[]
   stock: number
@@ -20,14 +21,15 @@ interface Product {
 }
 
 interface ProductListProps {
-  initialProducts: any[]
+  initialProducts: Product[]
   initialHasMore: boolean
   category?: string
   s?: string
+  sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc"
 }
 
-export function ProductList({ initialProducts, initialHasMore, category, s }: ProductListProps) {
-  const [products, setProducts] = useState<any[]>(initialProducts)
+export function ProductList({ initialProducts, initialHasMore, category, s, sort = "newest" }: ProductListProps) {
+  const [products, setProducts] = useState<Product[]>(initialProducts)
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -43,6 +45,7 @@ export function ProductList({ initialProducts, initialHasMore, category, s }: Pr
       const result = await getProductsAction({
         category,
         s,
+        sort,
         page: nextPage,
         limit: 12
       })
@@ -55,7 +58,7 @@ export function ProductList({ initialProducts, initialHasMore, category, s }: Pr
     } finally {
       setLoading(false)
     }
-  }, [page, hasMore, loading, category, s])
+  }, [page, hasMore, loading, category, s, sort])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -132,11 +135,6 @@ export function ProductList({ initialProducts, initialHasMore, category, s }: Pr
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>Cargando más productos...</span>
           </div>
-        )}
-        {!hasMore && products.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            No hay más productos que mostrar.
-          </p>
         )}
       </div>
     </div>

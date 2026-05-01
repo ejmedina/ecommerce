@@ -9,6 +9,23 @@ import { formatCurrency } from "@/lib/utils"
 import { useCart } from "@/components/cart-context"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 
+interface CartPageItem {
+  id: string
+  quantity: number
+  variant?: {
+    title?: string | null
+    price?: number | string | null
+  } | null
+  product: {
+    id: string
+    slug?: string | null
+    name: string
+    price: number | string
+    sku?: string | null
+    images?: { url: string }[]
+  }
+}
+
 export default function CartPage() {
   const { cart, settings, updateItemQuantityOptimistic, isSyncing, refreshCart } = useCart()
 
@@ -35,7 +52,7 @@ export default function CartPage() {
   }
 
   const subtotal = cart.pricingResult?.rawSubtotal || 0
-  const itemCount = cart.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+  const itemCount = cart.items.reduce((sum: number, item: CartPageItem) => sum + item.quantity, 0)
   const appliedDiscounts = cart.pricingResult?.discounts || []
   const totalToPay = cart.pricingResult?.totalToPay || 0
 
@@ -62,7 +79,7 @@ export default function CartPage() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
-          {cart.items.map((item: any) => {
+          {cart.items.map((item: CartPageItem) => {
             const currentPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
             
             return (
@@ -161,10 +178,15 @@ export default function CartPage() {
                 <span>{formatCurrency(totalToPay)}</span>
               </div>
               {settings?.minShippingOrderAmount > 0 && subtotal < settings.minShippingOrderAmount && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                  <p className="font-medium">Mínimo para envío a domicilio</p>
-                  <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - subtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
-                  <p className="text-xs mt-1 opacity-80">(Podés seguir para retirar en tienda sin mínimo)</p>
+                <div className="space-y-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                    <p className="font-medium">Mínimo para envío a domicilio</p>
+                    <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - subtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
+                  </div>
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
+                    <p className="font-medium">También podés retirar en tienda</p>
+                    <p>El retiro en tienda no tiene compra mínima.</p>
+                  </div>
                 </div>
               )}
               <Button 

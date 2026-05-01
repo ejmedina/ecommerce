@@ -159,22 +159,22 @@ export function FloatingCart() {
 
             {/* Minimum Order Warning */}
             {settings?.minShippingOrderAmount > 0 && rawSubtotal < settings.minShippingOrderAmount && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                <p className="font-medium">Mínimo para envío a domicilio</p>
-                <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
-                <p className="text-xs mt-1 opacity-80">(Podés seguir para retirar en tienda sin mínimo)</p>
+              <div className="space-y-2">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                  <p className="font-medium">Mínimo para envío a domicilio</p>
+                  <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
+                </div>
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
+                  <p className="font-medium">También podés retirar en tienda</p>
+                  <p>El retiro en tienda no tiene compra mínima.</p>
+                </div>
               </div>
             )}
             
-            <Button asChild className="w-full" size="lg" onClick={() => setIsOpen(false)}>
-              <Link href="/cart">
-                Ver carrito
-              </Link>
-            </Button>
             <Button 
               asChild={!isSyncing} 
-              variant="outline" 
               className="w-full" 
+              size="lg"
               disabled={isSyncing}
               onClick={(e) => {
                 if (isSyncing) {
@@ -191,6 +191,11 @@ export function FloatingCart() {
                   Finalizar compra
                 </Link>
               )}
+            </Button>
+            <Button asChild variant="outline" className="hidden w-full md:inline-flex" onClick={() => setIsOpen(false)}>
+              <Link href="/cart">
+                Ver carrito
+              </Link>
             </Button>
           </div>
         )}
