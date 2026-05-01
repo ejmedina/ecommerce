@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { getCartState } from "@/lib/cart"
 
 export async function PATCH(
   request: Request,
@@ -66,7 +67,9 @@ export async function PATCH(
       data: { quantity },
     })
 
-    return NextResponse.json({ success: true })
+    const cartData = await getCartState(session?.user?.id, sessionId)
+
+    return NextResponse.json({ success: true, cart: cartData })
   } catch (error) {
     console.error("Error updating cart item:", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
@@ -106,7 +109,9 @@ export async function DELETE(
       where: { id },
     })
 
-    return NextResponse.json({ success: true })
+    const cartData = await getCartState(session?.user?.id, sessionId)
+
+    return NextResponse.json({ success: true, cart: cartData })
   } catch (error) {
     console.error("Error deleting cart item:", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })

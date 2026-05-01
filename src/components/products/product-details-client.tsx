@@ -74,7 +74,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
     setQuantity(1)
   }, [selectedVariant])
 
-  const { cart, refreshCart } = useCart()
+  const { cart, refreshCart, updateItemQuantityOptimistic, isSyncing } = useCart()
   const cartItem = cart?.items.find((item: any) => 
     item.productId === product.id && 
     (product.hasVariants ? item.variantId === selectedVariant?.id : !item.variantId)
@@ -98,17 +98,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       return
     }
 
-    setIsUpdating(true)
-    try {
-      await fetch(`/api/cart/items/${cartItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: newQuantity }),
-      })
-      await refreshCart()
-    } finally {
-      setIsUpdating(false)
-    }
+    updateItemQuantityOptimistic(cartItem.id, newQuantity)
   }
 
   const handleAddToCart = async (formData: FormData) => {
@@ -200,7 +190,6 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
               onChange={handleUpdateCartQuantity}
               min={0}
               max={product.hasPermanentStock ? undefined : currentStock}
-              disabled={isUpdating}
               size="lg"
               className="w-full justify-center"
             />

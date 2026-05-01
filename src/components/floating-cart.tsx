@@ -10,25 +10,14 @@ import { formatCurrency } from "@/lib/utils"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 
 export function FloatingCart() {
-  const { cart, isOpen, setIsOpen, refreshCart, pricingResult, settings } = useCart()
+  const { cart, isOpen, setIsOpen, refreshCart, pricingResult, settings, updateItemQuantityOptimistic, isSyncing } = useCart()
   const [isRemoving, setIsRemoving] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const updateQuantity = async (itemId: string, newQuantity: number) => {
+  const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return
-
-    setIsRemoving(itemId)
-    try {
-      await fetch(`/api/cart/items/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: newQuantity }),
-      })
-      await refreshCart()
-    } finally {
-      setIsRemoving(null)
-    }
+    updateItemQuantityOptimistic(itemId, newQuantity)
   }
 
   const removeItem = async (itemId: string) => {
@@ -122,7 +111,6 @@ export function FloatingCart() {
                         value={item.quantity}
                         onChange={(val) => updateQuantity(item.id, val)}
                         size="sm"
-                        disabled={isRemoving === item.id}
                       />
                       <Button
                         type="button"
@@ -184,14 +172,25 @@ export function FloatingCart() {
               </Link>
             </Button>
             <Button 
-              asChild 
+              asChild={!isSyncing} 
               variant="outline" 
               className="w-full" 
-              onClick={() => setIsOpen(false)}
+              disabled={isSyncing}
+              onClick={(e) => {
+                if (isSyncing) {
+                  e.preventDefault()
+                } else {
+                  setIsOpen(false)
+                }
+              }}
             >
-              <Link href="/checkout">
-                Finalizar compra
-              </Link>
+              {isSyncing ? (
+                "Actualizando..."
+              ) : (
+                <Link href="/checkout">
+                  Finalizar compra
+                </Link>
+              )}
             </Button>
           </div>
         )}

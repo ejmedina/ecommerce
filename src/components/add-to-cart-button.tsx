@@ -21,7 +21,7 @@ export function AddToCartButton({
 }: AddToCartButtonProps) {
   const [isPending, startTransition] = useTransition()
   const [isUpdating, setIsUpdating] = useState(false)
-  const { cart, refreshCart } = useCart()
+  const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
   const { toast } = useToast()
 
   const cartItem = cart?.items.find((item: any) => item.productId === productId && !item.variantId)
@@ -77,17 +77,7 @@ export function AddToCartButton({
       return
     }
 
-    setIsUpdating(true)
-    try {
-      await fetch(`/api/cart/items/${cartItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: newQuantity }),
-      })
-      await refreshCart()
-    } finally {
-      setIsUpdating(false)
-    }
+    updateItemQuantityOptimistic(cartItem.id, newQuantity)
   }
 
   if (cartItem) {
