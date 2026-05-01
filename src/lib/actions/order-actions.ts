@@ -109,6 +109,12 @@ export async function createOrder(formData: FormData) {
     // Get settings for shipping
     const settings = await db.storeSettings.findFirst()
     
+    // Check minimum order amount for shipping
+    const minShippingAmount = settings?.minShippingOrderAmount ? Number(settings.minShippingOrderAmount) : 0
+    if (shippingMethod === "shipping" && minShippingAmount > 0 && subtotal < minShippingAmount) {
+      return { error: `El monto mínimo para envío a domicilio es $${minShippingAmount}` }
+    }
+
     // Si tenemos modulo de envio avanzado, se recomienda pasar los params correctos.
     // Por ahora reescribimos retrocompatibilidad de freeShippingMin.
     const freeShippingMin = settings?.freeShippingMin ? Number(settings.freeShippingMin) : 0

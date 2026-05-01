@@ -780,13 +780,23 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                 </div>
 
                 <div className="bg-primary/10 p-4 rounded-lg border border-primary">
-                  <p className="text-center font-medium text-primary">
-                    Al tocar "Confirmar pedido" tu pedido será procesado
-                  </p>
-                </div>
-
-                <div className="mt-auto">
-                  <Button onClick={handleSubmit} className="w-full" size="lg" isLoading={isSubmitting}>
+                  {shippingMethod === "shipping" && Number(settings.minShippingOrderAmount) > 0 && pricingResult.rawSubtotal < Number(settings.minShippingOrderAmount) ? (
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive mb-4">
+                      <p className="font-medium text-center">No alcanzaste el mínimo</p>
+                      <p className="text-center">El monto mínimo para envío a domicilio es <strong>{formatCurrency(Number(settings.minShippingOrderAmount))}</strong>. Te faltan <strong>{formatCurrency(Number(settings.minShippingOrderAmount) - pricingResult.rawSubtotal)}</strong>.</p>
+                    </div>
+                  ) : (
+                    <p className="text-center font-medium text-primary mb-4">
+                      Al tocar "Confirmar pedido" tu pedido será procesado
+                    </p>
+                  )}
+                  <Button 
+                    onClick={handleSubmit} 
+                    className="w-full" 
+                    size="lg" 
+                    isLoading={isSubmitting}
+                    disabled={isSubmitting || (shippingMethod === "shipping" && Number(settings.minShippingOrderAmount) > 0 && pricingResult.rawSubtotal < Number(settings.minShippingOrderAmount))}
+                  >
                     {isSubmitting ? "Procesando..." : `Confirmar pedido - ${formatCurrency(total)}`}
                   </Button>
                 </div>
