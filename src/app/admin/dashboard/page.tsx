@@ -1,8 +1,22 @@
 import Link from "next/link"
+import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Package, FileText, Users, DollarSign, ChevronRight } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChevronRight, DollarSign } from "lucide-react"
 import { SalesComparisonChart } from "@/components/admin/sales-comparison"
+
+function buildCumulativeSeries(values: number[], visibleDays?: number) {
+  let runningTotal = 0
+
+  return values.map((value, index) => {
+    if (visibleDays && index + 1 > visibleDays) {
+      return null
+    }
+
+    runningTotal += value
+    return runningTotal
+  })
+}
 
 export default async function DashboardPage() {
   const now = new Date()
@@ -19,6 +33,24 @@ export default async function DashboardPage() {
   // Day of month (1-31)
   const currentDay = now.getDate()
 
+  const salesEligibleWhere: Prisma.OrderWhereInput = {
+    OR: [
+      {
+        paymentStatus: {
+          in: ["PAID", "AUTHORIZED"],
+        },
+      },
+      {
+        paymentMethod: {
+          in: ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"],
+        },
+        orderStatus: {
+          in: ["CONFIRMED", "PREPARING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY", "DELIVERED"],
+        },
+      },
+    ],
+  }
+
   // Get stats
   const [productCount, orderCount, customerCount, totalSales, currentMonthSales, lastMonthSales] = await Promise.all([
     db.product.count({ where: { isActive: true } }),
@@ -26,41 +58,37 @@ export default async function DashboardPage() {
     db.user.count({ where: { role: "CUSTOMER" } }),
     db.order.aggregate({
       _sum: { total: true },
+      where: salesEligibleWhere,
+    }),
+    db.order.aggregate({
+      _sum: { total: true },
       where: {
-        paymentStatus: {
-          in: ["PAID", "AUTHORIZED"]
-        }
+        ...salesEligibleWhere,
+        createdAt: { gte: currentMonthStart },
       },
     }),
     db.order.aggregate({
       _sum: { total: true },
       where: {
-        createdAt: { gte: currentMonthStart },
-        paymentStatus: { in: ["PAID", "AUTHORIZED"] }
-      }
-    }),
-    db.order.aggregate({
-      _sum: { total: true },
-      where: {
+        ...salesEligibleWhere,
         createdAt: { gte: lastMonthStart, lt: currentMonthStart },
-        paymentStatus: { in: ["PAID", "AUTHORIZED"] }
-      }
+      },
     }),
   ])
 
   // Get daily cumulative for chart
   const currentOrders = await db.order.findMany({
     where: { 
+      ...salesEligibleWhere,
       createdAt: { gte: currentMonthStart },
-      paymentStatus: { in: ["PAID", "AUTHORIZED"] }
     },
     select: { createdAt: true, total: true }
   })
 
   const lastOrders = await db.order.findMany({
     where: { 
+      ...salesEligibleWhere,
       createdAt: { gte: lastMonthStart, lt: currentMonthStart },
-      paymentStatus: { in: ["PAID", "AUTHORIZED"] }
     },
     select: { createdAt: true, total: true }
   })
@@ -81,18 +109,8 @@ export default async function DashboardPage() {
   })
 
   // Cumulative
-  let currentSum = 0
-  const currentCumulative = currentMonthDaily.map((val, idx) => {
-    if (idx + 1 > currentDay) return null
-    currentSum += val
-    return currentSum
-  })
-
-  let lastSum = 0
-  const lastCumulative = lastMonthDaily.map(val => {
-    lastSum += val
-    return lastSum
-  })
+  const currentCumulative = buildCumulativeSeries(currentMonthDaily, currentDay)
+  const lastCumulative = buildCumulativeSeries(lastMonthDaily)
 
   // Compare sums for card labels
   const currentSalesTotal = Number(currentMonthSales._sum?.total || 0)
