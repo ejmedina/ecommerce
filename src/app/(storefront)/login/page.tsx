@@ -167,7 +167,7 @@ export default function LoginPage() {
     }
     
     // Forzamos un refresco completo para asegurar la sesión
-    window.location.href = target
+    window.location.assign(target)
     
     // Retraso opcional para evitar que el botón se desbloquee inmediatamente
     // mientras el navegador procesa la nueva petición.
@@ -207,27 +207,29 @@ export default function LoginPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+              {registeredEmail ? "Revisá tu email" : authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
             </CardTitle>
             <CardDescription>
-              {authMode === "login" 
+              {registeredEmail
+                ? "Te falta verificar tu cuenta para poder iniciar sesión"
+                : authMode === "login" 
                 ? "Ingresá a tu cuenta para hacer seguimiento de tus pedidos" 
                 : "Registrate para hacer seguimiento de tus pedidos"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {/* Success message after registration */}
-            {registeredEmail && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            {registeredEmail ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h3 className="font-medium text-green-800">¡Cuenta creada!</h3>
+                    <h3 className="font-medium text-green-800">Te enviamos un email de verificación a {registeredEmail}</h3>
                     <p className="text-sm text-green-700 mt-1">
-                      Te enviamos un email de verificación a <strong>{registeredEmail}</strong>.
+                      Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
                     </p>
                     <p className="text-sm text-green-700 mt-2">
-                      Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
+                      Si no lo encontrás, revisá la carpeta de spam o correo no deseado.
                     </p>
                     <Button
                       variant="link"
@@ -244,9 +246,7 @@ export default function LoginPage() {
                   </div>
                 </div>
               </div>
-            )}
-
-            {authMode === "login" ? (
+            ) : authMode === "login" ? (
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                 {loginForm.formState.errors.root && (
                   <p className="text-sm text-destructive">{loginForm.formState.errors.root.message}</p>

@@ -12,14 +12,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { createOrder } from "@/lib/actions/order-actions"
-import { Check, ChevronRight, Truck, MapPin } from "lucide-react"
+import { Check, CheckCircle2, ChevronRight, Truck } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Mail } from "lucide-react"
+import { Mail } from "lucide-react"
 import { useCart } from "@/components/cart-context"
 import { 
   ARGENTINE_PROVINCES, 
   ProvinceId,
   ShippingConfig,
+  ShippingZone,
   calculateShipping,
   getDefaultShippingConfig 
 } from "@/lib/shipping"
@@ -58,7 +59,7 @@ interface CheckoutStepsProps {
     freeShippingMin: unknown
     fixedShippingCost: unknown
     bankAccount: unknown
-    shippingConfig: any
+    shippingConfig: unknown
     paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
     minShippingOrderAmount?: unknown
     storePickupEnabled?: boolean
@@ -142,10 +143,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   })
 
   // Get shipping config
-  const shippingConfig = settings.shippingConfig || getDefaultShippingConfig()
+  const shippingConfig = (settings.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig()
 
   // Get allowed provinces from shipping config
-  const allowedProvinceIds = new Set(shippingConfig.zones.flatMap((zone: any) => zone.provinces))
+  const allowedProvinceIds = new Set(shippingConfig.zones.flatMap((zone: ShippingZone) => zone.provinces))
   const availableProvinces = ARGENTINE_PROVINCES.filter(p => allowedProvinceIds.has(p.id))
   
   // Calculate shipping when province or city changes
@@ -280,7 +281,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
         body: JSON.stringify(registerData),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Error al registrar")
+      if (!res.ok) throw new Error(data.message || data.error || "Error al registrar")
       setRegisterSent(true)
       setGuestSent(false)
       setFormData(prev => ({ ...prev, email: registerData.email, name: registerData.name, phone: registerData.phone }))
@@ -436,12 +437,19 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
 
                   <TabsContent value="register" className="space-y-4 pt-4 flex-1">
                     {registerSent ? (
-                      <div className="text-center py-8">
-                        <Mail className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                        <h3 className="font-medium text-lg mb-2">¡Cuenta creada!</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Te enviamos un email de verificación a <strong>{registerData.email}</strong>.
-                        </p>
+                      <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                          <div className="space-y-2">
+                            <h3 className="font-medium text-green-800">Te enviamos un email de verificación a {registerData.email}</h3>
+                            <p className="text-sm text-green-700">
+                              Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
+                            </p>
+                            <p className="text-sm text-green-700">
+                              Si no lo encontrás, revisá la carpeta de spam o correo no deseado.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <form onSubmit={handleRegister} className="space-y-4">
@@ -553,7 +561,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          placeholder={selectedProvince === "CABA" ? "Ej: Palermo" : "Ej: Mar del Plata"}
+                          placeholder={selectedProvince === "CABA" ? "Escribí tu barrio" : "Escribí tu ciudad"}
                         />
                       </div>
                     )}
@@ -692,7 +700,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           name="city" 
                           value={formData.city} 
                           onChange={handleInputChange} 
-                          placeholder={formData.state === "CABA" ? "Ej: Recoleta" : "Ej: Rosario"}
+                          placeholder={formData.state === "CABA" ? "Escribí tu barrio" : "Escribí tu ciudad"}
                           required 
                         />
                       </div>
@@ -787,7 +795,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                     </div>
                   ) : (
                     <p className="text-center font-medium text-primary mb-4">
-                      Al tocar "Confirmar pedido" tu pedido será procesado
+                      Al tocar Confirmar pedido tu pedido será procesado
                     </p>
                   )}
                   <Button 

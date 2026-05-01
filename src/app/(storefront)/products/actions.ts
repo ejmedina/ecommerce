@@ -1,20 +1,29 @@
 "use server"
 
 import { db } from "@/lib/db"
+import type { Prisma } from "@prisma/client"
 
 export async function getProductsAction({ 
   category, 
   s, 
+  sort = "newest",
   page = 1, 
   limit = 12 
 }: { 
   category?: string
   s?: string
+  sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc"
   page?: number
   limit?: number
 }) {
   const skip = (page - 1) * limit
-  const where: any = { isActive: true }
+  const where: Prisma.ProductWhereInput = { isActive: true }
+  const orderBy =
+    sort === "price_asc" ? { price: "asc" as const } :
+    sort === "price_desc" ? { price: "desc" as const } :
+    sort === "name_asc" ? { name: "asc" as const } :
+    sort === "name_desc" ? { name: "desc" as const } :
+    { createdAt: "desc" as const }
 
   if (category) {
     where.category = { slug: category }
@@ -43,7 +52,7 @@ export async function getProductsAction({
       images: { take: 1, orderBy: { order: "asc" } },
       category: true,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy,
     skip,
     take: limit,
   })

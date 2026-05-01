@@ -3,11 +3,31 @@ import { cn } from "@/lib/utils"
 import { getStorefrontCategories } from "@/lib/categories"
 import { getProductsAction } from "./actions"
 import { ProductList } from "./product-list"
+import { ProductSortSelect } from "./product-sort-select"
 
 export const dynamic = "force-dynamic"
 
 interface Props {
-  searchParams: Promise<{ category?: string; s?: string }>
+  searchParams: Promise<{ category?: string; s?: string; sort?: string }>
+}
+
+type ProductSort = "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc"
+
+const productSorts = new Set<ProductSort>(["newest", "price_asc", "price_desc", "name_asc", "name_desc"])
+
+function getProductSort(sort?: string): ProductSort {
+  return productSorts.has(sort as ProductSort) ? (sort as ProductSort) : "newest"
+}
+
+function buildProductsHref(params: { category?: string; s?: string; sort?: ProductSort }) {
+  const searchParams = new URLSearchParams()
+
+  if (params.category) searchParams.set("category", params.category)
+  if (params.s) searchParams.set("s", params.s)
+  if (params.sort && params.sort !== "newest") searchParams.set("sort", params.sort)
+
+  const query = searchParams.toString()
+  return query ? `/products?${query}` : "/products"
 }
 
 async function getCategories() {
@@ -16,15 +36,23 @@ async function getCategories() {
 
 export default async function ProductsPage({ searchParams }: Props) {
   const params = await searchParams
+  const sort = getProductSort(params.sort)
   const [{ products, hasMore }, categories] = await Promise.all([
     getProductsAction({ 
       category: params.category, 
       s: params.s, 
+      sort,
       page: 1, 
       limit: 12 
     }),
     getCategories(),
   ])
+  const mobileCategories = params.category
+    ? [
+        ...categories.filter((category) => category.slug === params.category),
+        ...categories.filter((category) => category.slug !== params.category),
+      ]
+    : categories
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -36,7 +64,7 @@ export default async function ProductsPage({ searchParams }: Props) {
           {/* Mobile Horizontal Categories */}
           <nav className="flex md:hidden overflow-x-auto pb-4 gap-2 no-scrollbar -mx-4 px-4">
             <Link
-              href="/products"
+              href={buildProductsHref({ s: params.s, sort })}
               className={cn(
                 "whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors",
                 !params.category 
@@ -46,10 +74,10 @@ export default async function ProductsPage({ searchParams }: Props) {
             >
               Todos
             </Link>
-            {categories.map((category) => (
+            {mobileCategories.map((category) => (
               <Link
                 key={category.id}
-                href={`/products?category=${category.slug}`}
+                href={buildProductsHref({ category: category.slug, s: params.s, sort })}
                 className={cn(
                   "whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors",
                   params.category === category.slug 
@@ -65,7 +93,7 @@ export default async function ProductsPage({ searchParams }: Props) {
           {/* Desktop Sidebar Categories */}
           <nav className="hidden md:block space-y-2">
             <Link
-              href="/products"
+              href={buildProductsHref({ s: params.s, sort })}
               className={cn(
                 "block px-2 py-1.5 rounded-md transition-colors",
                 !params.category 
@@ -78,7 +106,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             {categories.map((category) => (
               <div key={category.id} className="space-y-1">
                 <Link
-                  href={`/products?category=${category.slug}`}
+                  href={buildProductsHref({ category: category.slug, s: params.s, sort })}
                   className={cn(
                     "block px-2 py-1.5 rounded-md transition-colors",
                     params.category === category.slug 
@@ -93,7 +121,7 @@ export default async function ProductsPage({ searchParams }: Props) {
                     {category.children.map((child) => (
                       <Link
                         key={child.id}
-                        href={`/products?category=${child.slug}`}
+                        href={buildProductsHref({ category: child.slug, s: params.s, sort })}
                         className={cn(
                           "block px-2 py-1 text-sm rounded-md transition-colors",
                           params.category === child.slug 
@@ -113,17 +141,21 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* Products Grid */}
         <div className="flex-1">
-          {params.s && (
-            <p className="text-muted-foreground mb-4">
-              Resultados para "{params.s}"
-            </p>
-          )}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {params.s ? (
+              <p className="text-muted-foreground">
+                Resultados para {params.s}
+              </p>
+            ) : (
+              <div />
+            )}
+            <ProductSortSelect value={sort} />
+          </div>
           
           {products.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                No se encontraron productos.
-              </p>
+              <h2 className="text-lg font-semibold">No se encontraron productos</h2>
+              <p className="text-muted-foreground mt-1">Probá con otra búsqueda o categoría.</p>
             </div>
           ) : (
             <ProductList 
@@ -131,6 +163,7 @@ export default async function ProductsPage({ searchParams }: Props) {
               initialHasMore={hasMore}
               category={params.category}
               s={params.s}
+              sort={sort}
             />
           )}
         </div>
@@ -138,4 +171,3 @@ export default async function ProductsPage({ searchParams }: Props) {
     </div>
   )
 }
-
