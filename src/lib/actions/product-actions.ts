@@ -270,34 +270,3 @@ export async function deleteProduct(id: string) {
     return { error: "Error inesperado al eliminar el producto. Revisa los logs del servidor." }
   }
 }
-
-export async function searchProducts(query: string) {
-  if (!query || query.length < 2) return []
-  
-  try {
-    const products = await db.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        price: true,
-        images: {
-          take: 1,
-          orderBy: { order: "asc" }
-        }
-      },
-      take: 5
-    })
-    return products
-  } catch (error) {
-    console.error("Search products error:", error)
-    return []
-  }
-}
