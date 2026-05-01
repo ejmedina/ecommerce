@@ -4,7 +4,7 @@ export interface SearchSuggestion {
 }
 
 export const SEARCH_SUGGESTIONS_MIN_QUERY_LENGTH = 2
-export const SEARCH_SUGGESTIONS_LIMIT = 6
+export const SEARCH_SUGGESTIONS_LIMIT = 12
 
 export function normalizeSearchQuery(query: string) {
   return query.trim().replace(/\s+/g, " ")

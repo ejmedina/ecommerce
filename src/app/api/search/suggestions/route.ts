@@ -10,6 +10,7 @@ import {
 interface SearchSuggestionRow {
   name: string
   slug: string
+  popularity: number
 }
 
 export async function GET(request: NextRequest) {
@@ -22,18 +23,24 @@ export async function GET(request: NextRequest) {
 
   try {
     const rows = await db.$queryRaw<SearchSuggestionRow[]>`
-      SELECT "name", "slug"
-      FROM "products"
-      WHERE "isActive" = true
-        AND "name" ILIKE ${`%${query}%`}
+      SELECT
+        p."name",
+        p."slug",
+        COALESCE(SUM(oi."quantityOrdered"), 0)::int AS "popularity"
+      FROM "products" p
+      LEFT JOIN "order_items" oi ON oi."productId" = p."id"
+      WHERE p."isActive" = true
+        AND p."name" ILIKE ${`%${query}%`}
+      GROUP BY p."id", p."name", p."slug", p."createdAt"
       ORDER BY
         CASE
-          WHEN LOWER("name") = LOWER(${query}) THEN 0
-          WHEN LOWER("name") LIKE LOWER(${`${query}%`}) THEN 1
+          WHEN LOWER(p."name") = LOWER(${query}) THEN 0
+          WHEN LOWER(p."name") LIKE LOWER(${`${query}%`}) THEN 1
           ELSE 2
         END,
-        CHAR_LENGTH("name") ASC,
-        "createdAt" DESC
+        COALESCE(SUM(oi."quantityOrdered"), 0) DESC,
+        CHAR_LENGTH(p."name") ASC,
+        p."createdAt" DESC
       LIMIT ${SEARCH_SUGGESTIONS_LIMIT}
     `
 

@@ -222,6 +222,8 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
     event.preventDefault()
   }
 
+  const viewAllLabel = `Buscar todos los resultados para "${normalizedQuery}"`
+
   return (
     <div ref={wrapperRef} className={cn("relative z-50", className)}>
       <form onSubmit={handleSearch}>
@@ -326,7 +328,7 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
                     activeIndex === suggestions.length ? "bg-gray-100" : "bg-gray-50/70 hover:bg-gray-50"
                   )}
                 >
-                  Ver todos los resultados
+                  {viewAllLabel}
                 </button>
               </li>
             </ul>
@@ -348,7 +350,7 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
                     activeIndex === 0 ? "bg-gray-100" : "bg-gray-50/70 hover:bg-gray-50"
                   )}
                 >
-                  Ver todos los resultados
+                  {viewAllLabel}
                 </button>
               </li>
             </ul>
