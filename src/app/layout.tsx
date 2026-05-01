@@ -4,16 +4,49 @@ import { db } from "@/lib/db"
 import { Toaster } from "@/components/toaster-client"
 import { ThemeProvider, ThemeColors } from "@/components/theme-provider"
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const settings = await db.storeSettings.findFirst()
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   
+  const title = settings?.storeName || process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda"
+  const description = "Tu tienda online de confianza"
+  
+  // Resolve logo URL
+  const logoUrl = settings?.logo ? settings.logo : "/pgi/pgi-perfil-ig.jpg" // Use store profile pic as fallback
+
   return {
-    title: settings?.storeName || process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda",
-    description: "Tu tienda online de confianza",
+    metadataBase: new URL(baseUrl),
+    title: {
+      default: title,
+      template: `%s | ${title}`,
+    },
+    description,
     icons: settings?.favicon 
       ? { icon: settings.favicon }
       : undefined,
-  } as Metadata
+    openGraph: {
+      title,
+      description,
+      url: baseUrl,
+      siteName: title,
+      locale: 'es_AR',
+      type: 'website',
+      images: [
+        {
+          url: logoUrl,
+          width: 800,
+          height: 600,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [logoUrl],
+    },
+  }
 }
 
 export default async function RootLayout({

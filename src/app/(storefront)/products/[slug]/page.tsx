@@ -15,12 +15,39 @@ export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   const product = await db.product.findUnique({
     where: { slug },
-    select: { name: true, metaTitle: true, metaDescription: true },
+    include: { images: { take: 1, orderBy: { order: "asc" } } },
   })
+
   if (!product) return { title: "Producto no encontrado" }
+
+  const title = product.metaTitle || product.name
+  const description = product.metaDescription || product.description || product.name
+  const imageUrl = product.images[0]?.url
+
   return {
-    title: product.metaTitle || product.name,
-    description: product.metaDescription || product.name,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      images: imageUrl
+        ? [
+            {
+              url: imageUrl,
+              width: 800,
+              height: 800,
+              alt: title,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: imageUrl ? [imageUrl] : [],
+    },
   }
 }
 
