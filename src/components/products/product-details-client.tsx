@@ -8,6 +8,7 @@ import { addToCart } from "@/lib/actions/cart-actions"
 import { toast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
+import { useCart } from "@/components/cart-context"
 
 interface ProductOption {
   id: string
