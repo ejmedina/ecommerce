@@ -166,10 +166,15 @@ export function FloatingCart() {
               </div>
             )}
             
+            <Button asChild className="w-full" size="lg" onClick={() => setIsOpen(false)}>
+              <Link href="/cart">
+                Ver carrito
+              </Link>
+            </Button>
             <Button 
               asChild={!isSyncing} 
+              variant="outline" 
               className="w-full" 
-              size="lg"
               disabled={isSyncing}
               onClick={(e) => {
                 if (isSyncing) {
