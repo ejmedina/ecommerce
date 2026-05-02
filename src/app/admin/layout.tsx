@@ -87,11 +87,18 @@ export default async function AdminLayout({
               Pedidos
             </Link>
             <Link
-              href="/admin/customers"
+              href="/admin/users"
               className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
             >
               <Users className="h-4 w-4" />
-              Clientes
+              Usuarios
+            </Link>
+            <Link
+              href="/admin/products/prices"
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+            >
+              <Tag className="h-4 w-4" />
+              Precios
             </Link>
             <Link
               href="/admin/shipping-zones"

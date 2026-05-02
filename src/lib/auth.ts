@@ -25,8 +25,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        // Check if user is active
-        if (!user.isActive) {
+        // Check if user is active and allowed to sign in.
+        if (!user.isActive || user.status === "BLOCKED") {
           return null
         }
 

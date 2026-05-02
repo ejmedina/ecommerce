@@ -44,7 +44,6 @@ interface Order {
   id: string
   orderNumber: string
   orderStatus: string
-  fulfillmentStatus: string
   total: number
   paymentStatus: string
   paymentMethod: string
@@ -72,6 +71,7 @@ interface OrdersTableProps {
     paymentMethod: string
     fromDate: string
     toDate: string
+    userId: string
   }
 }
 
@@ -159,6 +159,7 @@ export function OrdersTable({
     if (newFilters.paymentMethod) params.set("paymentMethod", newFilters.paymentMethod)
     if (newFilters.fromDate) params.set("fromDate", newFilters.fromDate)
     if (newFilters.toDate) params.set("toDate", newFilters.toDate)
+    if (newFilters.userId) params.set("userId", newFilters.userId)
     if (newPage && newPage > 1) params.set("page", String(newPage))
     const queryString = params.toString()
     return queryString ? `/admin/orders?${queryString}` : "/admin/orders"

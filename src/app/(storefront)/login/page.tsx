@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
@@ -142,14 +141,15 @@ export default function LoginPage() {
   }, [returnUrl, router, toast])
 
   async function handleLogin(data: LoginForm) {
-    const result = await (signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    }) as Promise<{ error: string | null; url: string | null }>)
+    const result = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
 
-    if (result?.error) {
-      loginForm.setError("root", { message: "Email o contraseña incorrectos" })
+    if (!result.ok) {
+      const error = await result.json().catch(() => null)
+      loginForm.setError("root", { message: error?.error || "Email o contraseña incorrectos" })
       return
     }
 
