@@ -52,6 +52,8 @@ interface Order {
     name: string | null
     email: string
   }
+  shippingMethod: string
+  shippingAddress: unknown
   items: OrderItem[]
 }
 
@@ -150,6 +152,7 @@ export function OrdersTable({
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split("T")[0])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const routeEligibleOrderIds = new Set(validOrdersForRouteSheet.map((order) => order.id))
 
   // Construir URL con filtros
   const buildUrl = (newFilters: typeof filters, newPage?: number) => {
@@ -178,6 +181,8 @@ export function OrdersTable({
 
   // Toggle orden
   const toggleOrder = (orderId: string) => {
+    if (!routeEligibleOrderIds.has(orderId)) return
+
     const newSelected = new Set(selectedOrders)
     if (newSelected.has(orderId)) {
       newSelected.delete(orderId)
@@ -189,10 +194,12 @@ export function OrdersTable({
 
   // Toggle todos
   const toggleAll = () => {
-    if (selectedOrders.size === orders.length) {
+    const eligibleIds = orders.filter((order) => routeEligibleOrderIds.has(order.id)).map((order) => order.id)
+
+    if (selectedOrders.size === eligibleIds.length) {
       setSelectedOrders(new Set())
     } else {
-      setSelectedOrders(new Set(orders.map((o) => o.id)))
+      setSelectedOrders(new Set(eligibleIds))
     }
   }
 
@@ -464,11 +471,12 @@ export function OrdersTable({
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 <Checkbox
-                  checked={selectedOrders.size === orders.length}
+                  checked={selectedOrders.size > 0 && selectedOrders.size === routeEligibleOrderIds.size}
                   onCheckedChange={toggleAll}
+                  disabled={routeEligibleOrderIds.size === 0}
                 />
                 <span className="text-sm">
-                  Seleccionar ({selectedOrders.size} de {orders.length})
+                  Seleccionar ruta ({selectedOrders.size} de {routeEligibleOrderIds.size})
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -594,17 +602,20 @@ export function OrdersTable({
         <div className="space-y-4">
           {orders.map((order) => {
             const isSelected = selectedOrders.has(order.id)
+            const isRouteEligible = routeEligibleOrderIds.has(order.id)
 
             return (
               <Card key={order.id} className={`
-                hover:bg-muted/50 cursor-pointer transition-colors
+                hover:bg-muted/50 transition-colors
                 ${isSelected ? "border-primary bg-primary/5 ring-2 ring-primary/20" : ""}
+                ${!isRouteEligible ? "opacity-70" : ""}
               `}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Checkbox
                         checked={isSelected}
+                        disabled={!isRouteEligible}
                         onCheckedChange={() => toggleOrder(order.id)}
                       />
                       <Link href={`/admin/orders/${order.id}`} className="hover:underline">
@@ -625,6 +636,11 @@ export function OrdersTable({
                       <p className="text-muted-foreground">
                         {new Date(order.createdAt).toLocaleDateString("es-AR")}
                       </p>
+                      {!isRouteEligible && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          No apto para hoja de ruta: {order.shippingMethod === "pickup" ? "retiro en tienda" : "sin domicilio de entrega"}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="font-bold">${Number(order.total).toLocaleString("es-AR")}</p>

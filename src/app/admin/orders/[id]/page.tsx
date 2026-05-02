@@ -94,10 +94,19 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   }
 
   const shippingAddress = order.shippingAddress as any
+  const subtotal = Number(order.subtotal)
+  const shippingCost = Number(order.shippingCost)
+  const discountAmount = Number(order.discountAmount)
+  const taxAmount = Number(order.taxAmount)
+  const fulfilledSubtotal = order.fulfilledTotal !== null ? Number(order.fulfilledTotal) : null
+  const hasPreparedAdjustment = fulfilledSubtotal !== null && fulfilledSubtotal !== subtotal
+  const fulfilledTotalToCollect = fulfilledSubtotal !== null
+    ? fulfilledSubtotal + shippingCost + taxAmount - discountAmount
+    : null
 
   // Check for partial fulfillment (faltantes)
   const hasFaltantes = order.items.some(
-    item => (item.quantityFulfilled ?? 0) !== item.quantityOrdered
+    item => item.fulfilledAt && (item.quantityFulfilled ?? item.quantityOrdered) !== item.quantityOrdered
   )
 
   return (
@@ -268,7 +277,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <div className="space-y-4">
             {order.items.map((item) => {
               const quantityOrdered = item.quantityOrdered
-              const quantityFulfilled = item.quantityFulfilled ?? quantityOrdered
+              const quantityFulfilled = item.fulfilledAt ? item.quantityFulfilled ?? quantityOrdered : quantityOrdered
               const hasFaltante = quantityFulfilled < quantityOrdered
               
               return (
@@ -305,28 +314,28 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formatCurrency(Number(order.subtotal))}</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
-            {order.fulfilledTotal && Number(order.fulfilledTotal) !== Number(order.total) && (
+            {hasPreparedAdjustment && fulfilledSubtotal !== null && (
               <div className="flex justify-between text-orange-600">
                 <span>Total preparado</span>
-                <span>{formatCurrency(Number(order.fulfilledTotal))}</span>
+                <span>{formatCurrency(fulfilledSubtotal)}</span>
               </div>
             )}
             <div className="flex justify-between">
               <span>Envío</span>
-              <span>{Number(order.shippingCost) === 0 ? "Gratis" : formatCurrency(Number(order.shippingCost))}</span>
+              <span>{shippingCost === 0 ? "Gratis" : formatCurrency(shippingCost)}</span>
             </div>
-            {Number(order.discountAmount) > 0 && (
+            {discountAmount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Descuento</span>
-                <span>-{formatCurrency(Number(order.discountAmount))}</span>
+                <span>-{formatCurrency(discountAmount)}</span>
               </div>
             )}
-            {Number(order.taxAmount) > 0 && (
+            {taxAmount > 0 && (
               <div className="flex justify-between">
                 <span>Impuestos</span>
-                <span>{formatCurrency(Number(order.taxAmount))}</span>
+                <span>{formatCurrency(taxAmount)}</span>
               </div>
             )}
           </div>
@@ -337,10 +346,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <span>Total</span>
             <span>{formatCurrency(Number(order.total))}</span>
           </div>
-          {order.fulfilledTotal && Number(order.fulfilledTotal) !== Number(order.total) && (
+          {hasPreparedAdjustment && fulfilledTotalToCollect !== null && (
             <div className="flex justify-between text-sm text-orange-600">
               <span>Total a cobrar:</span>
-              <span className="font-medium">{formatCurrency(Number(order.fulfilledTotal) + Number(order.shippingCost))}</span>
+              <span className="font-medium">{formatCurrency(fulfilledTotalToCollect)}</span>
             </div>
           )}
         </CardContent>

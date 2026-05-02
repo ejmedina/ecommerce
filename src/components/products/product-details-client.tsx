@@ -1,12 +1,10 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { addToCart } from "@/lib/actions/cart-actions"
 import { toast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 import { useCart } from "@/components/cart-context"
 
@@ -40,6 +38,7 @@ interface ProductDetailsClientProps {
 }
 
 export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
+  const router = useRouter()
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState(false)
 
@@ -70,12 +69,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
   const [quantity, setQuantity] = useState(1)
 
-  // Reset quantity when variant changes
-  useMemo(() => {
-    setQuantity(1)
-  }, [selectedVariant])
-
-  const { cart, refreshCart, updateItemQuantityOptimistic, isSyncing } = useCart()
+  const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
   const cartItem = cart?.items.find((item: any) => 
     item.productId === product.id && 
     (product.hasVariants ? item.variantId === selectedVariant?.id : !item.variantId)
@@ -114,17 +108,22 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
     setAdding(true)
     try {
-      // Ensure the quantity from the state is used
       formData.set("quantity", quantity.toString())
-      const result = await addToCart(formData)
-      if (result?.error) {
+      const response = await fetch("/api/cart/add", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
         toast({
           variant: "destructive",
           title: "Error",
-          description: result.error
+          description: result?.error || "No se pudo agregar al carrito"
         })
       } else {
         await refreshCart()
+        router.push("/cart")
       }
     } catch (error) {
       console.error("Cart error:", error)
@@ -172,7 +171,10 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
                   type="button"
                   variant={isSelected ? "default" : "outline"}
                   className="rounded-full"
-                  onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
+                  onClick={() => {
+                    setSelectedOptions(prev => ({ ...prev, [option.name]: value }))
+                    setQuantity(1)
+                  }}
                 >
                   {value}
                 </Button>
@@ -191,6 +193,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
               onChange={handleUpdateCartQuantity}
               min={0}
               max={product.hasPermanentStock ? undefined : currentStock}
+              disabled={isUpdating}
               size="lg"
               className="w-full justify-center"
             />

@@ -29,6 +29,7 @@ interface OrderItem {
   quantityOrdered: number | null
   quantityFulfilled: number | null
   missingReason: string | null
+  fulfilledAt: string | Date | null
   price: any
 }
 
@@ -46,7 +47,9 @@ export function OrderFulfillment({ orderId, items, currentStatus }: OrderFulfill
       itemId: item.id,
       name: item.name,
       ordered: item.quantityOrdered ?? item.quantity,
-      fulfilled: item.quantityFulfilled ?? (item.quantityOrdered ?? item.quantity),
+      fulfilled: item.fulfilledAt
+        ? item.quantityFulfilled ?? (item.quantityOrdered ?? item.quantity)
+        : item.quantityOrdered ?? item.quantity,
       missingReason: item.missingReason || ""
     }))
   )

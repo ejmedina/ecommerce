@@ -5,6 +5,10 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
 export async function ensureAdminExists() {
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_ADMIN_AUTO_SETUP !== "true") {
+    return
+  }
+
   // Skip if env vars are not configured
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
     console.log("Admin setup: ADMIN_EMAIL or ADMIN_PASSWORD not configured, skipping")
@@ -50,6 +54,6 @@ export async function initAdmin() {
   try {
     await ensureAdminExists()
   } catch (error) {
-    console.error("Failed to ensure admin exists:", error)
+    console.warn("Admin setup skipped after error:", error)
   }
 }

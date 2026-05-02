@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { 
@@ -34,7 +34,8 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
 interface OrderCardProps {
   item: {
@@ -64,6 +65,7 @@ interface OrderCardProps {
         quantityMissing: number | null
         quantityFulfilled: number | null
         missingReason: string | null
+        fulfilledAt: string | null
         product: {
           id: string
           name: string
@@ -99,7 +101,17 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [failureReason, setFailureReason] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
+  const [, startTransition] = useTransition()
+  const [fulfillmentData, setFulfillmentData] = useState(() =>
+    item.order.items.map((orderItem) => ({
+      itemId: orderItem.id,
+      name: orderItem.name,
+      ordered: getQuantity(orderItem),
+      fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+      missingReason: orderItem.missingReason || "",
+    }))
+  )
 
   // Coordinate validation for UI highlighting
   // Range expanded slightly but strict enough to catch ocean or weird locations
@@ -124,6 +136,18 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     zIndex: isDragging ? 10 : 1,
     position: 'relative' as any
   }
+
+  useEffect(() => {
+    setFulfillmentData(
+      item.order.items.map((orderItem) => ({
+        itemId: orderItem.id,
+        name: orderItem.name,
+        ordered: getQuantity(orderItem),
+        fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+        missingReason: orderItem.missingReason || "",
+      }))
+    )
+  }, [item.order.items])
 
   // Generar mensaje de WhatsApp personalizado
   const getWhatsAppMessage = () => {
@@ -155,14 +179,61 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     router.refresh()
   }
 
+  const handleFulfilledChange = (index: number, value: string) => {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return
+
+    setFulfillmentData((current) => {
+      const next = [...current]
+      next[index] = {
+        ...next[index],
+        fulfilled: Math.min(Math.max(0, parsed), next[index].ordered),
+      }
+      return next
+    })
+  }
+
+  const handleMissingReasonChange = (index: number, value: string) => {
+    setFulfillmentData((current) => {
+      const next = [...current]
+      next[index] = { ...next[index], missingReason: value }
+      return next
+    })
+  }
+
+  const saveFulfillment = async () => {
+    setIsSavingFulfillment(true)
+    try {
+      const response = await fetch(`/api/admin/orders/${item.order.id}/fulfillment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: fulfillmentData }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "No se pudo guardar la preparación")
+      }
+
+      toast({
+        title: "Preparación actualizada",
+        description: `Pedido #${item.order.orderNumber}`,
+      })
+      router.refresh()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo guardar la preparación",
+      })
+    } finally {
+      setIsSavingFulfillment(false)
+    }
+  }
+
   // Helper para obtener cantidad total del item (usa quantityOrdered o fallback a quantity)
   const getQuantity = (orderItem: any) => {
     return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
-  }
-
-  // Helper para verificar si tiene faltantes
-  const hasMissing = (orderItem: any) => {
-    return (orderItem.quantityMissing ?? 0) > 0
   }
 
   // VISTA DE REPARTO - Formato práctica
@@ -381,7 +452,14 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     : `${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`
 
   return (
-    <Card className={hasBadCoords ? "border-amber-500 bg-amber-50/30" : ""}>
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`
+        ${hasBadCoords ? "border-amber-500 bg-amber-50/30" : ""}
+        ${isDragging ? "opacity-70 shadow-lg ring-2 ring-primary border-primary" : ""}
+      `}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -510,15 +588,16 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         <div>
           <p className="text-sm font-medium mb-2">Productos:</p>
           <div className="space-y-2">
-            {item.order.items.map((orderItem) => {
+            {item.order.items.map((orderItem, orderItemIndex) => {
               const qty = getQuantity(orderItem)
               const missing = orderItem.quantityMissing ?? 0
               const hasFaltante = missing > 0
+              const fulfillment = fulfillmentData[orderItemIndex]
               return (
                 <div 
                   key={orderItem.id} 
                   className={`
-                    flex justify-between items-center text-sm p-2 rounded
+                    flex flex-col gap-3 text-sm p-2 rounded md:flex-row md:items-center md:justify-between
                     ${hasFaltante ? "bg-red-50 border border-red-200" : "bg-muted/50"}
                   `}
                 >
@@ -532,21 +611,44 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                       {qty}x {orderItem.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {hasFaltante ? (
-                      <span className="text-red-500 font-medium">
-                        Faltante: {missing}
-                        {orderItem.missingReason && (
-                          <span className="text-xs ml-1">({orderItem.missingReason})</span>
-                        )}
-                      </span>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">A entregar</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={qty}
+                          value={fulfillment?.fulfilled ?? qty}
+                          onChange={(event) => handleFulfilledChange(orderItemIndex, event.target.value)}
+                          className="h-8 w-20 text-center"
+                        />
+                        <span className="text-xs text-muted-foreground">/ {qty}</span>
+                      </div>
+                    </div>
+                    {fulfillment && fulfillment.fulfilled < fulfillment.ordered ? (
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold text-orange-600">Motivo</Label>
+                        <Input
+                          value={fulfillment.missingReason}
+                          onChange={(event) => handleMissingReasonChange(orderItemIndex, event.target.value)}
+                          placeholder="Sin stock, rotura..."
+                          className="h-8 w-44 text-xs"
+                        />
+                      </div>
                     ) : (
-                      <span className="text-green-600 text-sm">Completo</span>
+                      <span className="pb-1 text-green-600 text-sm">Completo</span>
                     )}
                   </div>
                 </div>
               )
             })}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" onClick={saveFulfillment} disabled={isSavingFulfillment}>
+              {isSavingFulfillment ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+              Guardar preparación
+            </Button>
           </div>
         </div>
 

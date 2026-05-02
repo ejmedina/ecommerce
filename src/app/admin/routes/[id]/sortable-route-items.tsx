@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { OrderCard } from "./order-card"
@@ -28,6 +28,10 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
   const [endDepotId, setEndDepotId] = useState(routeSheet.endDepotId || "none")
   const [vehicleId, setVehicleId] = useState(routeSheet.vehicleId || "none")
 
+  useEffect(() => {
+    setActiveItems(items)
+  }, [items])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -36,9 +40,11 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
   const handleDragEnd = (event: any) => {
     const { active, over } = event
     
-    if (active.id !== over.id) {
+    if (!over || active.id === over.id) return
+
       const oldIndex = activeItems.findIndex(i => i.id === active.id)
       const newIndex = activeItems.findIndex(i => i.id === over.id)
+      if (oldIndex < 0 || newIndex < 0) return
       
       const newItems = arrayMove(activeItems, oldIndex, newIndex)
       setActiveItems(newItems)
@@ -48,7 +54,6 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
         const itemIdsInOrder = newItems.map(i => i.id)
         await reorderRouteSheetItemsBatch(routeSheet.id, itemIdsInOrder)
       })
-    }
   }
 
   const handleOptimization = async () => {

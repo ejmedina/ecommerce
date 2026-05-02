@@ -18,36 +18,45 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Se requieren items válidos" }, { status: 400 })
     }
 
-    // Update each item in a transaction
+    // Update submitted items, then recalculate the whole order from persisted data.
     await db.$transaction(async (tx) => {
-      let fulfilledTotal = 0
-
       for (const item of items) {
         const { itemId, quantityFulfilled, missingReason } = item
+        const fulfilled = Math.max(0, Number(quantityFulfilled) || 0)
+        const ordered = Math.max(0, Number(item.ordered) || 0)
         
-        // Update order item
-        const updatedItem = await tx.orderItem.update({
+        await tx.orderItem.update({
           where: { id: itemId },
           data: {
-            quantityFulfilled: Number(quantityFulfilled),
-            quantityMissing: Number(item.ordered) - Number(quantityFulfilled),
+            quantityFulfilled: Math.min(fulfilled, ordered),
+            quantityMissing: Math.max(0, ordered - fulfilled),
             missingReason: missingReason || null,
             fulfilledAt: new Date(),
           }
         })
-
-        // Add to fulfilled total (quantity * price)
-        fulfilledTotal += Number(updatedItem.price) * Number(quantityFulfilled)
       }
 
-      // Update order status if all items are processed
-      // Also update the order's fulfilledTotal field if it exists in schema
-      // Note: We might need to check if the field exists, but based on page.tsx it does.
+      const orderItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: {
+          price: true,
+          quantityOrdered: true,
+          quantityFulfilled: true,
+          fulfilledAt: true,
+        },
+      })
+
+      const fulfilledTotal = orderItems.reduce((sum, orderItem) => {
+        const fulfilled = orderItem.fulfilledAt
+          ? orderItem.quantityFulfilled ?? orderItem.quantityOrdered
+          : orderItem.quantityOrdered
+        return sum + Number(orderItem.price) * fulfilled
+      }, 0)
+
       await tx.order.update({
         where: { id: orderId },
         data: {
-          fulfilledTotal: fulfilledTotal,
-          // Automaticaly move to PREPARING if we are updating fulfillment
+          fulfilledTotal,
           orderStatus: "PREPARING"
         }
       })
