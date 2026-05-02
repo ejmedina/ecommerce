@@ -1,8 +1,9 @@
 import Link from "next/link"
+import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Edit, ImageOff, AlertCircle } from "lucide-react"
+import { Plus, Edit, ImageOff, AlertCircle, BadgeDollarSign } from "lucide-react"
 import { ProductFilters } from "./product-filters"
 import { PaginationControls } from "./pagination-controls"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +23,7 @@ export default async function ProductsPage(props: {
   const skip = (page - 1) * limit
 
   // Query conditions
-  const where: any = {
+  const where: Prisma.ProductWhereInput = {
     AND: [
       search ? {
         OR: [
@@ -39,7 +40,7 @@ export default async function ProductsPage(props: {
   }
 
   // Sorting
-  let orderBy: any = { createdAt: 'desc' }
+  let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' }
   if (sort === 'date_asc') orderBy = { createdAt: 'asc' }
   if (sort === 'price_asc') orderBy = { price: 'asc' }
   if (sort === 'price_desc') orderBy = { price: 'desc' }
@@ -75,12 +76,20 @@ export default async function ProductsPage(props: {
           <h1 className="text-2xl font-bold tracking-tight">Productos</h1>
           <p className="text-muted-foreground">Gestiona el inventario, precios y categorías de tu tienda.</p>
         </div>
-        <Link href="/admin/products/new">
-          <Button size="lg" className="shadow-sm">
-            <Plus className="h-5 w-5 mr-2" />
-            Nuevo producto
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/products/prices">
+            <Button size="lg" variant="outline" className="shadow-sm">
+              <BadgeDollarSign className="h-5 w-5 mr-2" />
+              Editar precios
+            </Button>
+          </Link>
+          <Link href="/admin/products/new">
+            <Button size="lg" className="shadow-sm">
+              <Plus className="h-5 w-5 mr-2" />
+              Nuevo producto
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <ProductFilters categories={categories} />

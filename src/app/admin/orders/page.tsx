@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { OrdersTable } from "./orders-table"
-import { OrderStatus, PaymentMethod, PaymentStatus } from "@prisma/client"
+import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client"
 
 interface Props {
   searchParams: Promise<{
@@ -13,6 +13,7 @@ interface Props {
     paymentMethod?: string
     fromDate?: string
     toDate?: string
+    userId?: string
   }>
 }
 
@@ -29,7 +30,11 @@ export default async function OrdersPage({ searchParams }: Props) {
   const isAdmin = userRole && ["SUPERADMIN", "OWNER", "ADMIN"].includes(userRole)
 
   // Construir filtros
-  const where: any = {}
+  const where: Prisma.OrderWhereInput = {}
+
+  if (params.userId) {
+    where.userId = params.userId
+  }
   
   // Filtro por estado de pedido
   if (params.status && params.status !== "all") {
@@ -92,7 +97,6 @@ export default async function OrdersPage({ searchParams }: Props) {
     id: order.id,
     orderNumber: order.orderNumber,
     orderStatus: order.orderStatus,
-    fulfillmentStatus: order.fulfillmentStatus,
     total: Number(order.total),
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
@@ -105,7 +109,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       id: item.id,
       productId: item.productId,
       name: item.name,
-      quantity: item.quantityOrdered ?? item.quantity,
+      quantity: item.quantityOrdered,
     })),
   }))
 
@@ -150,6 +154,7 @@ export default async function OrdersPage({ searchParams }: Props) {
           paymentMethod: params.paymentMethod || "",
           fromDate: params.fromDate || "",
           toDate: params.toDate || "",
+          userId: params.userId || "",
         }}
       />
     </div>

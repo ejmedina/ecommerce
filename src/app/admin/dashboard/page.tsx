@@ -252,7 +252,7 @@ export default async function DashboardPage() {
               <span className="font-bold">{orderCount}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Clientes Totales</span>
+              <span className="text-sm">Usuarios Totales</span>
               <span className="font-bold">{customerCount}</span>
             </div>
           </CardContent>

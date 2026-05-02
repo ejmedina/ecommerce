@@ -16,13 +16,20 @@ export async function POST(request: Request) {
     // Check if user exists and is active before attempting signIn
     const user = await db.user.findUnique({
       where: { email },
-      select: { isActive: true, passwordHash: true },
+      select: { isActive: true, passwordHash: true, status: true },
     })
 
     if (!user) {
       return NextResponse.json(
         { error: "Credenciales inválidas" },
         { status: 401 }
+      )
+    }
+
+    if (user.status === "BLOCKED") {
+      return NextResponse.json(
+        { error: "Tu usuario está bloqueado. Contactá al administrador para recuperar el acceso." },
+        { status: 403 }
       )
     }
 
