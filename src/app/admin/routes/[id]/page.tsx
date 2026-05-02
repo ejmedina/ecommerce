@@ -38,10 +38,10 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
   }
 
   const deliveredCount = routeSheet.items.filter(
-    (item: any) => item.deliveryResult?.status === "DELIVERED"
+    (item: any) => item.deliveryOutcome === "DELIVERED"
   ).length
   const notDeliveredCount = routeSheet.items.filter(
-    (item: any) => item.deliveryResult?.status === "NOT_DELIVERED"
+    (item: any) => item.deliveryOutcome === "NOT_DELIVERED"
   ).length
 
   // Serializar datos para pasar a componentes cliente

@@ -38,6 +38,17 @@ function serializeRouteSheet(rs: any) {
   }
 }
 
+function hasDeliveryAddress(shippingAddress: Prisma.JsonValue) {
+  if (!shippingAddress || typeof shippingAddress !== "object" || Array.isArray(shippingAddress)) return false
+
+  const address = shippingAddress as Record<string, unknown>
+  return Boolean(address.street && address.number && address.city)
+}
+
+function isRouteEligibleOrder(order: { shippingMethod: string; shippingAddress: Prisma.JsonValue }) {
+  return order.shippingMethod !== "pickup" && hasDeliveryAddress(order.shippingAddress)
+}
+
 // ============================================
 // CREATE ROUTE SHEET
 // ============================================
@@ -71,8 +82,14 @@ export async function createRouteSheet(
       },
     })
 
-    if (orders.length === 0) {
-      return { error: "No se encontraron pedidos para crear la hoja de ruta" }
+    const routeEligibleOrders = orders.filter(isRouteEligibleOrder)
+
+    if (routeEligibleOrders.length === 0) {
+      return { error: "No se encontraron pedidos con domicilio de entrega para crear la hoja de ruta" }
+    }
+
+    if (routeEligibleOrders.length !== orders.length) {
+      return { error: "No se pueden agregar pedidos con retiro en tienda o sin domicilio a una hoja de ruta" }
     }
 
     const routeSheet = await db.routeSheet.create({
@@ -81,7 +98,7 @@ export async function createRouteSheet(
         date,
         createdById,
         items: {
-          create: orders.map((order, index) => ({
+          create: routeEligibleOrders.map((order, index) => ({
             orderId: order.id,
             position: index + 1,
           })),
@@ -188,11 +205,28 @@ export async function addOrdersToRouteSheet(routeSheetId: string, orderIds: stri
     })
     const existingOrderIds = new Set(existingItems.map((item) => item.orderId))
 
-    // Filtrar pedidos nuevos
-    const newOrderIds = orderIds.filter((id) => !existingOrderIds.has(id))
+    const candidateOrders = await db.order.findMany({
+      where: {
+        id: { in: orderIds },
+      },
+      select: {
+        id: true,
+        shippingMethod: true,
+        shippingAddress: true,
+      },
+    })
+
+    const candidateOrderIds = new Set(
+      candidateOrders
+        .filter(isRouteEligibleOrder)
+        .map((order) => order.id)
+    )
+
+    // Filtrar pedidos nuevos y aptos para reparto
+    const newOrderIds = orderIds.filter((id) => candidateOrderIds.has(id) && !existingOrderIds.has(id))
 
     if (newOrderIds.length === 0) {
-      return { error: "Los pedidos seleccionados ya están en la hoja de ruta" }
+      return { error: "Los pedidos seleccionados ya están en la hoja de ruta o no tienen domicilio de entrega" }
     }
 
     // Crear nuevos items

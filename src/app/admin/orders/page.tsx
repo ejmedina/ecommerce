@@ -105,6 +105,8 @@ export default async function OrdersPage({ searchParams }: Props) {
       name: order.user.name,
       email: order.user.email,
     },
+    shippingMethod: order.shippingMethod,
+    shippingAddress: order.shippingAddress,
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
@@ -118,6 +120,8 @@ export default async function OrdersPage({ searchParams }: Props) {
   // Para pago prepago: pedido con paymentStatus = PAID
   const validOrdersForRouteSheet = orders
     .filter((order) => {
+      if (!isRouteEligibleOrder(order)) return false
+
       // Para pago contra entrega: CONFIRMED o posterior
       const isCashOnDelivery = ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"].includes(order.paymentMethod)
       if (isCashOnDelivery) {
@@ -159,4 +163,18 @@ export default async function OrdersPage({ searchParams }: Props) {
       />
     </div>
   )
+}
+
+function hasDeliveryAddress(shippingAddress: unknown) {
+  if (!shippingAddress || typeof shippingAddress !== "object" || Array.isArray(shippingAddress)) return false
+
+  const address = shippingAddress as Record<string, unknown>
+  return Boolean(address.street && address.number && address.city)
+}
+
+function isRouteEligibleOrder(order: {
+  shippingMethod: string
+  shippingAddress: unknown
+}) {
+  return order.shippingMethod !== "pickup" && hasDeliveryAddress(order.shippingAddress)
 }
