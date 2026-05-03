@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { db } from "@/lib/db"
 import { Toaster } from "@/components/toaster-client"
 import { ThemeProvider, ThemeColors } from "@/components/theme-provider"
+import { WhatsappWidget } from "@/components/whatsapp-widget"
 
 async function getStoreSettings() {
   try {
@@ -82,6 +83,11 @@ export default async function RootLayout({
       <body>
         <ThemeProvider colors={themeColors}>
           {children}
+          <WhatsappWidget
+            enabled={settings?.whatsappWidgetEnabled ?? false}
+            phone={settings?.whatsappWidgetPhone ?? null}
+            message={settings?.whatsappWidgetMessage ?? null}
+          />
           <Toaster />
         </ThemeProvider>
       </body>

@@ -25,6 +25,9 @@ export async function GET() {
           storeName: "Mi Tienda",
           shippingConfig: getDefaultShippingConfig(),
           paymentMethods: defaultPaymentMethods,
+          whatsappWidgetEnabled: false,
+          whatsappWidgetPhone: null,
+          whatsappWidgetMessage: null,
         },
       })
     } else if (!(settings as any).paymentMethods) {
@@ -61,6 +64,9 @@ export async function PUT(req: NextRequest) {
       fixedShippingCost,
       bankAccount,
       whatsappPreArrivalMessage,
+      whatsappWidgetEnabled,
+      whatsappWidgetPhone,
+      whatsappWidgetMessage,
       autoConfirmOrders,
       requiresPaymentToFulfill,
       minShippingOrderAmount,
@@ -99,6 +105,9 @@ export async function PUT(req: NextRequest) {
       requiresPaymentToFulfill,
       minShippingOrderAmount,
       whatsappPreArrivalMessage,
+      whatsappWidgetEnabled,
+      whatsappWidgetPhone,
+      whatsappWidgetMessage,
       storePickupEnabled,
     }
 
