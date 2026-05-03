@@ -17,8 +17,10 @@ dotenv.config({ path: ".env" })
 
 const ENV_FILE = ".env"
 const DEFAULT_DELAY_MS = Number.parseInt(process.env.WOO_REQUEST_DELAY_MS || "500", 10)
+const CUSTOMERS_PER_PAGE = Number.parseInt(process.env.WOO_CUSTOMERS_PER_PAGE || "50", 10)
 const DRY_RUN = !process.argv.includes("--commit")
 const USE_PROD_DB = process.argv.includes("--prod")
+const WOO_RETRY_DELAYS_MS = [1500, 4000, 8000]
 
 type ExistingUserRow = {
   id: string
@@ -105,6 +107,45 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function shouldRetryWooRequest(error: unknown) {
+  const status =
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "status" in error.response &&
+    typeof error.response.status === "number"
+      ? error.response.status
+      : null
+
+  return status === 429 || status === 503
+}
+
+async function fetchWooCustomersPage(api: WooCommerceRestApi, page: number) {
+  let attempt = 0
+
+  while (true) {
+    try {
+      return await api.get("customers", {
+        per_page: CUSTOMERS_PER_PAGE,
+        page,
+        orderby: "id",
+        order: "asc",
+      })
+    } catch (error) {
+      if (!shouldRetryWooRequest(error) || attempt >= WOO_RETRY_DELAYS_MS.length) {
+        throw error
+      }
+
+      const retryDelay = WOO_RETRY_DELAYS_MS[attempt]
+      console.warn(`Woo customers page ${page} responded with a temporary error. Retrying in ${retryDelay}ms...`)
+      await sleep(retryDelay)
+      attempt += 1
+    }
+  }
+}
+
 function summarizeCandidate(candidate: UserImportCandidate) {
   return {
     sourceId: candidate.sourceId,
@@ -135,12 +176,7 @@ async function fetchAllWooCustomers(api: WooCommerceRestApi) {
   let totalPages = 1
 
   while (page <= totalPages) {
-    const response = await api.get("customers", {
-      per_page: 100,
-      page,
-      orderby: "id",
-      order: "asc",
-    })
+    const response = await fetchWooCustomersPage(api, page)
 
     const pageCustomers = response.data as WooCustomer[]
     customers.push(...pageCustomers)

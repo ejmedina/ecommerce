@@ -68,7 +68,8 @@ export default async function UsersPage({ searchParams }: Props) {
   const where: Prisma.UserWhereInput = {
     AND: [
       roleFilter && roleFilter in UserRole ? { role: roleFilter as UserRole } : {},
-      statusFilter === "blocked" ? { OR: [{ status: "BLOCKED" }, { isActive: false }] } : {},
+      statusFilter === "blocked" ? { status: "BLOCKED" } : {},
+      statusFilter === "pending" ? { status: "ACTIVE", isActive: false } : {},
       statusFilter === "active" ? { status: "ACTIVE", isActive: true } : {},
       searchTerm
         ? {
@@ -152,6 +153,7 @@ export default async function UsersPage({ searchParams }: Props) {
           >
             <option value="all">Todos</option>
             <option value="active">Activos</option>
+            <option value="pending">Pendientes de activación</option>
             <option value="blocked">Bloqueados</option>
           </select>
           <Button type="submit">Filtrar</Button>
@@ -168,7 +170,13 @@ export default async function UsersPage({ searchParams }: Props) {
         <>
           <div className="grid gap-4 xl:grid-cols-2">
             {users.map((user) => {
-              const isBlocked = user.status === "BLOCKED" || !user.isActive
+              const isManuallyBlocked = user.status === "BLOCKED"
+              const isPendingActivation =
+                !isManuallyBlocked &&
+                !user.isActive &&
+                user.importedFromWooCommerce &&
+                user.requiresPasswordSetup
+              const isPendingVerification = !isManuallyBlocked && !isPendingActivation && !user.isActive
               const latestOrder = user.orders[0]
               const latestShippingAddress = formatShippingAddress(latestOrder?.shippingAddress)
               const fallbackAddress = user.addresses[0] ? formatSavedAddress(user.addresses[0]) : null
@@ -185,9 +193,15 @@ export default async function UsersPage({ searchParams }: Props) {
                         <p className="text-sm text-muted-foreground">{user.phone || "Sin teléfono cargado"}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant={isBlocked ? "warning" : "success"}>
-                          {isBlocked ? "Bloqueado" : "Activo"}
-                        </Badge>
+                        {isManuallyBlocked ? (
+                          <Badge variant="warning">Bloqueado</Badge>
+                        ) : isPendingActivation ? (
+                          <Badge variant="secondary">Pendiente de activación</Badge>
+                        ) : isPendingVerification ? (
+                          <Badge variant="secondary">Pendiente de verificación</Badge>
+                        ) : (
+                          <Badge variant="success">Activo</Badge>
+                        )}
                         <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
                           {roleLabels[user.role] || user.role}
                         </Badge>
@@ -246,7 +260,7 @@ export default async function UsersPage({ searchParams }: Props) {
                       <UserActionButtons
                         userId={user.id}
                         role={user.role}
-                        isBlocked={isBlocked}
+                        isBlocked={isManuallyBlocked}
                         canChangeRole={canChangeRole}
                         canBlock={canBlock}
                       />

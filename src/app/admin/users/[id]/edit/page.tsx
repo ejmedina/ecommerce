@@ -24,6 +24,8 @@ export default async function EditUserPage({ params }: Props) {
       role: true,
       status: true,
       isActive: true,
+      importedFromWooCommerce: true,
+      requiresPasswordSetup: true,
       createdAt: true,
     },
   })
@@ -31,7 +33,13 @@ export default async function EditUserPage({ params }: Props) {
   if (!user) notFound()
 
   const roleIsProtected = user.role === "SUPERADMIN" || user.role === "OWNER"
-  const isBlocked = user.status === "BLOCKED" || !user.isActive
+  const isManuallyBlocked = user.status === "BLOCKED"
+  const isPendingActivation =
+    !isManuallyBlocked &&
+    !user.isActive &&
+    user.importedFromWooCommerce &&
+    user.requiresPasswordSetup
+  const isPendingVerification = !isManuallyBlocked && !isPendingActivation && !user.isActive
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -87,10 +95,20 @@ export default async function EditUserPage({ params }: Props) {
                 <select
                   id="status"
                   name="status"
-                  defaultValue={isBlocked ? "BLOCKED" : "ACTIVE"}
+                  defaultValue={
+                    isManuallyBlocked
+                      ? "BLOCKED"
+                      : isPendingActivation
+                        ? "PENDING_ACTIVATION"
+                        : isPendingVerification
+                          ? "PENDING_VERIFICATION"
+                          : "ACTIVE"
+                  }
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="ACTIVE">Activo</option>
+                  {isPendingActivation ? <option value="PENDING_ACTIVATION">Pendiente de activación</option> : null}
+                  {isPendingVerification ? <option value="PENDING_VERIFICATION">Pendiente de verificación</option> : null}
                   <option value="BLOCKED">Bloqueado</option>
                 </select>
               </div>
@@ -98,6 +116,9 @@ export default async function EditUserPage({ params }: Props) {
 
             <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
               Registrado el {new Date(user.createdAt).toLocaleDateString("es-AR")}.
+              {isPendingActivation
+                ? " Esta cuenta vino migrada y todavía necesita validación de email y creación de contraseña."
+                : null}
               {roleIsProtected ? " Este rol está protegido y no se cambia desde esta pantalla." : null}
             </div>
 

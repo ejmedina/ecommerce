@@ -33,7 +33,11 @@ export async function toggleUserAdminRole(userId: string) {
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { role: true },
+    select: {
+      role: true,
+      importedFromWooCommerce: true,
+      requiresPasswordSetup: true,
+    },
   })
 
   if (!user) {
@@ -80,7 +84,10 @@ export async function setUserBlockedState(userId: string, shouldBlock: boolean) 
     where: { id: userId },
     data: {
       status: shouldBlock ? "BLOCKED" : "ACTIVE",
-      isActive: !shouldBlock,
+      isActive:
+        shouldBlock
+          ? false
+          : !(user.importedFromWooCommerce && user.requiresPasswordSetup),
     },
   })
 
@@ -114,7 +121,11 @@ export async function updateUserProfile(userId: string, formData: FormData) {
 
   const currentUser = await db.user.findUnique({
     where: { id: userId },
-    select: { role: true },
+    select: {
+      role: true,
+      importedFromWooCommerce: true,
+      requiresPasswordSetup: true,
+    },
   })
 
   if (!currentUser) {
@@ -133,7 +144,10 @@ export async function updateUserProfile(userId: string, formData: FormData) {
       phone,
       role: nextRole,
       status: shouldBlock ? "BLOCKED" : "ACTIVE",
-      isActive: !shouldBlock,
+      isActive:
+        shouldBlock
+          ? false
+          : !(currentUser.importedFromWooCommerce && currentUser.requiresPasswordSetup),
     },
   })
 
