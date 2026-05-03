@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
@@ -19,6 +19,7 @@ interface ProductFiltersProps {
 export function ProductFilters({ categories }: ProductFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const mountedRef = useRef(false)
   
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [category, setCategory] = useState(searchParams.get("category") || "all")
@@ -28,7 +29,12 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
   const debouncedSearch = useDebounce(search, 500)
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
     
     if (debouncedSearch) {
       params.set("search", debouncedSearch)
@@ -58,7 +64,7 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
     params.set("page", "1")
     
     router.push(`/admin/products?${params.toString()}`)
-  }, [debouncedSearch, category, sort, discount, router, searchParams])
+  }, [debouncedSearch, category, sort, discount, router])
 
   return (
     <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border shadow-sm mb-6">
