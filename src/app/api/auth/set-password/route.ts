@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { hash } from "bcryptjs"
+import { deleteVerificationTokenRecord, findVerificationTokenRecord } from "@/lib/verification-tokens"
 
 /**
  * GET /api/auth/set-password?token=XYZ
@@ -19,9 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Find the verification token
-    const verification = await db.verificationToken.findUnique({
-      where: { token },
-    })
+    const verification = await findVerificationTokenRecord(token)
 
     if (!verification) {
       return NextResponse.json(
@@ -46,8 +45,19 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    const user = await db.user.findUnique({
+      where: { email: verification.identifier },
+      select: {
+        email: true,
+        name: true,
+        phone: true,
+      },
+    })
+
     return NextResponse.json({
       email: verification.identifier,
+      name: user?.name || "",
+      phone: user?.phone || "",
     })
   } catch (error) {
     console.error("Set password GET error:", error)
@@ -67,17 +77,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { token, password, name, phone } = body
 
-    if (!token || !password || !name) {
+    if (!token || !password) {
       return NextResponse.json(
-        { message: "Faltan datos requeridos (token, nombre y contraseña)" },
+        { message: "Faltan datos requeridos (token y contraseña)" },
         { status: 400 }
       )
     }
 
     // Find the verification token
-    const verification = await db.verificationToken.findUnique({
-      where: { token },
-    })
+    const verification = await findVerificationTokenRecord(token)
 
     if (!verification) {
       return NextResponse.json(
@@ -116,24 +124,43 @@ export async function POST(req: NextRequest) {
     }
 
     // Hash the new password with bcrypt for consistency with NextAuth
-    const passwordHash = await hash(password, 10)
+    const resolvedName =
+      typeof name === "string" && name.trim().length > 0
+        ? name.trim()
+        : user.name && user.name !== "Invitado"
+          ? user.name
+          : null
+
+    if (!resolvedName) {
+      return NextResponse.json(
+        { message: "Necesitamos tu nombre para completar la activacion de la cuenta" },
+        { status: 400 }
+      )
+    }
+
+    const resolvedPhone =
+      typeof phone === "string" && phone.trim().length > 0
+        ? phone.trim()
+        : user.phone
+
+    const passwordHash = await hash(password, 12)
 
     // Update user info and activate account
     await db.user.update({
       where: { id: user.id },
       data: {
-        name,
-        phone,
+        name: resolvedName,
+        phone: resolvedPhone,
         passwordHash,
         status: "ACTIVE",
         isActive: true,
+        emailVerifiedAt: new Date(),
+        requiresPasswordSetup: false,
       },
     })
 
     // Delete the used token
-    await db.verificationToken.delete({
-      where: { token },
-    })
+    await deleteVerificationTokenRecord(token)
 
     return NextResponse.json({
       success: true,

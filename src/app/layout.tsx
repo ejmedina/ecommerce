@@ -4,8 +4,17 @@ import { db } from "@/lib/db"
 import { Toaster } from "@/components/toaster-client"
 import { ThemeProvider, ThemeColors } from "@/components/theme-provider"
 
+async function getStoreSettings() {
+  try {
+    return await db.storeSettings.findFirst()
+  } catch (error) {
+    console.error("Failed to load store settings:", error)
+    return null
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await db.storeSettings.findFirst()
+  const settings = await getStoreSettings()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   
   const title = settings?.storeName || process.env.NEXT_PUBLIC_APP_NAME || "Mi Tienda"
@@ -54,7 +63,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const settings = await db.storeSettings.findFirst()
+  const settings = await getStoreSettings()
   
   // Parse theme colors from settings
   let themeColors: ThemeColors | null = null

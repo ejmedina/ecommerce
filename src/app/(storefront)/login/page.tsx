@@ -32,6 +32,7 @@ const registerSchema = loginSchema.extend({
 type RegisterForm = z.infer<typeof registerSchema>
 
 type AuthMode = "login" | "register"
+type LoginAssistanceCode = "MIGRATED_ACCOUNT_ACTIVATION_REQUIRED" | "EMAIL_VERIFICATION_REQUIRED"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -40,6 +41,13 @@ export default function LoginPage() {
   const { toast } = useToast()
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [registeredMessage, setRegisteredMessage] = useState<string>("")
+  const [loginAssistance, setLoginAssistance] = useState<{
+    email: string
+    code: LoginAssistanceCode
+    sent: boolean
+    message?: string
+  } | null>(null)
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -66,7 +74,7 @@ export default function LoginPage() {
             router.replace(returnUrl)
           }
         }
-      } catch (e) {
+      } catch {
         // Ignorar errores de red
       }
     }
@@ -141,6 +149,8 @@ export default function LoginPage() {
   }, [returnUrl, router, toast])
 
   async function handleLogin(data: LoginForm) {
+    setLoginAssistance(null)
+
     const result = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -149,6 +159,13 @@ export default function LoginPage() {
 
     if (!result.ok) {
       const error = await result.json().catch(() => null)
+      if (error?.code === "MIGRATED_ACCOUNT_ACTIVATION_REQUIRED" || error?.code === "EMAIL_VERIFICATION_REQUIRED") {
+        setLoginAssistance({
+          email: data.email.trim().toLowerCase(),
+          code: error.code,
+          sent: false,
+        })
+      }
       loginForm.setError("root", { message: error?.error || "Email o contraseña incorrectos" })
       return
     }
@@ -162,7 +179,7 @@ export default function LoginPage() {
       if (isAdmin && target === "/account") {
         target = "/admin/dashboard"
       }
-    } catch (e) {
+    } catch {
       console.error("Failed to fetch session before redirect")
     }
     
@@ -194,10 +211,56 @@ export default function LoginPage() {
       }
 
       // Show success message instead of auto-login
-      setRegisteredEmail(data.email)
+      const payload = await res.json()
+      setRegisteredEmail(payload.email || data.email)
+      setRegisteredMessage(payload.message || "Te enviamos un email para activar tu cuenta.")
       registerForm.reset()
     } catch {
       registerForm.setError("root", { message: "Error al registrarse" })
+    }
+  }
+
+  async function handleResendActivation() {
+    if (!loginAssistance) return
+
+    try {
+      const response = await fetch("/api/auth/send-activation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginAssistance.email }),
+      })
+
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        toast({
+          title: "No pudimos reenviar el email",
+          description: payload?.message || "Probá nuevamente en unos segundos.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setLoginAssistance((current) =>
+        current
+          ? {
+              ...current,
+              sent: true,
+              message: payload?.message,
+            }
+          : current
+      )
+
+      toast({
+        title: "Email enviado",
+        description: payload?.message || "Te enviamos un link para continuar.",
+      })
+    } catch {
+      toast({
+        title: "No pudimos reenviar el email",
+        description: "Probá nuevamente en unos segundos.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -226,7 +289,7 @@ export default function LoginPage() {
                   <div>
                     <h3 className="font-medium text-green-800">Te enviamos un email de verificación a {registeredEmail}</h3>
                     <p className="text-sm text-green-700 mt-1">
-                      Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
+                      {registeredMessage || "Revisá tu casilla y hacé clic en el enlace para activar tu cuenta."}
                     </p>
                     <p className="text-sm text-green-700 mt-2">
                       Si no lo encontrás, revisá la carpeta de spam o correo no deseado.
@@ -250,6 +313,27 @@ export default function LoginPage() {
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                 {loginForm.formState.errors.root && (
                   <p className="text-sm text-destructive">{loginForm.formState.errors.root.message}</p>
+                )}
+                {loginAssistance && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p>
+                      {loginAssistance.code === "MIGRATED_ACCOUNT_ACTIVATION_REQUIRED"
+                        ? "Encontramos tu cuenta del sitio anterior. Para ingresar por primera vez, necesitás validar tu email y crear una contraseña nueva."
+                        : "Tu cuenta todavía no está activa. Te podemos reenviar el email para terminar la activación."}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="mt-2 h-auto p-0 text-amber-900"
+                      onClick={handleResendActivation}
+                    >
+                      <Mail className="mr-1 h-4 w-4" />
+                      {loginAssistance.sent ? "Reenviar nuevamente" : "Enviar link de activación"}
+                    </Button>
+                    {loginAssistance.message ? (
+                      <p className="mt-2 text-xs text-amber-800">{loginAssistance.message}</p>
+                    ) : null}
+                  </div>
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>

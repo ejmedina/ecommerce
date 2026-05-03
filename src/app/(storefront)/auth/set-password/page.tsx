@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, Suspense } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Loader2, CheckCircle, XCircle, UserPlus, Lock, User, Phone, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,24 +13,21 @@ import { signIn } from "next-auth/react"
 
 function SetPasswordForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const { toast } = useToast()
-  const token = searchParams.get("token")
+  const token = searchParams.get("token") || ""
   
-  const [status, setStatus] = useState<"loading" | "verifying" | "success" | "error">("verifying")
+  const [status, setStatus] = useState<"loading" | "verifying" | "success" | "error">(token ? "verifying" : "error")
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [message, setMessage] = useState("")
+  const [message, setMessage] = useState(token ? "" : "Token no proporcionado o inválido")
   const [countdown, setCountdown] = useState(5)
 
   // Initial verification of the token
   useEffect(() => {
     if (!token) {
-      setStatus("error")
-      setMessage("Token no proporcionado o inválido")
       return
     }
 
@@ -41,12 +38,14 @@ function SetPasswordForm() {
 
         if (response.ok) {
           setEmail(data.email)
+          setName(data.name || "")
+          setPhone(data.phone || "")
           setStatus("loading") // Token verified, now show the form
         } else {
           setStatus("error")
           setMessage(data.message || "Enlace de verificación expirado o inválido")
         }
-      } catch (error) {
+      } catch {
         setStatus("error")
         setMessage("Error al conectar con el servidor")
       }
@@ -126,7 +125,7 @@ function SetPasswordForm() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       setStatus("loading")
       toast({
         title: "Error",

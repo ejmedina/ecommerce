@@ -15,6 +15,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "import:woo": "tsx scripts/import-woo-storefront.ts",
+    "import:woo-users": "tsx scripts/import-woo-users.ts",
     "backfill:product-images": "tsx scripts/backfill-missing-product-images.ts",
     "assign:product-categories": "tsx scripts/assign-product-categories.ts"
   },

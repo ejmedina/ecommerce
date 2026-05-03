@@ -2,22 +2,43 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { sendVerificationEmail } from "@/lib/email"
 import { hash } from "bcryptjs"
+import { isMigratedUserPendingActivation, sendActivationForUser } from "@/lib/account-activation"
+import { createVerificationTokenRecord } from "@/lib/verification-tokens"
 
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
 
-    if (!email) {
+    if (!normalizedEmail) {
       return NextResponse.json({ error: "Email requerido" }, { status: 400 })
     }
 
     // Check if user already exists
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
-      // User exists, they should login instead
+      if (isMigratedUserPendingActivation(existingUser)) {
+        await sendActivationForUser(existingUser)
+        return NextResponse.json({
+          success: true,
+          activationFlow: "migrated_account",
+          message:
+            "Ya tenemos una cuenta asociada a este email por compras anteriores. Te enviamos un link para validar tu email y crear tu contraseña.",
+        })
+      }
+
+      if (!existingUser.isActive) {
+        await sendActivationForUser(existingUser)
+        return NextResponse.json({
+          success: true,
+          activationFlow: "email_verification",
+          message: "Te reenviamos el email para activar tu cuenta.",
+        })
+      }
+
       return NextResponse.json(
         { error: "Este email ya está registrado. Por favor iniciá sesión." },
         { status: 400 }
@@ -29,9 +50,9 @@ export async function POST(request: Request) {
     const tempPassword = crypto.randomUUID()
     const passwordHash = await hash(tempPassword, 10)
 
-    const user = await db.user.create({
+    await db.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         passwordHash,
         name: "Invitado",
         role: "CUSTOMER",
@@ -41,21 +62,15 @@ export async function POST(request: Request) {
     })
 
     // Generate a token for password setup
-    const token = crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-
-    await db.verificationToken.create({
-      data: {
-        identifier: email,
-        token,
-        expires: expiresAt,
-        type: "PASSWORD_SETUP",
-      },
+    const token = await createVerificationTokenRecord({
+      identifier: normalizedEmail,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      type: "PASSWORD_SETUP",
     })
 
     // Send verification email
     await sendVerificationEmail({
-      to: email,
+      to: normalizedEmail,
       token,
       type: "guest_checkout",
     })
@@ -72,4 +87,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

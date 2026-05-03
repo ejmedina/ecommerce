@@ -24,19 +24,27 @@ enum UserRole {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String?
-  name         String?
-  phone        String?
-  pendingEmail String?   // Email pendiente de verificación
-  role         UserRole  @default(CUSTOMER)
-  status       String    @default("ACTIVE") // ACTIVE | BLOCKED
-  newsletter   Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  passwordHash             String?
+  name                     String?
+  phone                    String?
+  pendingEmail             String?   // Email pendiente de verificación
+  role                     UserRole  @default(CUSTOMER)
+  status                   String    @default("ACTIVE") // ACTIVE | BLOCKED
+  newsletter               Boolean   @default(false)
+  isActive                 Boolean   @default(true)
+  lastLoginAt              DateTime?
+  emailVerifiedAt          DateTime?
+  importedFromWooCommerce  Boolean   @default(false)
+  requiresPasswordSetup    Boolean   @default(false)
+  legacyWooUserId          Int?
+  legacyWooCustomerId      Int?
+  legacyWooLastActiveAt    DateTime?
+  legacyWooLastActiveField String?
+  importedAt               DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   addresses    Address[]
   orders       Order[]
@@ -48,28 +56,31 @@ model User {
 }
 
 model Address {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  label        String
-  street       String
-  number       String
-  floor        String?
-  apartment    String?
-  city         String
-  state        String
-  postalCode   String
-  country      String   @default("AR")
-  instructions String?
-  isDefault    Boolean  @default(false)
+  label           String
+  street          String
+  number          String
+  floor           String?
+  apartment       String?
+  city            String
+  state           String
+  postalCode      String
+  country         String   @default("AR")
+  instructions    String?
+  isDefault       Boolean  @default(false)
+  source          String?
+  importedAt      DateTime?
+  legacySourceKey String?
   
   // Geolocation
-  lat          Float?
-  lng          Float?
+  lat             Float?
+  lng             Float?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("addresses")
 }
