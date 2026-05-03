@@ -1,13 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hash } from "bcryptjs"
 import { db } from "@/lib/db"
-import { sendVerificationEmail } from "@/lib/email"
+import { isMigratedUserPendingActivation, sendActivationForUser } from "@/lib/account-activation"
+
+function registrationSuccessResponse(
+  user: { id: string; email: string; name: string | null },
+  flow: "new" | "migrated" | "pending",
+) {
+  const message =
+    flow === "migrated"
+      ? "Ya tenemos una cuenta asociada a este email por compras anteriores. Te enviamos un link para validar tu email y crear tu contraseña."
+      : "Usuario creado. Por favor verificá tu email para activar la cuenta."
+
+  return NextResponse.json({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    flow,
+    message,
+  })
+}
 
 export async function POST(req: NextRequest) {
+  let normalizedEmail = ""
+
   try {
     const { name, email, password, phone } = await req.json()
+    normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
 
-    if (!name || !email || !password) {
+    if (!name || !normalizedEmail || !password) {
       return NextResponse.json(
         { message: "Todos los campos son requeridos" },
         { status: 400 }
@@ -30,10 +51,20 @@ export async function POST(req: NextRequest) {
 
     // Check if user exists
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
+      if (isMigratedUserPendingActivation(existingUser)) {
+        await sendActivationForUser(existingUser)
+        return registrationSuccessResponse(existingUser, "migrated")
+      }
+
+      if (!existingUser.isActive) {
+        await sendActivationForUser(existingUser)
+        return registrationSuccessResponse(existingUser, "pending")
+      }
+
       return NextResponse.json(
         { message: "El email ya está registrado" },
         { status: 400 }
@@ -45,44 +76,46 @@ export async function POST(req: NextRequest) {
     const user = await db.user.create({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         phone,
         passwordHash,
         role: "CUSTOMER",
         isActive: false, // User must verify email to activate
+        emailVerifiedAt: null,
       },
     })
 
-    // Generate verification token
-    const token = crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-
-    await db.verificationToken.create({
-      data: {
-        identifier: email,
-        token,
-        expires: expiresAt,
-        type: "EMAIL_VERIFICATION",
-      },
-    })
-
-    // Send verification email
-    await sendVerificationEmail({
-      to: email,
-      token,
-      type: "email_verification",
-    })
-
-    return NextResponse.json({
-      id: user.id,
+    await sendActivationForUser({
       email: user.email,
-      name: user.name,
-      message: "Usuario creado. Por favor verificá tu email para activar la cuenta.",
+      importedFromWooCommerce: false,
+      requiresPasswordSetup: false,
+      passwordHash: user.passwordHash,
     })
+
+    return registrationSuccessResponse(user, "new")
   } catch (error) {
     console.error("Register error:", error)
+
+    if (normalizedEmail) {
+      try {
+        const existingUser = await db.user.findUnique({
+          where: { email: normalizedEmail },
+        })
+
+        if (existingUser && !existingUser.isActive) {
+          await sendActivationForUser(existingUser)
+          return registrationSuccessResponse(
+            existingUser,
+            isMigratedUserPendingActivation(existingUser) ? "migrated" : "pending",
+          )
+        }
+      } catch (recoveryError) {
+        console.error("Register recovery error:", recoveryError)
+      }
+    }
+
     return NextResponse.json(
-      { message: "Error al crear la cuenta" },
+      { message: "No pudimos completar el registro en este momento. Probá nuevamente en unos segundos." },
       { status: 500 }
     )
   }

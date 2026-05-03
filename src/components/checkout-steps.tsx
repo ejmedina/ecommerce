@@ -127,6 +127,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   const [guestEmail, setGuestEmail] = useState("")
   const [guestSent, setGuestSent] = useState(false)
   const [registerSent, setRegisterSent] = useState(false)
+  const [registerMessage, setRegisterMessage] = useState("")
   
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -283,6 +284,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || data.error || "Error al registrar")
       setRegisterSent(true)
+      setRegisterMessage(data.message || "Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.")
       setGuestSent(false)
       setFormData(prev => ({ ...prev, email: registerData.email, name: registerData.name, phone: registerData.phone }))
     } catch (err) {
@@ -443,7 +445,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           <div className="space-y-2">
                             <h3 className="font-medium text-green-800">Te enviamos un email de verificación a {registerData.email}</h3>
                             <p className="text-sm text-green-700">
-                              Revisá tu casilla y hacé clic en el enlace para activar tu cuenta.
+                              {registerMessage || "Revisá tu casilla y hacé clic en el enlace para activar tu cuenta."}
                             </p>
                             <p className="text-sm text-green-700">
                               Si no lo encontrás, revisá la carpeta de spam o correo no deseado.

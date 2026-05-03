@@ -1,4 +1,11 @@
 import { db } from "./db"
+import type { Category } from "@prisma/client"
+
+type StorefrontCategory = Category & {
+  _count: {
+    products: number
+  }
+}
 
 /**
  * Obtiene las categorías visibles para el storefront (público).
@@ -7,27 +14,34 @@ import { db } from "./db"
  */
 export async function getStorefrontCategories() {
   // Obtenemos todas las categorías activas con el conteo de sus productos con stock
-  const allCategories = await db.category.findMany({
-    where: { 
-      isActive: true 
-    },
-    include: {
-      _count: {
-        select: {
-          products: {
-            where: {
-              isActive: true,
-              OR: [
-                { stock: { gt: 0 } },
-                { hasPermanentStock: true }
-              ]
+  let allCategories: StorefrontCategory[]
+
+  try {
+    allCategories = await db.category.findMany({
+      where: { 
+        isActive: true 
+      },
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: {
+                isActive: true,
+                OR: [
+                  { stock: { gt: 0 } },
+                  { hasPermanentStock: true }
+                ]
+              }
             }
           }
         }
-      }
-    },
-    orderBy: { order: "asc" }
-  })
+      },
+      orderBy: { order: "asc" }
+    })
+  } catch (error) {
+    console.error("Failed to load storefront categories:", error)
+    return []
+  }
 
   // Función recursiva para determinar si una categoría o sus hijas tienen productos
   const hasVisibleProducts = (categoryId: string): boolean => {

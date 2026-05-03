@@ -101,7 +101,7 @@ export async function sendVerificationEmail({
 }: {
   to: string
   token: string
-  type: "email_change" | "guest_checkout" | "email_verification"
+  type: "email_change" | "guest_checkout" | "email_verification" | "migrated_account"
 }) {
   const baseUrl = await getStoreUrl()
   let verifyUrl: string
@@ -125,6 +125,13 @@ export async function sendVerificationEmail({
     buttonLabel = "Completar mi registro"
     intro = "Gracias por comprar en El Pan a tu Casa."
     ignoreText = "Si no solicitaste este registro, podés ignorar este mensaje."
+  } else if (type === "migrated_account") {
+    verifyUrl = `${baseUrl}/auth/set-password?token=${token}`
+    subject = "Activá tu cuenta en el nuevo El Pan a tu Casa"
+    description = "Validá tu email y creá una contraseña nueva para ingresar por primera vez."
+    buttonLabel = "Activar mi cuenta"
+    intro = "Encontramos una cuenta asociada a compras anteriores en nuestro sitio anterior."
+    ignoreText = "Si no reconocés esta cuenta, podés ignorar este mensaje."
   } else {
     // email_verification - new user registration
     verifyUrl = `${baseUrl}/auth/verify-email?token=${token}`

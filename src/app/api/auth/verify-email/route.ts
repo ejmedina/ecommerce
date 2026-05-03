@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { deleteVerificationTokenRecord, findVerificationTokenRecord } from "@/lib/verification-tokens"
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,9 +15,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Find the verification token
-    const verification = await db.verificationToken.findUnique({
-      where: { token },
-    })
+    const verification = await findVerificationTokenRecord(token)
 
     if (!verification) {
       return NextResponse.json(
@@ -68,13 +67,12 @@ export async function GET(req: NextRequest) {
       where: { id: user.id },
       data: {
         isActive: true,
+        emailVerifiedAt: new Date(),
       },
     })
 
     // Delete the verification token
-    await db.verificationToken.delete({
-      where: { token },
-    })
+    await deleteVerificationTokenRecord(token)
 
     return NextResponse.json({
       message: "Cuenta activada correctamente",

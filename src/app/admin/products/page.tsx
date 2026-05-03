@@ -8,6 +8,18 @@ import { ProductFilters } from "./product-filters"
 import { PaginationControls } from "./pagination-controls"
 import { Badge } from "@/components/ui/badge"
 
+const productListInclude = {
+  category: true,
+  images: {
+    take: 1,
+    orderBy: { order: "asc" as const },
+  },
+} satisfies Prisma.ProductInclude
+
+type ProductListItem = Prisma.ProductGetPayload<{
+  include: typeof productListInclude
+}>
+
 function getCategoryScopeIds(
   categories: Array<{ id: string; parentId: string | null }>,
   categoryId: string,
@@ -38,20 +50,7 @@ function getCategoryScopeIds(
 }
 
 function sortProductsBySales(
-  products: Array<{
-    id: string
-    name: string
-    sku: string | null
-    slug: string
-    description: string | null
-    category: { id: string; name: string } | null
-    images: Array<{ url: string; alt: string | null }>
-    stock: number
-    hasPermanentStock: boolean
-    price: Prisma.Decimal
-    comparePrice: Prisma.Decimal | null
-    isActive: boolean
-  }>,
+  products: ProductListItem[],
   salesCounts: Map<string, number>,
   direction: "asc" | "desc",
 ) {
@@ -113,22 +112,14 @@ export default async function ProductsPage(props: {
   if (sort === 'price_desc') orderBy = { price: 'desc' }
   if (sort === 'stock_asc') orderBy = { stock: 'asc' }
 
-  const include = {
-    category: true,
-    images: {
-      take: 1,
-      orderBy: { order: "asc" },
-    },
-  }
-
-  let products: Awaited<ReturnType<typeof db.product.findMany>>
+  let products: ProductListItem[]
   let totalItems = 0
 
   if (sort === "sales_desc" || sort === "sales_asc") {
     const [allProducts, salesRows] = await Promise.all([
       db.product.findMany({
         where,
-        include,
+        include: productListInclude,
       }),
       db.$queryRaw<Array<{ productId: string; sold: number }>>`
         SELECT
@@ -155,7 +146,7 @@ export default async function ProductsPage(props: {
     const [pageProducts, count] = await Promise.all([
       db.product.findMany({
         where,
-        include,
+        include: productListInclude,
         orderBy,
         skip,
         take: limit,

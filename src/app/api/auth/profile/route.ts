@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { randomBytes } from "crypto"
 import { sendVerificationEmail } from "@/lib/email"
+import { createVerificationTokenRecord } from "@/lib/verification-tokens"
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth()
     
@@ -83,16 +83,10 @@ export async function PUT(req: NextRequest) {
       }
 
       // Create verification token for email change
-      const token = randomBytes(32).toString("hex")
-      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-      await db.verificationToken.create({
-        data: {
-          identifier: email,
-          token,
-          type: "EMAIL_CHANGE",
-          expires,
-        },
+      const token = await createVerificationTokenRecord({
+        identifier: email,
+        type: "EMAIL_CHANGE",
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       })
 
       // Store pending email change (keeps old email active until verified)
