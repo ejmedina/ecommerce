@@ -8,6 +8,63 @@ import { ProductFilters } from "./product-filters"
 import { PaginationControls } from "./pagination-controls"
 import { Badge } from "@/components/ui/badge"
 
+function getCategoryScopeIds(
+  categories: Array<{ id: string; parentId: string | null }>,
+  categoryId: string,
+) {
+  const childrenByParent = new Map<string | null, string[]>()
+
+  for (const category of categories) {
+    const parentKey = category.parentId ?? null
+    const current = childrenByParent.get(parentKey) || []
+    current.push(category.id)
+    childrenByParent.set(parentKey, current)
+  }
+
+  const scope = new Set<string>()
+  const stack = [categoryId]
+
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    if (scope.has(current)) continue
+    scope.add(current)
+
+    for (const childId of childrenByParent.get(current) || []) {
+      stack.push(childId)
+    }
+  }
+
+  return [...scope]
+}
+
+function sortProductsBySales(
+  products: Array<{
+    id: string
+    name: string
+    sku: string | null
+    slug: string
+    description: string | null
+    category: { id: string; name: string } | null
+    images: Array<{ url: string; alt: string | null }>
+    stock: number
+    hasPermanentStock: boolean
+    price: Prisma.Decimal
+    comparePrice: Prisma.Decimal | null
+    isActive: boolean
+  }>,
+  salesCounts: Map<string, number>,
+  direction: "asc" | "desc",
+) {
+  return [...products].sort((a, b) => {
+    const aSales = salesCounts.get(a.id) || 0
+    const bSales = salesCounts.get(b.id) || 0
+    if (aSales !== bSales) {
+      return direction === "desc" ? bSales - aSales : aSales - bSales
+    }
+    return a.name.localeCompare(b.name, "es")
+  })
+}
+
 export default async function ProductsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
@@ -23,6 +80,16 @@ export default async function ProductsPage(props: {
   const skip = (page - 1) * limit
 
   // Query conditions
+  const allCategories = await db.category.findMany({
+    where: { isActive: true },
+    orderBy: [{ order: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, parentId: true },
+  })
+
+  const categoryScopeIds = categoryId
+    ? getCategoryScopeIds(allCategories, categoryId)
+    : []
+
   const where: Prisma.ProductWhereInput = {
     AND: [
       search ? {
@@ -32,7 +99,7 @@ export default async function ProductsPage(props: {
           { slug: { contains: search, mode: 'insensitive' } },
         ]
       } : {},
-      categoryId ? { categoryId } : {},
+      categoryScopeIds.length > 0 ? { categoryId: { in: categoryScopeIds } } : {},
       discountFilter === 'with_discount' ? { discountType: { not: 'NONE' } } : {},
       discountFilter === 'compare_price' ? { discountType: 'COMPARE_PRICE' } : {},
       discountFilter === 'volume_fixed' ? { discountType: 'VOLUME_FIXED' } : {},
@@ -46,28 +113,59 @@ export default async function ProductsPage(props: {
   if (sort === 'price_desc') orderBy = { price: 'desc' }
   if (sort === 'stock_asc') orderBy = { stock: 'asc' }
 
-  // Execute database queries
-  const [products, totalItems, categories] = await Promise.all([
-    db.product.findMany({
-      where,
-      include: { 
-        category: true, 
-        images: { 
-          take: 1, 
-          orderBy: { order: 'asc' } 
-        } 
-      },
-      orderBy,
-      skip,
-      take: limit,
-    }),
-    db.product.count({ where }),
-    db.category.findMany({ 
-      where: { parentId: null }, // Mostramos categorías raíz en el filtro por simplicidad
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true }
-    }),
-  ])
+  const include = {
+    category: true,
+    images: {
+      take: 1,
+      orderBy: { order: "asc" },
+    },
+  }
+
+  let products: Awaited<ReturnType<typeof db.product.findMany>>
+  let totalItems = 0
+
+  if (sort === "sales_desc" || sort === "sales_asc") {
+    const [allProducts, salesRows] = await Promise.all([
+      db.product.findMany({
+        where,
+        include,
+      }),
+      db.$queryRaw<Array<{ productId: string; sold: number }>>`
+        SELECT
+          oi."productId" AS "productId",
+          COALESCE(SUM(oi."quantityOrdered"), 0)::int AS sold
+        FROM order_items oi
+        INNER JOIN orders o ON o.id = oi."orderId"
+        WHERE (
+          o."paymentStatus" IN ('PAID', 'AUTHORIZED')
+          OR (
+            o."paymentMethod" IN ('CASH_ON_DELIVERY', 'CARD_ON_DELIVERY', 'TRANSFER_ON_DELIVERY')
+            AND o."orderStatus" IN ('CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'OUT_FOR_DELIVERY', 'DELIVERED')
+          )
+        )
+        GROUP BY oi."productId"
+      `,
+    ])
+
+    const salesCounts = new Map(salesRows.map((row) => [row.productId, Number(row.sold)]))
+    const sorted = sortProductsBySales(allProducts, salesCounts, sort === "sales_desc" ? "desc" : "asc")
+    totalItems = sorted.length
+    products = sorted.slice(skip, skip + limit)
+  } else {
+    const [pageProducts, count] = await Promise.all([
+      db.product.findMany({
+        where,
+        include,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      db.product.count({ where }),
+    ])
+
+    products = pageProducts
+    totalItems = count
+  }
 
   return (
     <div className="space-y-6">
@@ -92,7 +190,7 @@ export default async function ProductsPage(props: {
         </div>
       </div>
 
-      <ProductFilters categories={categories} />
+      <ProductFilters categories={allCategories} />
 
       <Card className="border-none shadow-md overflow-hidden">
         <CardContent className="p-0">

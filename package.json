@@ -13,7 +13,10 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "import:woo": "tsx scripts/import-woo-storefront.ts",
+    "backfill:product-images": "tsx scripts/backfill-missing-product-images.ts",
+    "assign:product-categories": "tsx scripts/assign-product-categories.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

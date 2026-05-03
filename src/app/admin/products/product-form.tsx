@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { createProduct, updateProduct, deleteProduct } from "@/lib/actions/product-actions"
@@ -18,6 +19,7 @@ interface Category {
   name: string
   slug: string
   parentId?: string | null
+  order?: number
 }
 
 interface ProductOption {
@@ -44,10 +46,10 @@ interface Product {
   slug: string
   sku: string | null
   stock: number
-  price: any
-  comparePrice: any | null
+  price: number
+  comparePrice: number | null
   discountType: string
-  discountConfig: any | null
+  discountConfig: unknown | null
   description: string | null
   categoryId: string | null
   metaTitle: string | null
@@ -101,9 +103,12 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
 
   // Descuentos
   const [discountType, setDiscountType] = useState<string>(product?.discountType || "NONE")
-  const defaultDiscountConfig = useMemo(() => {
+  const defaultDiscountConfig = useMemo<Record<string, number> | null>(() => {
     if (!product?.discountConfig) return null
-    return typeof product.discountConfig === "string" ? JSON.parse(product.discountConfig) : product.discountConfig
+    if (typeof product.discountConfig === "string") {
+      return JSON.parse(product.discountConfig) as Record<string, number>
+    }
+    return product.discountConfig as Record<string, number>
   }, [product?.discountConfig])
   
   const [volumeDiscountThreshold, setVolumeDiscountThreshold] = useState<string>(
@@ -316,8 +321,9 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
   // Helper for hierarchical select
   const sortedCategories = useMemo(() => {
     const buildFlatTree = (parentId: string | null = null, depth = 0): (Category & { depth: number })[] => {
-      return localCategories
+      return [...localCategories]
         .filter(c => c.parentId === parentId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, "es"))
         .map(c => [
           { ...c, depth },
           ...buildFlatTree(c.id, depth + 1)
@@ -501,7 +507,7 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                           step={0.01}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">Muestra un ahorro visual. El cliente pagará el "Precio general".</p>
+                      <p className="text-xs text-muted-foreground">Muestra un ahorro visual. El cliente pagará el &quot;Precio general&quot;.</p>
                     </div>
                   )}
 
@@ -546,28 +552,52 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
             </CardContent>
           </Card>
 
-          {/* Variantes - Sección nueva */}
+          {/* Tipo de producto / Variantes */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Variantes</CardTitle>
+                  <CardTitle>Tipo de producto</CardTitle>
                   <CardDescription>
-                    Agregá opciones como talle, color o sabor
+                    Elegí si este producto se vende como una unidad simple o con variantes.
                   </CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasVariants"
-                    checked={hasVariants}
-                    onCheckedChange={(checked) => setHasVariants(!!checked)}
-                  />
-                  <Label htmlFor="hasVariants">Este producto tiene variantes</Label>
                 </div>
               </div>
             </CardHeader>
-            {hasVariants && (
-              <CardContent className="space-y-6">
+            <CardContent className="space-y-6">
+              <RadioGroup
+                value={hasVariants ? "variants" : "simple"}
+                onValueChange={(value) => setHasVariants(value === "variants")}
+                className="grid gap-3 md:grid-cols-2"
+              >
+                <Label
+                  htmlFor="product-simple"
+                  className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50"
+                >
+                  <RadioGroupItem value="simple" id="product-simple" />
+                  <div className="space-y-1">
+                    <div className="font-medium">Producto simple</div>
+                    <div className="text-sm text-muted-foreground">
+                      Un solo SKU, precio y stock.
+                    </div>
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="product-variants"
+                  className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50"
+                >
+                  <RadioGroupItem value="variants" id="product-variants" />
+                  <div className="space-y-1">
+                    <div className="font-medium">Producto con variantes</div>
+                    <div className="text-sm text-muted-foreground">
+                      Para talles, sabores o combinaciones.
+                    </div>
+                  </div>
+                </Label>
+              </RadioGroup>
+
+              {hasVariants && (
+                <>
                 {/* Editor de Opciones */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -750,8 +780,9 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                     </div>
                   )}
                 </div>
-              </CardContent>
-            )}
+                </>
+              )}
+            </CardContent>
           </Card>
 
           {/* Organization */}

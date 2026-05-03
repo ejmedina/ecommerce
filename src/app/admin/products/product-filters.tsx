@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 interface Category {
   id: string
   name: string
+  parentId?: string | null
 }
 
 interface ProductFiltersProps {
@@ -25,6 +26,30 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
   const [category, setCategory] = useState(searchParams.get("category") || "all")
   const [sort, setSort] = useState(searchParams.get("sort") || "date_desc")
   const [discount, setDiscount] = useState(searchParams.get("discount") || "all")
+
+  const categoryOptions = useMemo(() => {
+    const childrenByParent = new Map<string | null, Category[]>()
+
+    for (const category of categories) {
+      const parentKey = category.parentId ?? null
+      const current = childrenByParent.get(parentKey) || []
+      current.push(category)
+      childrenByParent.set(parentKey, current)
+    }
+
+    const sortCategories = (items: Category[]) =>
+      [...items].sort((a, b) => a.name.localeCompare(b.name, "es"))
+
+    const buildOptions = (parentId: string | null = null, depth = 0): Array<Category & { depth: number }> => {
+      const children = sortCategories(childrenByParent.get(parentId) || [])
+      return children.flatMap((category) => [
+        { ...category, depth },
+        ...buildOptions(category.id, depth + 1),
+      ])
+    }
+
+    return buildOptions()
+  }, [categories])
   
   const debouncedSearch = useDebounce(search, 500)
 
@@ -85,8 +110,9 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            {categories.map((c) => (
+            {categoryOptions.map((c) => (
               <SelectItem key={c.id} value={c.id}>
+                {"— ".repeat(c.depth)}
                 {c.name}
               </SelectItem>
             ))}
@@ -105,6 +131,8 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
             <SelectItem value="price_asc">Precio: Menor a Mayor</SelectItem>
             <SelectItem value="price_desc">Precio: Mayor a Menor</SelectItem>
             <SelectItem value="stock_asc">Stock: Crítico primero</SelectItem>
+            <SelectItem value="sales_desc">Con más ventas</SelectItem>
+            <SelectItem value="sales_asc">Con menos ventas</SelectItem>
           </SelectContent>
         </Select>
       </div>
