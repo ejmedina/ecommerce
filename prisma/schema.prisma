@@ -497,6 +497,9 @@ model StoreSettings {
   // Mensaje personalizado para notificar al cliente cuando el pedido está por llegar
   // Usa %s para el nombre de la tienda (se reemplaza automáticamente)
   whatsappPreArrivalMessage String? @db.Text
+  whatsappWidgetEnabled  Boolean  @default(false)
+  whatsappWidgetPhone    String?
+  whatsappWidgetMessage  String?  @db.Text
   
   // === CONFIGURACIÓN DE COLORES DEL TEMA ===
   // Colores personalizables de la tienda

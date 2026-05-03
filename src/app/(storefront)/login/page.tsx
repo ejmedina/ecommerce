@@ -165,6 +165,8 @@ export default function LoginPage() {
           code: error.code,
           sent: false,
         })
+        loginForm.setError("root", { message: "" })
+        return
       }
       loginForm.setError("root", { message: error?.error || "Email o contraseña incorrectos" })
       return
@@ -311,27 +313,27 @@ export default function LoginPage() {
               </div>
             ) : authMode === "login" ? (
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                {loginForm.formState.errors.root && (
+                {loginForm.formState.errors.root?.message && (
                   <p className="text-sm text-destructive">{loginForm.formState.errors.root.message}</p>
                 )}
                 {loginAssistance && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
                     <p>
                       {loginAssistance.code === "MIGRATED_ACCOUNT_ACTIVATION_REQUIRED"
-                        ? "Encontramos tu cuenta del sitio anterior. Para ingresar por primera vez, necesitás validar tu email y crear una contraseña nueva."
+                        ? "Ya encontramos tu cuenta anterior. Te ayudamos a activarla para que sigas desde acá."
                         : "Tu cuenta todavía no está activa. Te podemos reenviar el email para terminar la activación."}
                     </p>
                     <Button
                       type="button"
                       variant="link"
-                      className="mt-2 h-auto p-0 text-amber-900"
+                      className="mt-2 h-auto p-0 text-sky-900"
                       onClick={handleResendActivation}
                     >
                       <Mail className="mr-1 h-4 w-4" />
                       {loginAssistance.sent ? "Reenviar nuevamente" : "Enviar link de activación"}
                     </Button>
                     {loginAssistance.message ? (
-                      <p className="mt-2 text-xs text-amber-800">{loginAssistance.message}</p>
+                      <p className="mt-2 text-xs text-sky-800">{loginAssistance.message}</p>
                     ) : null}
                   </div>
                 )}

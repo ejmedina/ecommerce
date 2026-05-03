@@ -35,6 +35,9 @@ interface StoreSettings {
   autoConfirmOrders: boolean
   requiresPaymentToFulfill: boolean
   whatsappPreArrivalMessage: string | null
+  whatsappWidgetEnabled: boolean
+  whatsappWidgetPhone: string | null
+  whatsappWidgetMessage: string | null
   themeColors: ThemeColors | null
   paymentMethods: Record<string, { isActive: boolean, label: string, description: string }> | null
   minShippingOrderAmount: any
@@ -60,6 +63,9 @@ export function SettingsForm() {
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
   const [minShippingOrderAmount, setMinShippingOrderAmount] = useState(0)
   const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
+  const [whatsappWidgetEnabled, setWhatsappWidgetEnabled] = useState(false)
+  const [whatsappWidgetPhone, setWhatsappWidgetPhone] = useState("")
+  const [whatsappWidgetMessage, setWhatsappWidgetMessage] = useState("")
   const [storePickupEnabled, setStorePickupEnabled] = useState(true)
 
   // Theme colors state
@@ -94,6 +100,9 @@ export function SettingsForm() {
       setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
       setMinShippingOrderAmount(Number(data.minShippingOrderAmount) || 0)
       setWhatsappPreArrivalMessage(data.whatsappPreArrivalMessage || "")
+      setWhatsappWidgetEnabled(data.whatsappWidgetEnabled ?? false)
+      setWhatsappWidgetPhone(data.whatsappWidgetPhone || "")
+      setWhatsappWidgetMessage(data.whatsappWidgetMessage || "")
       setStorePickupEnabled(data.storePickupEnabled ?? true)
       
       if (data.shippingConfig) {
@@ -139,6 +148,9 @@ export function SettingsForm() {
           requiresPaymentToFulfill,
           minShippingOrderAmount,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
+          whatsappWidgetEnabled,
+          whatsappWidgetPhone: whatsappWidgetPhone || null,
+          whatsappWidgetMessage: whatsappWidgetMessage || null,
           storePickupEnabled,
           themeColors,
           paymentMethods,
@@ -341,12 +353,54 @@ export function SettingsForm() {
           {/* WhatsApp Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Mensaje de WhatsApp</CardTitle>
+              <CardTitle>WhatsApp</CardTitle>
               <CardDescription>
-                Personaliza el mensaje que se envía cuando un pedido está por llegar.
+                Configurá el widget flotante y el mensaje de WhatsApp del sitio.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-start gap-3 rounded-md border p-4">
+                <Checkbox
+                  id="whatsappWidgetEnabled"
+                  checked={whatsappWidgetEnabled}
+                  onCheckedChange={(checked) => setWhatsappWidgetEnabled(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="whatsappWidgetEnabled" className="cursor-pointer">
+                    Mostrar widget de WhatsApp en todo el sitio
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Aparece fijo en desktop y mobile con acceso directo al chat.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsappWidgetPhone">Número de WhatsApp</Label>
+                <Input
+                  id="whatsappWidgetPhone"
+                  value={whatsappWidgetPhone}
+                  onChange={(e) => setWhatsappWidgetPhone(e.target.value)}
+                  placeholder="5491151858316"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ingresalo con código de país y área. Se eliminan espacios y símbolos al generar el enlace.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsappWidgetMessage">Mensaje por defecto del widget</Label>
+                <Textarea
+                  id="whatsappWidgetMessage"
+                  value={whatsappWidgetMessage}
+                  onChange={(e) => setWhatsappWidgetMessage(e.target.value)}
+                  placeholder="Hola, estaba navegando el sitio web y quiero hacer una consulta."
+                  rows={3}
+                />
+              </div>
+
+              <Separator />
+
               <div className="space-y-2">
                 <Label htmlFor="whatsappMessage">Mensaje pre-venta</Label>
                 <Textarea
@@ -527,8 +581,8 @@ export function SettingsForm() {
                     Confirmación automática de pedidos
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Los pedidos nuevos pasan directamente a "Confirmado" sin necesidad de revisión manual. 
-                    Si está desactivado, los pedidos quedan en "Recibido" y requieren confirmación del operador.
+                    Los pedidos nuevos pasan directamente a &quot;Confirmado&quot; sin necesidad de revisión manual.
+                    Si está desactivado, los pedidos quedan en &quot;Recibido&quot; y requieren confirmación del operador.
                   </p>
                 </div>
               </div>
