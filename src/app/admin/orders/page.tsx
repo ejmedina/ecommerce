@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { db } from "@/lib/db"
-import { auth } from "@/lib/auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { OrdersTable } from "./orders-table"
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client"
@@ -21,13 +20,6 @@ const ORDERS_PER_PAGE = 20
 
 export default async function OrdersPage({ searchParams }: Props) {
   const params = await searchParams
-  
-  // Obtener sesión del usuario
-  const session = await auth()
-  const userRole = session?.user?.role
-  
-  // Verificar si el usuario tiene permisos de admin
-  const isAdmin = userRole && ["SUPERADMIN", "OWNER", "ADMIN"].includes(userRole)
 
   // Construir filtros
   const where: Prisma.OrderWhereInput = {}
@@ -78,7 +70,7 @@ export default async function OrdersPage({ searchParams }: Props) {
   const orders = await db.order.findMany({
     where,
     include: {
-      user: { select: { name: true, email: true } },
+      user: { select: { name: true, email: true, phone: true } },
       items: {
         include: {
           product: { select: { name: true } },
@@ -104,9 +96,11 @@ export default async function OrdersPage({ searchParams }: Props) {
     user: {
       name: order.user.name,
       email: order.user.email,
+      phone: order.user.phone,
     },
     shippingMethod: order.shippingMethod,
     shippingAddress: order.shippingAddress,
+    customerNotes: order.customerNotes,
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
@@ -148,7 +142,6 @@ export default async function OrdersPage({ searchParams }: Props) {
       <OrdersTable 
         orders={ordersData} 
         validOrdersForRouteSheet={validOrdersForRouteSheet} 
-        isAdmin={isAdmin}
         currentPage={page}
         totalPages={totalPages}
         totalOrders={totalOrders}

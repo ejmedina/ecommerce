@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Printer, Copy } from "lucide-react"
+import { Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,9 +51,11 @@ interface Order {
   user: {
     name: string | null
     email: string
+    phone: string | null
   }
   shippingMethod: string
   shippingAddress: unknown
+  customerNotes?: string | null
   items: OrderItem[]
 }
 
@@ -63,7 +65,6 @@ interface OrdersTableProps {
     id: string
     orderNumber: string
   }[]
-  isAdmin?: boolean
   currentPage: number
   totalPages: number
   totalOrders: number
@@ -131,17 +132,63 @@ const paymentMethodLabels: Record<string, string> = {
   TRANSFER_ON_DELIVERY: "Transf. entrega",
 }
 
+type ShippingAddress = {
+  street?: string
+  number?: string
+  floor?: string | null
+  apartment?: string | null
+  city?: string
+  state?: string
+  postalCode?: string
+  instructions?: string | null
+}
+
+function getShippingAddress(address: unknown): ShippingAddress | null {
+  if (!address || typeof address !== "object" || Array.isArray(address)) return null
+  return address as ShippingAddress
+}
+
+function formatShippingAddress(address: unknown) {
+  const parsed = getShippingAddress(address)
+  if (!parsed?.street || !parsed?.number || !parsed?.city) return null
+
+  const streetLine = [
+    `${parsed.street} ${parsed.number}`.trim(),
+    parsed.floor ? `Piso ${parsed.floor}` : null,
+    parsed.apartment ? `Depto ${parsed.apartment}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
+  const localityLine = [parsed.city, parsed.state, parsed.postalCode]
+    .filter(Boolean)
+    .join(", ")
+
+  return {
+    streetLine,
+    localityLine,
+    instructions: parsed.instructions,
+  }
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
 export function OrdersTable({ 
   orders, 
   validOrdersForRouteSheet, 
-  isAdmin,
   currentPage,
   totalPages,
   totalOrders,
   currentFilters 
 }: OrdersTableProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   
   // Estado para filtros
   const [filters, setFilters] = useState(currentFilters)
@@ -353,6 +400,100 @@ export function OrdersTable({
           </table>
           <div class="footer">
             Generado automáticamente el ${new Date().toLocaleString('es-AR')}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  const handlePrintOrder = (order: Order) => {
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
+
+    const address = formatShippingAddress(order.shippingAddress)
+    const itemsList = order.items
+      .map(
+        (item) =>
+          `<li>${item.quantity}x ${escapeHtml(item.name)}</li>`
+      )
+      .join("")
+
+    const notesHtml = order.customerNotes
+      ? `<p><strong>Notas:</strong> ${escapeHtml(order.customerNotes)}</p>`
+      : ""
+
+    const instructionsHtml = address?.instructions
+      ? `<p><strong>Indicaciones:</strong> ${escapeHtml(address.instructions)}</p>`
+      : ""
+
+    const shippingHtml =
+      order.shippingMethod === "pickup"
+        ? `<p><strong>Modalidad:</strong> Retiro en tienda</p>`
+        : address
+          ? `
+            <p><strong>Modalidad:</strong> Envío a domicilio</p>
+            <p><strong>Dirección:</strong> ${escapeHtml(address.streetLine)}</p>
+            <p><strong>Localidad:</strong> ${escapeHtml(address.localityLine)}</p>
+            ${instructionsHtml}
+          `
+          : `<p><strong>Modalidad:</strong> Envío a domicilio</p><p><strong>Dirección:</strong> Sin domicilio cargado</p>`
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${escapeHtml(order.orderNumber)}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #111; }
+            h1 { font-size: 24px; margin-bottom: 6px; }
+            .meta { font-size: 14px; color: #555; margin-bottom: 24px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .sheet { border: 1px solid #000; padding: 16px; }
+            .header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 14px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            ul { margin: 0; padding-left: 18px; }
+            p { margin: 0 0 8px; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Ficha de Pedido</h1>
+          <div class="meta">
+            Generado el ${new Date().toLocaleString("es-AR")}
+          </div>
+          <div class="sheet">
+            <div class="header">
+              <div>
+                <p><strong>Pedido:</strong> ${escapeHtml(order.orderNumber)}</p>
+                <p><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
+                <p><strong>Estado:</strong> ${escapeHtml(orderStatusLabels[order.orderStatus] || order.orderStatus)}</p>
+              </div>
+              <div>
+                <p><strong>Total:</strong> $${Number(order.total).toLocaleString("es-AR")}</p>
+                <p><strong>Pago:</strong> ${escapeHtml(paymentStatusLabels[order.paymentStatus] || order.paymentStatus)}</p>
+                <p><strong>Medio:</strong> ${escapeHtml(paymentMethodLabels[order.paymentMethod] || order.paymentMethod)}</p>
+              </div>
+            </div>
+            <div class="grid">
+              <div>
+                <p><strong>Cliente:</strong> ${escapeHtml(order.user.name || order.user.email)}</p>
+                <p><strong>Email:</strong> ${escapeHtml(order.user.email)}</p>
+                <p><strong>Teléfono:</strong> ${escapeHtml(order.user.phone || "N/A")}</p>
+                ${shippingHtml}
+                ${notesHtml}
+              </div>
+              <div>
+                <p><strong>Productos:</strong></p>
+                <ul>${itemsList}</ul>
+              </div>
+            </div>
           </div>
           <script>
             window.onload = function() {
@@ -591,6 +732,10 @@ export function OrdersTable({
         </Card>
       )}
 
+      {error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : null}
+
       {/* Lista de pedidos */}
       {orders.length === 0 ? (
         <Card>
@@ -603,6 +748,7 @@ export function OrdersTable({
           {orders.map((order) => {
             const isSelected = selectedOrders.has(order.id)
             const isRouteEligible = routeEligibleOrderIds.has(order.id)
+            const formattedAddress = formatShippingAddress(order.shippingAddress)
 
             return (
               <Card key={order.id} className={`
@@ -611,38 +757,88 @@ export function OrdersTable({
                 ${!isRouteEligible ? "opacity-70" : ""}
               `}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <Checkbox
                         checked={isSelected}
                         disabled={!isRouteEligible}
                         onCheckedChange={() => toggleOrder(order.id)}
                       />
-                      <Link href={`/admin/orders/${order.id}`} className="hover:underline">
-                        <CardTitle className="text-base">{order.orderNumber}</CardTitle>
-                      </Link>
+                      <div className="space-y-1">
+                        <Link href={`/admin/orders/${order.id}`} className="hover:underline">
+                          <CardTitle className="text-base">{order.orderNumber}</CardTitle>
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleDateString("es-AR")}
+                        </p>
+                      </div>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${orderStatusColors[order.orderStatus] || "bg-gray-100 text-gray-800"}`}>
-                      {orderStatusLabels[order.orderStatus] || order.orderStatus}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintOrder(order)}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir
+                      </Button>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${orderStatusColors[order.orderStatus] || "bg-gray-100 text-gray-800"}`}>
+                        {orderStatusLabels[order.orderStatus] || order.orderStatus}
+                      </span>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between text-sm">
-                    <div>
+                  <div className="grid gap-4 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+                    <div className="space-y-2">
                       <p className="font-medium">
                         {order.user.name || order.user.email}
                       </p>
-                      <p className="text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("es-AR")}
-                      </p>
+                      <p className="text-muted-foreground">{order.user.email}</p>
+                      {order.user.phone ? (
+                        <p className="text-muted-foreground">{order.user.phone}</p>
+                      ) : null}
+                      <div className="rounded-md border bg-muted/30 p-3">
+                        <p className="font-medium">
+                          {order.shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"}
+                        </p>
+                        {order.shippingMethod !== "pickup" ? (
+                          formattedAddress ? (
+                            <>
+                              <p className="text-muted-foreground">{formattedAddress.streetLine}</p>
+                              <p className="text-muted-foreground">{formattedAddress.localityLine}</p>
+                              {formattedAddress.instructions ? (
+                                <p className="text-muted-foreground">Indicaciones: {formattedAddress.instructions}</p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="text-muted-foreground">Sin domicilio de entrega</p>
+                          )
+                        ) : null}
+                      </div>
                       {!isRouteEligible && (
                         <p className="mt-1 text-xs text-orange-600">
                           No apto para hoja de ruta: {order.shippingMethod === "pickup" ? "retiro en tienda" : "sin domicilio de entrega"}
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="space-y-2">
+                      <p className="font-medium">Items del pedido</p>
+                      <ul className="space-y-1 text-muted-foreground">
+                        {order.items.map((item) => (
+                          <li key={item.id}>
+                            {item.quantity}x {item.name}
+                          </li>
+                        ))}
+                      </ul>
+                      {order.customerNotes ? (
+                        <p className="text-xs text-muted-foreground">
+                          Nota: {order.customerNotes}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="text-left md:text-right">
                       <p className="font-bold">${Number(order.total).toLocaleString("es-AR")}</p>
                       <div className="flex items-center justify-end gap-2 mt-1">
                         <span className={`px-1.5 py-0.5 rounded text-xs ${paymentStatusColors[order.paymentStatus] || "bg-gray-100 text-gray-700"}`}>
