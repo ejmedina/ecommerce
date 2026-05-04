@@ -65,6 +65,7 @@ interface OrdersTableProps {
     id: string
     orderNumber: string
   }[]
+  requiresPaymentToFulfill: boolean
   currentPage: number
   totalPages: number
   totalOrders: number
@@ -143,6 +144,12 @@ type ShippingAddress = {
   instructions?: string | null
 }
 
+const cashOnDeliveryPaymentMethods = new Set([
+  "CASH_ON_DELIVERY",
+  "CARD_ON_DELIVERY",
+  "TRANSFER_ON_DELIVERY",
+])
+
 function getShippingAddress(address: unknown): ShippingAddress | null {
   if (!address || typeof address !== "object" || Array.isArray(address)) return null
   return address as ShippingAddress
@@ -180,9 +187,45 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;")
 }
 
+function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boolean) {
+  if (order.shippingMethod === "pickup") {
+    return "retiro en tienda"
+  }
+
+  if (!formatShippingAddress(order.shippingAddress)) {
+    return "sin domicilio de entrega"
+  }
+
+  if (!requiresPaymentToFulfill) {
+    return null
+  }
+
+  if (cashOnDeliveryPaymentMethods.has(order.paymentMethod)) {
+    const allowedStatuses = new Set([
+      "CONFIRMED",
+      "PREPARING",
+      "READY_FOR_DELIVERY",
+      "OUT_FOR_DELIVERY",
+    ])
+
+    if (!allowedStatuses.has(order.orderStatus)) {
+      return "todavía no está confirmado para reparto"
+    }
+
+    return null
+  }
+
+  if (order.paymentStatus !== "PAID") {
+    return "pago todavía no acreditado"
+  }
+
+  return null
+}
+
 export function OrdersTable({ 
   orders, 
   validOrdersForRouteSheet, 
+  requiresPaymentToFulfill,
   currentPage,
   totalPages,
   totalOrders,
@@ -749,6 +792,10 @@ export function OrdersTable({
             const isSelected = selectedOrders.has(order.id)
             const isRouteEligible = routeEligibleOrderIds.has(order.id)
             const formattedAddress = formatShippingAddress(order.shippingAddress)
+            const routeIneligibilityReason = getRouteIneligibilityReason(
+              order,
+              requiresPaymentToFulfill
+            )
 
             return (
               <Card key={order.id} className={`
@@ -819,7 +866,7 @@ export function OrdersTable({
                       </div>
                       {!isRouteEligible && (
                         <p className="mt-1 text-xs text-orange-600">
-                          No apto para hoja de ruta: {order.shippingMethod === "pickup" ? "retiro en tienda" : "sin domicilio de entrega"}
+                          No apto para hoja de ruta: {routeIneligibilityReason || "pendiente de validación"}
                         </p>
                       )}
                     </div>

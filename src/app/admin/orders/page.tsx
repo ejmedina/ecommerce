@@ -65,6 +65,11 @@ export default async function OrdersPage({ searchParams }: Props) {
   // Calcular paginado
   const page = parseInt(params.page || "1")
   const skip = (page - 1) * ORDERS_PER_PAGE
+  const settings = await db.storeSettings.findFirst({
+    select: {
+      requiresPaymentToFulfill: true,
+    },
+  })
   
   // Obtener pedidos con filtros y paginado
   const orders = await db.order.findMany({
@@ -116,12 +121,15 @@ export default async function OrdersPage({ searchParams }: Props) {
     .filter((order) => {
       if (!isRouteEligibleOrder(order)) return false
 
-      // Para pago contra entrega: CONFIRMED o posterior
+      if (!settings?.requiresPaymentToFulfill) {
+        return true
+      }
+
       const isCashOnDelivery = ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"].includes(order.paymentMethod)
       if (isCashOnDelivery) {
         return ["CONFIRMED", "PREPARING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY"].includes(order.orderStatus)
       }
-      // Para pago prepago: necesita estar pagado
+
       return order.paymentStatus === "PAID"
     })
     .map((order) => ({ id: order.id, orderNumber: order.orderNumber }))
@@ -142,6 +150,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       <OrdersTable 
         orders={ordersData} 
         validOrdersForRouteSheet={validOrdersForRouteSheet} 
+        requiresPaymentToFulfill={settings?.requiresPaymentToFulfill ?? false}
         currentPage={page}
         totalPages={totalPages}
         totalOrders={totalOrders}
