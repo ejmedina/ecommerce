@@ -2,6 +2,7 @@ import "./globals.css"
 import type { Metadata } from "next"
 import { GoogleTagManager } from "@next/third-parties/google"
 import { db } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import { Toaster } from "@/components/toaster-client"
 import { ThemeProvider, ThemeColors } from "@/components/theme-provider"
 import { WhatsappWidget } from "@/components/whatsapp-widget"
@@ -65,8 +66,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const settings = await getStoreSettings()
+  const [settings, session] = await Promise.all([getStoreSettings(), auth()])
   const gtmId = process.env.NEXT_PUBLIC_GTM_ID
+  const shouldHideWhatsappForUser =
+    session?.user?.role !== undefined &&
+    ["SUPERADMIN", "OWNER", "ADMIN"].includes(session.user.role)
   
   // Parse theme colors from settings
   let themeColors: ThemeColors | null = null
@@ -87,7 +91,7 @@ export default async function RootLayout({
         <ThemeProvider colors={themeColors}>
           {children}
           <WhatsappWidget
-            enabled={settings?.whatsappWidgetEnabled ?? false}
+            enabled={(settings?.whatsappWidgetEnabled ?? false) && !shouldHideWhatsappForUser}
             phone={settings?.whatsappWidgetPhone ?? null}
             message={settings?.whatsappWidgetMessage ?? null}
           />
