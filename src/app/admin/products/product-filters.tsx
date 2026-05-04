@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect, useRef, useMemo } from "react"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
@@ -20,6 +21,7 @@ interface ProductFiltersProps {
 export function ProductFilters({ categories }: ProductFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { startNavigation } = useNavigationFeedback()
   const mountedRef = useRef(false)
   
   const [search, setSearch] = useState(searchParams.get("search") || "")
@@ -87,9 +89,10 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
     
     // Al filtrar, siempre volvemos a la página 1
     params.set("page", "1")
-    
+
+    startNavigation()
     router.push(`/admin/products?${params.toString()}`)
-  }, [debouncedSearch, category, sort, discount, router])
+  }, [debouncedSearch, category, sort, discount, router, startNavigation])
 
   return (
     <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border shadow-sm mb-6">

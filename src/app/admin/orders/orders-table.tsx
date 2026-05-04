@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
@@ -232,6 +233,7 @@ export function OrdersTable({
   currentFilters 
 }: OrdersTableProps) {
   const router = useRouter()
+  const { startNavigation } = useNavigationFeedback()
   
   // Estado para filtros
   const [filters, setFilters] = useState(currentFilters)
@@ -261,11 +263,13 @@ export function OrdersTable({
   // Aplicar filtros
   const applyFilters = (newFilters: typeof filters) => {
     setFilters(newFilters)
+    startNavigation()
     router.push(buildUrl(newFilters, 1))
   }
 
   // Cambiar página
   const goToPage = (page: number) => {
+    startNavigation()
     router.push(buildUrl(filters, page))
   }
 

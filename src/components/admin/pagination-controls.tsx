@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -14,6 +15,7 @@ interface PaginationProps {
 export function PaginationControls({ currentPage, totalItems, itemsPerPage, basePath }: PaginationProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { startNavigation } = useNavigationFeedback()
   
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   
@@ -22,6 +24,7 @@ export function PaginationControls({ currentPage, totalItems, itemsPerPage, base
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
+    startNavigation()
     router.push(`${basePath}?${params.toString()}`)
   }
 

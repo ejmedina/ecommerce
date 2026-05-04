@@ -1,6 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 
 type SortOption = "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc"
 
@@ -20,6 +21,7 @@ export function ProductSortSelect({ value }: ProductSortSelectProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { startNavigation } = useNavigationFeedback()
 
   function handleSortChange(nextSort: SortOption) {
     const params = new URLSearchParams(searchParams.toString())
@@ -31,6 +33,7 @@ export function ProductSortSelect({ value }: ProductSortSelectProps) {
     }
 
     const query = params.toString()
+    startNavigation()
     router.push(query ? `${pathname}?${query}` : pathname)
   }
 

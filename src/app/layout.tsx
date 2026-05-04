@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { GoogleTagManager } from "@next/third-parties/google"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
+import { NavigationFeedbackProvider } from "@/components/navigation-feedback"
 import { Toaster } from "@/components/toaster-client"
 import { ThemeProvider, ThemeColors } from "@/components/theme-provider"
 import { WhatsappWidget } from "@/components/whatsapp-widget"
@@ -88,15 +89,17 @@ export default async function RootLayout({
     <html lang="es">
       {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
       <body>
-        <ThemeProvider colors={themeColors}>
-          {children}
-          <WhatsappWidget
-            enabled={(settings?.whatsappWidgetEnabled ?? false) && !shouldHideWhatsappForUser}
-            phone={settings?.whatsappWidgetPhone ?? null}
-            message={settings?.whatsappWidgetMessage ?? null}
-          />
-          <Toaster />
-        </ThemeProvider>
+        <NavigationFeedbackProvider>
+          <ThemeProvider colors={themeColors}>
+            {children}
+            <WhatsappWidget
+              enabled={(settings?.whatsappWidgetEnabled ?? false) && !shouldHideWhatsappForUser}
+              phone={settings?.whatsappWidgetPhone ?? null}
+              message={settings?.whatsappWidgetMessage ?? null}
+            />
+            <Toaster />
+          </ThemeProvider>
+        </NavigationFeedbackProvider>
       </body>
     </html>
   )
