@@ -2,9 +2,6 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { db } from "@/lib/db"
-import { formatCurrency } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { addToCart } from "@/lib/actions/cart-actions"
 import { ProductDetailsClient } from "@/components/products/product-details-client"
 
 interface Props {
@@ -146,7 +143,7 @@ export default async function ProductPage({ params }: Props) {
                     </div>
                   );
                 }
-              } catch (e) {
+              } catch {
                 return null;
               }
               return null;
@@ -156,6 +153,7 @@ export default async function ProductPage({ params }: Props) {
           <ProductDetailsClient 
             product={{
               ...product,
+              categoryName: product.category?.name || null,
               price: Number(product.price),
               comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
               options: product.options.map(opt => ({

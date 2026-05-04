@@ -3,6 +3,11 @@
 import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/format"
+import {
+  createAnalyticsItem,
+  createEcommercePayload,
+  trackSelectItem,
+} from "@/lib/analytics"
 
 interface Product {
   id: string
@@ -40,6 +45,20 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
               key={product.id}
               href={`/products/${product.slug}`}
               className="group block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              onClick={() => {
+                trackSelectItem(
+                  createEcommercePayload([
+                    createAnalyticsItem({
+                      itemId: product.id,
+                      itemName: product.name,
+                      price: Number(product.price),
+                      quantity: 1,
+                    }),
+                  ], {
+                    value: Number(product.price),
+                  })
+                )
+              }}
             >
               <div className="relative aspect-square bg-gray-100">
                 {product.images && product.images[0] ? (

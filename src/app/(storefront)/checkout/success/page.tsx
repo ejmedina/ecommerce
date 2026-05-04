@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
 import { formatCurrency } from "@/lib/utils"
 import { auth } from "@/lib/auth"
+import { PurchaseTracker } from "@/components/analytics/purchase-tracker"
+import { createAnalyticsItem, createEcommercePayload } from "@/lib/analytics"
 
 export const dynamic = "force-dynamic"
 
@@ -21,13 +23,49 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
   if (orderId) {
     order = await db.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                category: true,
+              },
+            },
+            variant: true,
+          },
+        },
+      },
     })
   }
+
+  const purchasePayload = order
+    ? createEcommercePayload(
+        order.items.map((item) =>
+          createAnalyticsItem({
+            itemId: item.variantId || item.productId,
+            itemName: item.name,
+            price: Number(item.price),
+            quantity: item.quantityOrdered,
+            itemCategory: item.product?.category?.name || null,
+            itemVariant: item.variant?.title || null,
+          })
+        ),
+        {
+          value: Number(order.total),
+        }
+      )
+    : null
 
   return (
     <div className="container mx-auto px-4 py-16 text-center">
       <div className="max-w-md mx-auto">
+        {order && purchasePayload ? (
+          <PurchaseTracker
+            orderId={order.id}
+            transactionId={order.orderNumber}
+            payload={purchasePayload}
+          />
+        ) : null}
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
         
         <h1 className="text-2xl font-bold mb-4">¡Pedido confirmado!</h1>

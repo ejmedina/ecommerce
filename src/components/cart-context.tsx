@@ -2,6 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react"
 import { useToast } from "@/components/ui/use-toast"
+import {
+  createAnalyticsItem,
+  createEcommercePayload,
+  trackAddToCart,
+  trackRemoveFromCart,
+} from "@/lib/analytics"
 
 import { type PricingResult } from "@/lib/pricing"
 
@@ -10,14 +16,15 @@ interface CartItem {
   productId: string
   variantId: string | null
   quantity: number
-  product: {
-    id: string
-    name: string
-    price: number
-    discountType?: string | null
-    discountConfig?: any | null
-    images: { url: string; alt: string | null }[]
-  }
+    product: {
+      id: string
+      name: string
+      price: number
+      discountType?: string | null
+      discountConfig?: unknown | null
+      category?: { name: string } | null
+      images: { url: string; alt: string | null }[]
+    }
   variant: {
     id: string
     title: string
@@ -46,14 +53,14 @@ interface CartContextType {
   updateItemQuantityOptimistic: (itemId: string, newQuantity: number) => void
   isSyncing: boolean
   pricingResult: PricingResult | null
-  settings: any | null
+  settings: Record<string, unknown> | null
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null)
-  const [settings, setSettings] = useState<any | null>(null)
+  const [settings, setSettings] = useState<Record<string, unknown> | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [pendingUpdates, setPendingUpdates] = useState<Record<string, PendingUpdate>>({})
   const { toast } = useToast()
@@ -87,16 +94,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateItemQuantityOptimistic = (itemId: string, newQuantity: number) => {
     if (!cart) return
+    const currentItem = cart.items.find((item) => item.id === itemId)
+    if (!currentItem) return
+    const previousQuantity = currentItem.quantity
 
     // Initialize pending update if not exists
     setPendingUpdates((prev) => {
       const existing = prev[itemId]
-      const currentItem = cart.items.find((i) => i.id === itemId)
-      const previousQuantity = existing ? existing.previousQuantity : (currentItem?.quantity || 0)
+      const originalQuantity = existing ? existing.previousQuantity : previousQuantity
       
       return {
         ...prev,
-        [itemId]: { previousQuantity, requestedQuantity: newQuantity }
+        [itemId]: { previousQuantity: originalQuantity, requestedQuantity: newQuantity }
       }
     })
 
@@ -160,6 +169,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
         
         // Success: Replace with official cart and remove from pending
         setCart(data.cart)
+
+        const quantityDelta = newQuantity - previousQuantity
+        if (quantityDelta !== 0) {
+          const analyticsItem = createAnalyticsItem({
+            itemId: currentItem.variant?.id || currentItem.product.id,
+            itemName: currentItem.variant?.title
+              ? `${currentItem.product.name} - ${currentItem.variant.title}`
+              : currentItem.product.name,
+            price: currentItem.variant?.price ?? currentItem.product.price,
+            quantity: Math.abs(quantityDelta),
+            itemCategory: currentItem.product.category?.name || null,
+            itemVariant: currentItem.variant?.title || null,
+          })
+
+          const payload = createEcommercePayload([analyticsItem], {
+            value: (currentItem.variant?.price ?? currentItem.product.price) * Math.abs(quantityDelta),
+          })
+
+          if (quantityDelta > 0) {
+            trackAddToCart(payload)
+          } else {
+            trackRemoveFromCart(payload)
+          }
+        }
+
         setPendingUpdates((prev) => {
           const newPending = { ...prev }
           delete newPending[itemId]

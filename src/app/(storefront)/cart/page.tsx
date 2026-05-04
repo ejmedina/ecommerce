@@ -8,11 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
 import { useCart } from "@/components/cart-context"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
+import {
+  createAnalyticsItem,
+  createEcommercePayload,
+  trackBeginCheckout,
+  trackRemoveFromCart,
+} from "@/lib/analytics"
 
 interface CartPageItem {
   id: string
   quantity: number
   variant?: {
+    id: string
     title?: string | null
     price?: number | string | null
   } | null
@@ -22,6 +29,7 @@ interface CartPageItem {
     name: string
     price: number | string
     sku?: string | null
+    category?: { name: string } | null
     images?: { url: string }[]
   }
 }
@@ -64,7 +72,28 @@ export default function CartPage() {
   const handleRemove = async (itemId: string) => {
     if (window.confirm("¿Seguro que querés eliminar este producto?")) {
       try {
-        await fetch(`/api/cart/items/${itemId}`, { method: "DELETE" })
+        const item = cart.items.find((entry: CartPageItem) => entry.id === itemId)
+        const response = await fetch(`/api/cart/items/${itemId}`, { method: "DELETE" })
+        if (!response.ok) {
+          throw new Error("No se pudo eliminar el producto")
+        }
+        if (item) {
+          const price = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+          trackRemoveFromCart(
+            createEcommercePayload([
+              createAnalyticsItem({
+                itemId: item.variant?.id || item.product.id,
+                itemName: item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name,
+                price,
+                quantity: item.quantity,
+                itemCategory: item.product.category?.name || null,
+                itemVariant: item.variant?.title || null,
+              }),
+            ], {
+              value: price * item.quantity,
+            })
+          )
+        }
         await refreshCart()
       } catch (error) {
         console.error("Error eliminando item:", error)
@@ -196,6 +225,24 @@ export default function CartPage() {
                 disabled={isSyncing}
                 onClick={(e) => {
                   if (isSyncing) e.preventDefault()
+                  if (!isSyncing) {
+                    trackBeginCheckout(
+                      createEcommercePayload(
+                        cart.items.map((item: CartPageItem) => {
+                          const price = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+                          return createAnalyticsItem({
+                            itemId: item.variant?.id || item.product.id,
+                            itemName: item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name,
+                            price,
+                            quantity: item.quantity,
+                            itemCategory: item.product.category?.name || null,
+                            itemVariant: item.variant?.title || null,
+                          })
+                        }),
+                        { value: totalToPay }
+                      )
+                    )
+                  }
                 }}
               >
                 {isSyncing ? "Actualizando..." : <Link href="/checkout">Continuar compra</Link>}
