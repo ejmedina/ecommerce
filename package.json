@@ -17,6 +17,7 @@
     "import:woo": "tsx scripts/import-woo-storefront.ts",
     "import:woo-users": "tsx scripts/import-woo-users.ts",
     "backfill:product-images": "tsx scripts/backfill-missing-product-images.ts",
+    "migrate:legacy-product-images": "tsx scripts/migrate-legacy-product-images-to-blob.ts",
     "assign:product-categories": "tsx scripts/assign-product-categories.ts"
   },
   "prisma": {
