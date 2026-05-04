@@ -74,6 +74,7 @@ async function getSettings() {
     shippingConfig: settings.shippingConfig,
     paymentMethods: settings.paymentMethods as any,
     minShippingOrderAmount: Number(settings.minShippingOrderAmount) || 0,
+    storePickupEnabled: settings.storePickupEnabled,
   }
 }
 
