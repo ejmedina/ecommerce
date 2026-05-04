@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
+import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronRight, DollarSign } from "lucide-react"
 import { SalesComparisonChart } from "@/components/admin/sales-comparison"
@@ -18,10 +19,91 @@ function buildCumulativeSeries(values: number[], visibleDays?: number) {
   })
 }
 
-export default async function DashboardPage() {
+function getComparisonDisplay(current: number, previous: number) {
+  if (previous === 0) {
+    if (current === 0) {
+      return {
+        trendClassName: "text-muted-foreground",
+        label: "Sin base de comparación",
+      }
+    }
+
+    return {
+      trendClassName: "text-green-600",
+      label: "Sin base de comparación",
+    }
+  }
+
+  const isUp = current >= previous
+  const diffPercent = ((current - previous) / previous) * 100
+
+  return {
+    trendClassName: isUp ? "text-green-600" : "text-orange-600",
+    label: `${isUp ? "↑" : "↓"} ${Math.abs(diffPercent).toFixed(1)}% vs mes anterior`,
+  }
+}
+
+type SalesView = "all" | "accredited" | "pending"
+
+interface DashboardPageProps {
+  searchParams: Promise<{
+    salesView?: string
+  }>
+}
+
+const salesViewOptions: Array<{ value: SalesView; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "accredited", label: "Acreditados" },
+  { value: "pending", label: "Pendientes" },
+]
+
+function getSalesView(value?: string): SalesView {
+  if (value === "accredited" || value === "pending") return value
+  return "all"
+}
+
+function getSalesEligibleWhere(salesView: SalesView): Prisma.OrderWhereInput {
+  const operationalStatuses = [
+    "CONFIRMED",
+    "PREPARING",
+    "READY_FOR_DELIVERY",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ] as const
+
+  const baseOperationalWhere: Prisma.OrderWhereInput = {
+    orderStatus: {
+      in: [...operationalStatuses],
+    },
+  }
+
+  if (salesView === "accredited") {
+    return {
+      ...baseOperationalWhere,
+      paymentStatus: {
+        in: ["PAID", "AUTHORIZED"],
+      },
+    }
+  }
+
+  if (salesView === "pending") {
+    return {
+      ...baseOperationalWhere,
+      paymentStatus: {
+        notIn: ["PAID", "AUTHORIZED"],
+      },
+    }
+  }
+
+  return baseOperationalWhere
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams
   const now = new Date()
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const salesView = getSalesView(params.salesView)
   
   const monthNames = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -33,23 +115,7 @@ export default async function DashboardPage() {
   // Day of month (1-31)
   const currentDay = now.getDate()
 
-  const salesEligibleWhere: Prisma.OrderWhereInput = {
-    OR: [
-      {
-        paymentStatus: {
-          in: ["PAID", "AUTHORIZED"],
-        },
-      },
-      {
-        paymentMethod: {
-          in: ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"],
-        },
-        orderStatus: {
-          in: ["CONFIRMED", "PREPARING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY", "DELIVERED"],
-        },
-      },
-    ],
-  }
+  const salesEligibleWhere = getSalesEligibleWhere(salesView)
 
   // Get stats
   const [productCount, orderCount, customerCount, totalSales, currentMonthSales, lastMonthSales] = await Promise.all([
@@ -115,16 +181,14 @@ export default async function DashboardPage() {
   // Compare sums for card labels
   const currentSalesTotal = Number(currentMonthSales._sum?.total || 0)
   const lastSalesTotal = Number(lastMonthSales._sum?.total || 0)
-  const isSalesUp = currentSalesTotal >= lastSalesTotal
-  const monthSalesDiff = lastSalesTotal > 0 ? ((currentSalesTotal - lastSalesTotal) / lastSalesTotal) * 100 : 0
+  const monthSalesComparison = getComparisonDisplay(currentSalesTotal, lastSalesTotal)
 
   // Ticket promedio
   const currentOrderCount = currentOrders.length
   const lastOrderCount = lastOrders.length
   const currentAvgTicket = currentOrderCount > 0 ? currentSalesTotal / currentOrderCount : 0
   const lastAvgTicket = lastOrderCount > 0 ? lastSalesTotal / lastOrderCount : 0
-  const isAvgTicketUp = currentAvgTicket >= lastAvgTicket
-  const avgTicketDiff = lastAvgTicket > 0 ? ((currentAvgTicket - lastAvgTicket) / lastAvgTicket) * 100 : 0
+  const avgTicketComparison = getComparisonDisplay(currentAvgTicket, lastAvgTicket)
 
   // Get recent orders
   const recentOrders = await db.order.findMany({
@@ -147,7 +211,31 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="inline-flex w-fit rounded-md border bg-background p-1">
+          {salesViewOptions.map((option) => {
+            const href = option.value === "all"
+              ? "/admin/dashboard"
+              : `/admin/dashboard?salesView=${option.value}`
+
+            return (
+              <Link
+                key={option.value}
+                href={href}
+                className={cn(
+                  "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+                  salesView === option.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </Link>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -164,8 +252,8 @@ export default async function DashboardPage() {
                 minimumFractionDigits: 0,
               })}
             </div>
-            <p className={`text-xs ${isSalesUp ? "text-green-600" : "text-orange-600"} mt-1`}>
-              {isSalesUp ? "↑" : "↓"} {Math.abs(monthSalesDiff).toFixed(1)}% vs mes anterior
+            <p className={`mt-1 text-xs ${monthSalesComparison.trendClassName}`}>
+              {monthSalesComparison.label}
             </p>
           </CardContent>
         </Card>
@@ -183,8 +271,15 @@ export default async function DashboardPage() {
                 minimumFractionDigits: 0,
               })}
             </div>
-            <p className={`text-xs ${isAvgTicketUp ? "text-green-600" : "text-orange-600"} mt-1`}>
-              {isAvgTicketUp ? "↑" : "↓"} {Math.abs(avgTicketDiff).toFixed(1)}% vs mes anterior ({lastAvgTicket.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 })})
+            <p className={`mt-1 text-xs ${avgTicketComparison.trendClassName}`}>
+              {avgTicketComparison.label}
+              {lastAvgTicket > 0
+                ? ` (${lastAvgTicket.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                    minimumFractionDigits: 0,
+                  })})`
+                : ""}
             </p>
           </CardContent>
         </Card>

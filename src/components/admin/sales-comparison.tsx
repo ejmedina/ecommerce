@@ -8,6 +8,33 @@ interface SalesComparisonChartProps {
   lastCumulative: number[]
 }
 
+function getChartComparisonDisplay(current: number, previous: number) {
+  if (previous === 0) {
+    if (current === 0) {
+      return {
+        accentClassName: "text-muted-foreground",
+        deltaPrefix: "",
+        label: "Sin base de comparación para el mismo día",
+      }
+    }
+
+    return {
+      accentClassName: "text-green-600",
+      deltaPrefix: "+",
+      label: "Sin base de comparación para el mismo día",
+    }
+  }
+
+  const isAbove = current >= previous
+  const diffPercent = ((current - previous) / previous) * 100
+
+  return {
+    accentClassName: isAbove ? "text-green-600" : "text-orange-600",
+    deltaPrefix: isAbove ? "+" : "",
+    label: `${isAbove ? "Arriba" : "Abajo"} un ${Math.abs(diffPercent).toFixed(1)}% vs mismo día mes anterior`,
+  }
+}
+
 export function SalesComparisonChart({
   currentMonthName,
   lastMonthName,
@@ -15,18 +42,18 @@ export function SalesComparisonChart({
   lastCumulative,
 }: SalesComparisonChartProps) {
   // Find max value for scaling
+  const totalSteps = Math.max(currentCumulative.length, lastCumulative.length, 2)
   const maxVal = Math.max(
     ...lastCumulative,
     ...(currentCumulative.filter(v => v !== null) as number[]),
     1000 // min scale
   )
 
-  const steps = 30
   const width = 1000
   const height = 300
   const padding = 40
 
-  const getX = (index: number) => (index / (steps - 1)) * (width - padding * 2) + padding
+  const getX = (index: number) => (index / (totalSteps - 1)) * (width - padding * 2) + padding
   const getY = (value: number) => height - padding - (value / maxVal) * (height - padding * 2)
 
   // Draw paths
@@ -39,9 +66,8 @@ export function SalesComparisonChart({
   const todayIdx = currentCumulative.filter(v => v !== null).length - 1
   const todayVal = currentCumulative[todayIdx] || 0
   const lastMonthSameDayVal = lastCumulative[todayIdx] || 0
-  const isAbove = todayVal >= lastMonthSameDayVal
   const diff = todayVal - lastMonthSameDayVal
-  const diffPercent = lastMonthSameDayVal > 0 ? (diff / lastMonthSameDayVal) * 100 : 0
+  const comparison = getChartComparisonDisplay(todayVal, lastMonthSameDayVal)
 
   return (
     <Card className="col-span-full">
@@ -53,12 +79,17 @@ export function SalesComparisonChart({
               Comparativa acumulada diaria: {currentMonthName} vs {lastMonthName}
             </CardDescription>
           </div>
-          <div className={`text-right ${isAbove ? "text-green-600" : "text-orange-600"}`}>
+          <div className={`text-right ${comparison.accentClassName}`}>
             <p className="text-2xl font-bold">
-              {isAbove ? "+" : ""}{diff.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 })}
+              {comparison.deltaPrefix}
+              {diff.toLocaleString("es-AR", {
+                style: "currency",
+                currency: "ARS",
+                minimumFractionDigits: 0,
+              })}
             </p>
             <p className="text-xs font-medium">
-              {isAbove ? "Arriba" : "Abajo"} un {Math.abs(diffPercent).toFixed(1)}% vs mismo día mes anterior
+              {comparison.label}
             </p>
           </div>
         </div>
