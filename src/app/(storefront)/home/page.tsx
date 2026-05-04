@@ -1,6 +1,24 @@
 import { db } from "@/lib/db"
 import { HeroSlider, CategoryCards, BestSellers, InfoCards } from "@/components/home"
 
+function getHomePromotedProductsWhere({
+  featuredOnly = false,
+}: {
+  featuredOnly?: boolean
+}) {
+  return {
+    isActive: true,
+    ...(featuredOnly ? { isFeatured: true } : {}),
+    OR: [
+      { stock: { gt: 0 } },
+      { hasPermanentStock: true }
+    ],
+    images: {
+      some: {},
+    },
+  } as const
+}
+
 export default async function HomePage() {
   // Get settings from database
   const settings = await db.storeSettings.findFirst()
@@ -25,13 +43,7 @@ export default async function HomePage() {
 
   // Get best sellers products
   const bestSellers = await db.product.findMany({
-    where: { 
-      isActive: true,
-      OR: [
-        { stock: { gt: 0 } },
-        { hasPermanentStock: true }
-      ]
-    },
+    where: getHomePromotedProductsWhere({ featuredOnly: false }),
     orderBy: { createdAt: "desc" },
     take: settings.bestSellersLimit || 6,
     include: {

@@ -3,6 +3,40 @@
 import { db } from "@/lib/db"
 import type { Prisma } from "@prisma/client"
 
+async function getCategorySlugsIncludingDescendants(slug: string) {
+  const categories = await db.category.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      slug: true,
+      parentId: true,
+    },
+  })
+
+  const rootCategory = categories.find((category) => category.slug === slug)
+  if (!rootCategory) {
+    return [slug]
+  }
+
+  const slugs = new Set<string>([rootCategory.slug])
+  const queue = [rootCategory.id]
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()
+    if (!currentId) continue
+
+    for (const child of categories) {
+      if (child.parentId !== currentId) continue
+      if (slugs.has(child.slug)) continue
+
+      slugs.add(child.slug)
+      queue.push(child.id)
+    }
+  }
+
+  return [...slugs]
+}
+
 export async function getProductsAction({ 
   category, 
   s, 
@@ -26,7 +60,8 @@ export async function getProductsAction({
     { createdAt: "desc" as const }
 
   if (category) {
-    where.category = { slug: category }
+    const categorySlugs = await getCategorySlugsIncludingDescendants(category)
+    where.category = { slug: { in: categorySlugs } }
   }
   
   if (s) {
