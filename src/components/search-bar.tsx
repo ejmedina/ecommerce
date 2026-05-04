@@ -6,6 +6,7 @@ import { Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils/index"
 import { useDebounce } from "@/hooks/use-debounce"
+import { trackSearch, trackSelectItem } from "@/lib/analytics"
 import {
   getProductsSearchHref,
   normalizeSearchQuery,
@@ -147,6 +148,7 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
   const navigateToResults = () => {
     if (!normalizedQuery) return
 
+    trackSearch(normalizedQuery)
     closeSuggestions()
     startTransition(() => {
       router.push(getProductsSearchHref(normalizedQuery))
@@ -154,6 +156,15 @@ export function SearchBar({ className, placeholder = "Buscar productos...", isMo
   }
 
   const navigateToSuggestion = (suggestion: SearchSuggestion) => {
+    trackSelectItem({
+      currency: "ARS",
+      items: [
+        {
+          item_id: suggestion.href,
+          item_name: suggestion.label,
+        },
+      ],
+    })
     closeSuggestions()
     setQuery(suggestion.label)
     startTransition(() => {

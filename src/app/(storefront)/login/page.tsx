@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2, Mail } from "lucide-react"
+import { trackLogin, trackSignUp } from "@/lib/analytics"
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -184,6 +185,8 @@ export default function LoginPage() {
     } catch {
       console.error("Failed to fetch session before redirect")
     }
+
+    trackLogin()
     
     // Forzamos un refresco completo para asegurar la sesión
     window.location.assign(target)
@@ -216,6 +219,7 @@ export default function LoginPage() {
       const payload = await res.json()
       setRegisteredEmail(payload.email || data.email)
       setRegisteredMessage(payload.message || "Te enviamos un email para activar tu cuenta.")
+      trackSignUp()
       registerForm.reset()
     } catch {
       registerForm.setError("root", { message: "Error al registrarse" })

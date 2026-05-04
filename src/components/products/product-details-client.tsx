@@ -1,12 +1,19 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 import { useCart } from "@/components/cart-context"
+import {
+  createAnalyticsItem,
+  createEcommercePayload,
+  trackAddToCart,
+  trackRemoveFromCart,
+  trackViewItem,
+} from "@/lib/analytics"
 
 interface ProductOption {
   id: string
@@ -19,7 +26,7 @@ interface ProductVariant {
   sku: string | null
   price: number | null
   stock: number
-  options: any
+  options: Record<string, string>
   title: string | null
 }
 
@@ -27,6 +34,7 @@ interface ProductDetailsClientProps {
   product: {
     id: string
     name: string
+    categoryName?: string | null
     price: number
     comparePrice: number | null
     stock: number
@@ -70,12 +78,28 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const [quantity, setQuantity] = useState(1)
 
   const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
-  const cartItem = cart?.items.find((item: any) => 
+  const cartItem = cart?.items.find((item) => 
     item.productId === product.id && 
     (product.hasVariants ? item.variantId === selectedVariant?.id : !item.variantId)
   )
 
   const [isUpdating, setIsUpdating] = useState(false)
+
+  useEffect(() => {
+    const item = createAnalyticsItem({
+      itemId: product.id,
+      itemName: product.name,
+      price: Number(product.price),
+      quantity: 1,
+      itemCategory: product.categoryName || null,
+    })
+
+    trackViewItem(
+      createEcommercePayload([item], {
+        value: Number(product.price),
+      })
+    )
+  }, [product.categoryName, product.id, product.name, product.price])
 
   const handleUpdateCartQuantity = async (newQuantity: number) => {
     if (!cartItem) return
@@ -84,7 +108,26 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       if (window.confirm(`¿Seguro que querés eliminar este producto del carrito?`)) {
         setIsUpdating(true)
         try {
-          await fetch(`/api/cart/items/${cartItem.id}`, { method: "DELETE" })
+          const response = await fetch(`/api/cart/items/${cartItem.id}`, { method: "DELETE" })
+          if (!response.ok) {
+            throw new Error("No se pudo eliminar del carrito")
+          }
+          trackRemoveFromCart(
+            createEcommercePayload([
+              createAnalyticsItem({
+                itemId: cartItem.variant?.id || product.id,
+                itemName: cartItem.variant?.title
+                  ? `${product.name} - ${cartItem.variant.title}`
+                  : product.name,
+                price: cartItem.variant?.price ?? product.price,
+                quantity: cartItem.quantity,
+                itemCategory: product.categoryName || null,
+                itemVariant: cartItem.variant?.title || null,
+              }),
+            ], {
+              value: (cartItem.variant?.price ?? product.price) * cartItem.quantity,
+            })
+          )
           await refreshCart()
         } finally {
           setIsUpdating(false)
@@ -122,6 +165,21 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           description: result?.error || "No se pudo agregar al carrito"
         })
       } else {
+        const trackedItem = createAnalyticsItem({
+          itemId: selectedVariant?.id || product.id,
+          itemName: selectedVariant?.title
+            ? `${product.name} - ${selectedVariant.title}`
+            : product.name,
+          price: currentPrice,
+          quantity,
+          itemCategory: product.categoryName || null,
+          itemVariant: selectedVariant?.title || null,
+        })
+        trackAddToCart(
+          createEcommercePayload([trackedItem], {
+            value: currentPrice * quantity,
+          })
+        )
         await refreshCart()
         router.push("/cart")
       }

@@ -13,6 +13,7 @@ export async function getCartState(userId?: string, sessionId?: string) {
             product: {
               include: {
                 images: { take: 1, orderBy: { order: "asc" } },
+                category: true,
               },
             },
             variant: true,
@@ -29,6 +30,7 @@ export async function getCartState(userId?: string, sessionId?: string) {
             product: {
               include: {
                 images: { take: 1, orderBy: { order: "asc" } },
+                category: true,
               },
             },
             variant: true,
@@ -45,7 +47,7 @@ export async function getCartState(userId?: string, sessionId?: string) {
   // Convert Decimal to number for JSON serialization
   const serializedCart = {
     ...cart,
-    items: cart.items.map((item: any) => ({
+    items: cart.items.map((item) => ({
       ...item,
       product: {
         ...item.product,

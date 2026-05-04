@@ -7,6 +7,11 @@ import { formatCurrency } from "@/lib/utils"
 import { AddToCartButton } from "@/components/add-to-cart-button"
 import { getProductsAction } from "./actions"
 import { Loader2 } from "lucide-react"
+import {
+  createAnalyticsItem,
+  createEcommercePayload,
+  trackSelectItem,
+} from "@/lib/analytics"
 
 interface Product {
   id: string
@@ -92,6 +97,21 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
             <Link
               href={`/products/${product.slug}`}
               className="block"
+              onClick={() => {
+                trackSelectItem(
+                  createEcommercePayload([
+                    createAnalyticsItem({
+                      itemId: product.id,
+                      itemName: product.name,
+                      price: Number(product.price),
+                      quantity: 1,
+                      itemCategory: product.category?.name || null,
+                    }),
+                  ], {
+                    value: Number(product.price),
+                  })
+                )
+              }}
             >
               <div className="relative aspect-square bg-muted rounded-lg mb-3 overflow-hidden">
                 {product.images[0] ? (
