@@ -69,7 +69,7 @@ export async function updateOrdersStatus(
 export async function createOrder(formData: FormData) {
   try {
     const cartId = formData.get("cartId") as string
-    const shippingMethod = formData.get("shippingMethod") as string
+    const rawShippingMethod = formData.get("shippingMethod") as string
     const paymentMethod = formData.get("paymentMethod") as string
     
     const name = formData.get("name") as string
@@ -109,6 +109,22 @@ export async function createOrder(formData: FormData) {
     // Get settings for shipping
     const settings = await db.storeSettings.findFirst()
     
+    const storePickupEnabled = settings?.storePickupEnabled !== false
+    const shippingMethod =
+      rawShippingMethod === "pickup" && !storePickupEnabled
+        ? "shipping"
+        : rawShippingMethod
+
+    if (shippingMethod !== "pickup" && shippingMethod !== "shipping") {
+      return { error: "Método de envío inválido" }
+    }
+
+    if (shippingMethod === "shipping") {
+      if (!street || !number || !city || !state || !postalCode) {
+        return { error: "Completá la dirección de entrega para continuar." }
+      }
+    }
+
     // Check minimum order amount for shipping
     const minShippingAmount = settings?.minShippingOrderAmount ? Number(settings.minShippingOrderAmount) : 0
     if (shippingMethod === "shipping" && minShippingAmount > 0 && subtotal < minShippingAmount) {
