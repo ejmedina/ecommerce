@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
@@ -232,6 +233,7 @@ export function OrdersTable({
   currentFilters 
 }: OrdersTableProps) {
   const router = useRouter()
+  const { startNavigation } = useNavigationFeedback()
   
   // Estado para filtros
   const [filters, setFilters] = useState(currentFilters)
@@ -261,11 +263,13 @@ export function OrdersTable({
   // Aplicar filtros
   const applyFilters = (newFilters: typeof filters) => {
     setFilters(newFilters)
+    startNavigation()
     router.push(buildUrl(newFilters, 1))
   }
 
   // Cambiar página
   const goToPage = (page: number) => {
+    startNavigation()
     router.push(buildUrl(filters, page))
   }
 
@@ -804,33 +808,37 @@ export function OrdersTable({
                 ${!isRouteEligible ? "opacity-70" : ""}
               `}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
                       <Checkbox
                         checked={isSelected}
                         disabled={!isRouteEligible}
                         onCheckedChange={() => toggleOrder(order.id)}
+                        className="mt-1"
                       />
-                      <div className="space-y-1">
+                      <div className="min-w-0 space-y-1">
                         <Link href={`/admin/orders/${order.id}`} className="hover:underline">
-                          <CardTitle className="text-base">{order.orderNumber}</CardTitle>
+                          <CardTitle className="break-words pr-2 text-base leading-tight sm:pr-0">
+                            {order.orderNumber}
+                          </CardTitle>
                         </Link>
                         <p className="text-xs text-muted-foreground">
                           {new Date(order.createdAt).toLocaleDateString("es-AR")}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => handlePrintOrder(order)}
+                        className="shrink-0"
                       >
                         <Printer className="mr-2 h-4 w-4" />
                         Imprimir
                       </Button>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${orderStatusColors[order.orderStatus] || "bg-gray-100 text-gray-800"}`}>
+                      <span className={`inline-flex shrink-0 rounded px-2 py-1 text-xs font-medium ${orderStatusColors[order.orderStatus] || "bg-gray-100 text-gray-800"}`}>
                         {orderStatusLabels[order.orderStatus] || order.orderStatus}
                       </span>
                     </div>

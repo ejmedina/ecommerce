@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
@@ -12,6 +13,7 @@ interface PriceProductSearchProps {
 export function PriceProductSearch({ defaultValue }: PriceProductSearchProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { startNavigation } = useNavigationFeedback()
   const [isPending, startTransition] = useTransition()
   const [value, setValue] = useState(defaultValue)
 
@@ -38,6 +40,7 @@ export function PriceProductSearch({ defaultValue }: PriceProductSearchProps) {
       const queryString = params.toString()
 
       startTransition(() => {
+        startNavigation()
         router.replace(queryString ? `/admin/products/prices?${queryString}` : "/admin/products/prices")
       })
     }, 350)
@@ -45,7 +48,7 @@ export function PriceProductSearch({ defaultValue }: PriceProductSearchProps) {
     return () => {
       window.clearTimeout(timeout)
     }
-  }, [router, searchParams, value])
+  }, [router, searchParams, startNavigation, value])
 
   return (
     <div className="relative">
