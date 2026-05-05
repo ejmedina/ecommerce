@@ -1,9 +1,6 @@
-export type DiscountType = "NONE" | "COMPARE_PRICE" | "VOLUME_FIXED"
+import { parseVolumeFixedDiscountConfig } from "@/lib/product-promotions"
 
-interface VolumeFixedDiscountConfig {
-  threshold?: number | string
-  value?: number | string
-}
+export type DiscountType = "NONE" | "COMPARE_PRICE" | "VOLUME_FIXED"
 
 export interface CartPricingItem {
   id: string
@@ -100,14 +97,4 @@ export function calculateCartPricing(items: CartPricingItem[]): PricingResult {
     totalToPay: rawSubtotal - totalDiscountValue,
     discounts: appliedDiscounts
   }
-}
-
-function parseVolumeFixedDiscountConfig(config: unknown): VolumeFixedDiscountConfig | null {
-  const parsedConfig = typeof config === "string" ? JSON.parse(config) : config
-
-  if (!parsedConfig || typeof parsedConfig !== "object" || Array.isArray(parsedConfig)) {
-    return null
-  }
-
-  return parsedConfig as VolumeFixedDiscountConfig
 }

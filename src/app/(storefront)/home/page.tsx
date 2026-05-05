@@ -75,6 +75,10 @@ export default async function HomePage() {
           name: p.name,
           slug: p.slug,
           price: p.price.toString(),
+          comparePrice: p.comparePrice?.toString() || null,
+          discountType: p.discountType,
+          discountConfig: p.discountConfig,
+          hasVariants: p.hasVariants,
           images: p.images,
         }))}
         enabled={settings.bestSellersEnabled ?? false}
