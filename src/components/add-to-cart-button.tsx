@@ -21,7 +21,7 @@ export function AddToCartButton({
 }: AddToCartButtonProps) {
   const [isPending, startTransition] = useTransition()
   const [isUpdating, setIsUpdating] = useState(false)
-  const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
+  const { cart, refreshCart, setIsOpen, updateItemQuantityOptimistic } = useCart()
   const { toast } = useToast()
 
   const cartItem = cart?.items.find((item: { productId: string; variantId: string | null }) => item.productId === productId && !item.variantId)
@@ -52,6 +52,7 @@ export function AddToCartButton({
         })
 
         await refreshCart()
+        setIsOpen(true)
       } catch (error) {
         toast({
           title: "Error",
