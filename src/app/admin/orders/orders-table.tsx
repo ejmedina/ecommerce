@@ -482,25 +482,47 @@ export function OrdersTable({
       )
       .join("")
 
-    const notesHtml = order.customerNotes
-      ? `<p><strong>Notas:</strong> ${escapeHtml(order.customerNotes)}</p>`
+    const customerNotesHtml = order.customerNotes
+      ? `<div class="field wide"><span>Notas</span><strong>${escapeHtml(order.customerNotes)}</strong></div>`
       : ""
+
+    const customerDetails = [
+      ["Pedido", order.orderNumber],
+      ["Fecha", new Date(order.createdAt).toLocaleDateString("es-AR")],
+      ["Estado", orderStatusLabels[order.orderStatus] || order.orderStatus],
+      ["Total", formatOrderCurrency(order.total)],
+      ["Pago", paymentStatusLabels[order.paymentStatus] || order.paymentStatus],
+      ["Medio", paymentMethodLabels[order.paymentMethod] || order.paymentMethod],
+      ["Cliente", order.user.name || order.user.email],
+      ["Email", order.user.email],
+      ["Teléfono", order.user.phone || "N/A"],
+      ["Modalidad", order.shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"],
+      [
+        "Dirección",
+        order.shippingMethod === "pickup"
+          ? "N/A"
+          : address?.streetLine || "Sin domicilio cargado",
+      ],
+      [
+        "Localidad",
+        order.shippingMethod === "pickup"
+          ? "N/A"
+          : address?.localityLine || "Sin domicilio cargado",
+      ],
+    ]
+
+    const customerDetailsHtml = customerDetails
+      .map(([label, value]) => `
+        <div class="field">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `)
+      .join("")
 
     const instructionsHtml = address?.instructions
-      ? `<p><strong>Indicaciones:</strong> ${escapeHtml(address.instructions)}</p>`
+      ? `<div class="field wide"><span>Indicaciones</span><strong>${escapeHtml(address.instructions)}</strong></div>`
       : ""
-
-    const shippingHtml =
-      order.shippingMethod === "pickup"
-        ? `<p><strong>Modalidad:</strong> Retiro en tienda</p>`
-        : address
-          ? `
-            <p><strong>Modalidad:</strong> Envío a domicilio</p>
-            <p><strong>Dirección:</strong> ${escapeHtml(address.streetLine)}</p>
-            <p><strong>Localidad:</strong> ${escapeHtml(address.localityLine)}</p>
-            ${instructionsHtml}
-          `
-          : `<p><strong>Modalidad:</strong> Envío a domicilio</p><p><strong>Dirección:</strong> Sin domicilio cargado</p>`
 
     printWindow.document.write(`
       <html>
@@ -511,12 +533,19 @@ export function OrdersTable({
             h1 { font-size: 24px; margin-bottom: 6px; }
             .meta { font-size: 14px; color: #555; margin-bottom: 24px; border-bottom: 2px solid #333; padding-bottom: 10px; }
             .sheet { border: 1px solid #000; padding: 16px; }
-            .header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 14px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            .section-title { font-size: 16px; font-weight: 700; margin: 0 0 10px; }
+            .details { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 10px; border-bottom: 1px solid #ddd; padding-bottom: 14px; margin-bottom: 16px; }
+            .field { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+            .field span { color: #555; font-size: 13px; }
+            .field strong { font-size: 14px; overflow-wrap: anywhere; }
+            .field.wide { grid-column: 1 / -1; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
             th, td { border-bottom: 1px solid #ddd; padding: 8px 0; text-align: left; vertical-align: top; }
+            th:first-child, td:first-child { padding-right: 12px; }
             th { font-size: 12px; color: #555; }
             .num { text-align: right; white-space: nowrap; }
+            .item-col { width: auto; }
+            .price-col { width: 110px; }
             p { margin: 0 0 8px; }
             @media print {
               body { padding: 0; }
@@ -529,40 +558,23 @@ export function OrdersTable({
             Generado el ${new Date().toLocaleString("es-AR")}
           </div>
           <div class="sheet">
-            <div class="header">
-              <div>
-                <p><strong>Pedido:</strong> ${escapeHtml(order.orderNumber)}</p>
-                <p><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
-                <p><strong>Estado:</strong> ${escapeHtml(orderStatusLabels[order.orderStatus] || order.orderStatus)}</p>
-              </div>
-              <div>
-                <p><strong>Total:</strong> ${formatOrderCurrency(order.total)}</p>
-                <p><strong>Pago:</strong> ${escapeHtml(paymentStatusLabels[order.paymentStatus] || order.paymentStatus)}</p>
-                <p><strong>Medio:</strong> ${escapeHtml(paymentMethodLabels[order.paymentMethod] || order.paymentMethod)}</p>
-              </div>
+            <p class="section-title">Datos del pedido y cliente</p>
+            <div class="details">
+              ${customerDetailsHtml}
+              ${instructionsHtml}
+              ${customerNotesHtml}
             </div>
-            <div class="grid">
-              <div>
-                <p><strong>Cliente:</strong> ${escapeHtml(order.user.name || order.user.email)}</p>
-                <p><strong>Email:</strong> ${escapeHtml(order.user.email)}</p>
-                <p><strong>Teléfono:</strong> ${escapeHtml(order.user.phone || "N/A")}</p>
-                ${shippingHtml}
-                ${notesHtml}
-              </div>
-              <div>
-                <p><strong>Productos:</strong></p>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th class="num">Unitario</th>
-                      <th class="num">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>${itemsList}</tbody>
-                </table>
-              </div>
-            </div>
+            <p class="section-title">Productos</p>
+            <table>
+              <thead>
+                <tr>
+                  <th class="item-col">Item</th>
+                  <th class="num price-col">Unitario</th>
+                  <th class="num price-col">Total</th>
+                </tr>
+              </thead>
+              <tbody>${itemsList}</tbody>
+            </table>
           </div>
           <script>
             window.onload = function() {

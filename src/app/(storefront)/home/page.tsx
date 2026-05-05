@@ -31,14 +31,7 @@ export default async function HomePage() {
       COALESCE(SUM(
         CASE
           WHEN o."id" IS NOT NULL
-            AND o."orderStatus" <> 'CANCELLED'
-            AND (
-              o."paymentStatus" IN ('PAID', 'AUTHORIZED')
-              OR (
-                o."paymentMethod" IN ('CASH_ON_DELIVERY', 'CARD_ON_DELIVERY', 'TRANSFER_ON_DELIVERY')
-                AND o."orderStatus" IN ('CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'OUT_FOR_DELIVERY', 'DELIVERED')
-              )
-            )
+            AND o."orderStatus" IN ('CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'OUT_FOR_DELIVERY', 'DELIVERED')
           THEN oi."quantityOrdered"
           ELSE 0
         END
