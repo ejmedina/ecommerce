@@ -35,6 +35,7 @@ export function FloatingCart() {
   const rawSubtotal = pricingResult?.rawSubtotal || 0
   const totalToPay = pricingResult?.totalToPay || 0
   const appliedDiscounts = pricingResult?.discounts || []
+  const minShippingOrderAmount = Number(settings?.minShippingOrderAmount || 0)
 
   return (
     <>
@@ -70,7 +71,10 @@ export function FloatingCart() {
             </div>
           ) : (
             <div className="space-y-4">
-              {cart.items.map((item) => (
+              {cart.items.map((item) => {
+                const itemPrice = item.variant?.price ?? item.product.price
+
+                return (
                 <div
                   key={item.id}
                   className="flex gap-3 p-3 border rounded-lg"
@@ -101,8 +105,13 @@ export function FloatingCart() {
                     >
                       {item.product.name}
                     </Link>
+                    {item.variant?.title && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {item.variant.title}
+                      </p>
+                    )}
                     <p className="text-sm font-semibold mt-1">
-                      {formatCurrency(Number(item.product.price))}
+                      {formatCurrency(itemPrice)}
                     </p>
 
                     {/* Quantity Controls */}
@@ -130,7 +139,8 @@ export function FloatingCart() {
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -158,11 +168,11 @@ export function FloatingCart() {
             </div>
 
             {/* Minimum Order Warning */}
-            {settings?.minShippingOrderAmount > 0 && rawSubtotal < settings.minShippingOrderAmount && (
+            {minShippingOrderAmount > 0 && rawSubtotal < minShippingOrderAmount && (
               <div className="space-y-2">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
                   <p className="font-medium">Mínimo para envío a domicilio</p>
-                  <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
+                  <p>Te faltan <strong>{formatCurrency(minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(minShippingOrderAmount)}.</p>
                 </div>
                 <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
                   <p className="font-medium">También podés retirar en tienda</p>

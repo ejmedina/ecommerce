@@ -1,3 +1,5 @@
+import { parseVolumeFixedDiscountConfig } from "@/lib/product-promotions"
+
 export type DiscountType = "NONE" | "COMPARE_PRICE" | "VOLUME_FIXED"
 
 export interface CartPricingItem {
@@ -9,7 +11,7 @@ export interface CartPricingItem {
     name: string
     price: number
     discountType?: string | null
-    discountConfig?: any | null
+    discountConfig?: unknown
   }
   variant?: {
     price: number | null
@@ -35,7 +37,7 @@ export function calculateCartPricing(items: CartPricingItem[]): PricingResult {
     name: string
     quantity: number
     discountType: DiscountType
-    discountConfig: any
+    discountConfig: unknown
   }> = {}
 
   for (const item of items) {
@@ -68,9 +70,8 @@ export function calculateCartPricing(items: CartPricingItem[]): PricingResult {
   // Evaluar promociones por agrupación
   for (const [productId, group] of Object.entries(productGroups)) {
     if (group.discountType === "VOLUME_FIXED" && group.discountConfig) {
-      const config = typeof group.discountConfig === "string" 
-        ? JSON.parse(group.discountConfig) 
-        : group.discountConfig
+      const config = parseVolumeFixedDiscountConfig(group.discountConfig)
+      if (!config) continue
         
       const threshold = Number(config.threshold) || 2
       const value = Number(config.value) || 0

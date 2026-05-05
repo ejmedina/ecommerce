@@ -53,6 +53,10 @@ interface CheckoutStepsProps {
         images: { url: string }[]
         stock: number
       }
+      variant?: {
+        title?: string | null
+        price?: number | null
+      } | null
     }[]
   }
   settings: {
@@ -827,7 +831,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
             </CardHeader>
             <CardContent className="space-y-4 flex-1">
               <div className="space-y-3">
-                {cart.items.map((item) => (
+                {cart.items.map((item) => {
+                  const itemPrice = item.variant?.price ?? Number(item.product.price)
+
+                  return (
                   <div key={item.id} className="flex gap-3">
                     <div className="w-16 h-16 rounded bg-muted overflow-hidden shrink-0">
                       {item.product.images[0] ? (
@@ -838,11 +845,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
+                      {item.variant?.title && (
+                        <p className="text-xs text-muted-foreground">{item.variant.title}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
-                      <p className="text-sm font-semibold">{formatCurrency(Number(item.product.price) * item.quantity)}</p>
+                      <p className="text-sm font-semibold">{formatCurrency(itemPrice * item.quantity)}</p>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               <Separator />

@@ -3,6 +3,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { db } from "@/lib/db"
 import { ProductDetailsClient } from "@/components/products/product-details-client"
+import { formatCurrency } from "@/lib/utils"
+import { getProductPromotions, parseVolumeFixedDiscountConfig } from "@/lib/product-promotions"
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -64,6 +66,17 @@ export default async function ProductPage({ params }: Props) {
     notFound()
   }
 
+  const promotions = getProductPromotions({
+    price: Number(product.price),
+    comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+    discountType: product.discountType,
+    discountConfig: product.discountConfig,
+    hasVariants: product.hasVariants,
+  })
+  const volumeDiscountConfig = product.discountType === "VOLUME_FIXED"
+    ? parseVolumeFixedDiscountConfig(product.discountConfig)
+    : null
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid md:grid-cols-2 gap-8">
@@ -80,6 +93,18 @@ export default async function ProductPage({ params }: Props) {
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
+                {promotions.length > 0 && (
+                  <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-col gap-2">
+                    {promotions.slice(0, 2).map((promotion) => (
+                      <span
+                        key={promotion.type}
+                        className="w-fit rounded bg-primary px-3 py-1.5 text-xs font-semibold leading-none text-primary-foreground shadow-sm"
+                      >
+                        {promotion.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               {product.images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto">
@@ -115,39 +140,33 @@ export default async function ProductPage({ params }: Props) {
             {product.sku && (
               <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
             )}
+            {promotions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {promotions.map((promotion) => (
+                  <span
+                    key={promotion.type}
+                    className="rounded border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                  >
+                    {promotion.detail || promotion.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {product.discountType === "VOLUME_FIXED" && product.discountConfig && (
-            (() => {
-              try {
-                const config = typeof product.discountConfig === "string" 
-                  ? JSON.parse(product.discountConfig) 
-                  : product.discountConfig;
-                  
-                if (config?.threshold && config?.value) {
-                  return (
-                    <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg my-4 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-green-500 rounded-full opacity-10"></div>
-                      <div className="flex items-start gap-3 relative z-10">
-                        <div className="bg-green-100 p-2 rounded-full mt-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg mb-1">Promo por volumen</h3>
-                          <p className="text-sm">
-                            ¡Llevá <span className="font-bold">{config.threshold} unidades</span> y descontamos <span className="font-bold inline-block bg-green-200 px-1.5 py-0.5 rounded text-green-900">${config.value}</span> de tu carrito final!
-                          </p>
-                          <p className="text-xs mt-1 text-green-700/80">Válido combinando colores y talles del mismo producto.</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-              } catch {
-                return null;
-              }
-              return null;
-            })()
+          {volumeDiscountConfig?.threshold && volumeDiscountConfig?.value && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-primary">
+              <h3 className="mb-1 text-lg font-bold">Promo por cantidad</h3>
+              <p className="text-sm">
+                Llevá <span className="font-bold">{volumeDiscountConfig.threshold} unidades</span> y descontamos{" "}
+                <span className="font-bold">{formatCurrency(Number(volumeDiscountConfig.value))}</span> del carrito.
+              </p>
+              {product.hasVariants && (
+                <p className="mt-1 text-xs font-medium">
+                  Válido combinando variantes del mismo producto.
+                </p>
+              )}
+            </div>
           )}
 
           <ProductDetailsClient 

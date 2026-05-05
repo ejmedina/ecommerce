@@ -39,6 +39,8 @@ interface OrderItem {
   productId: string
   name: string
   quantity: number
+  price: number
+  unitTotal: number
 }
 
 interface Order {
@@ -186,6 +188,10 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
+}
+
+function formatOrderCurrency(value: number) {
+  return `$${Number(value).toLocaleString("es-AR")}`
 }
 
 function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boolean) {
@@ -468,7 +474,11 @@ export function OrdersTable({
     const itemsList = order.items
       .map(
         (item) =>
-          `<li>${item.quantity}x ${escapeHtml(item.name)}</li>`
+          `<tr>
+            <td>${item.quantity}x ${escapeHtml(item.name)}</td>
+            <td class="num">${formatOrderCurrency(item.price)}</td>
+            <td class="num"><strong>${formatOrderCurrency(item.unitTotal)}</strong></td>
+          </tr>`
       )
       .join("")
 
@@ -503,7 +513,10 @@ export function OrdersTable({
             .sheet { border: 1px solid #000; padding: 16px; }
             .header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 14px; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            ul { margin: 0; padding-left: 18px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border-bottom: 1px solid #ddd; padding: 8px 0; text-align: left; vertical-align: top; }
+            th { font-size: 12px; color: #555; }
+            .num { text-align: right; white-space: nowrap; }
             p { margin: 0 0 8px; }
             @media print {
               body { padding: 0; }
@@ -523,7 +536,7 @@ export function OrdersTable({
                 <p><strong>Estado:</strong> ${escapeHtml(orderStatusLabels[order.orderStatus] || order.orderStatus)}</p>
               </div>
               <div>
-                <p><strong>Total:</strong> $${Number(order.total).toLocaleString("es-AR")}</p>
+                <p><strong>Total:</strong> ${formatOrderCurrency(order.total)}</p>
                 <p><strong>Pago:</strong> ${escapeHtml(paymentStatusLabels[order.paymentStatus] || order.paymentStatus)}</p>
                 <p><strong>Medio:</strong> ${escapeHtml(paymentMethodLabels[order.paymentMethod] || order.paymentMethod)}</p>
               </div>
@@ -538,7 +551,16 @@ export function OrdersTable({
               </div>
               <div>
                 <p><strong>Productos:</strong></p>
-                <ul>${itemsList}</ul>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th class="num">Unitario</th>
+                      <th class="num">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>${itemsList}</tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -656,23 +678,23 @@ export function OrdersTable({
       {orders.length > 0 && (
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="py-3">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
                 <Checkbox
                   checked={selectedOrders.size > 0 && selectedOrders.size === routeEligibleOrderIds.size}
                   onCheckedChange={toggleAll}
                   disabled={routeEligibleOrderIds.size === 0}
                 />
-                <span className="text-sm">
+                <span className="text-sm leading-tight">
                   Seleccionar ruta ({selectedOrders.size} de {routeEligibleOrderIds.size})
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
                 {/* Acciones masivas */}
                 {selectedOrders.size > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" disabled={isLoading}>
+                      <Button variant="outline" disabled={isLoading} className="w-full whitespace-nowrap px-3 sm:w-auto">
                         Acciones ({selectedOrders.size}) ▼
                       </Button>
                     </DropdownMenuTrigger>
@@ -693,6 +715,7 @@ export function OrdersTable({
                     <Button 
                       variant="outline" 
                       disabled={selectedOrders.size === 0}
+                      className="w-full whitespace-nowrap px-3 sm:w-auto"
                     >
                       📦 Stock ({selectedOrders.size})
                     </Button>
@@ -735,7 +758,7 @@ export function OrdersTable({
                 {/* Crear Hoja de Ruta */}
                 <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button disabled={selectedOrders.size === 0}>
+                    <Button disabled={selectedOrders.size === 0} className="w-full whitespace-nowrap px-3 sm:w-auto">
                       📋 Ruta ({selectedOrders.size})
                     </Button>
                   </DialogTrigger>
@@ -845,7 +868,7 @@ export function OrdersTable({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+                  <div className="grid gap-4 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <div className="space-y-2">
                       <p className="font-medium">
                         {order.user.name || order.user.email}
@@ -854,55 +877,67 @@ export function OrdersTable({
                       {order.user.phone ? (
                         <p className="text-muted-foreground">{order.user.phone}</p>
                       ) : null}
-                      <div className="rounded-md border bg-muted/30 p-3">
-                        <p className="font-medium">
-                          {order.shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"}
-                        </p>
-                        {order.shippingMethod !== "pickup" ? (
-                          formattedAddress ? (
-                            <>
-                              <p className="text-muted-foreground">{formattedAddress.streetLine}</p>
-                              <p className="text-muted-foreground">{formattedAddress.localityLine}</p>
-                              {formattedAddress.instructions ? (
-                                <p className="text-muted-foreground">Indicaciones: {formattedAddress.instructions}</p>
-                              ) : null}
-                            </>
-                          ) : (
-                            <p className="text-muted-foreground">Sin domicilio de entrega</p>
-                          )
-                        ) : null}
-                      </div>
-                      {!isRouteEligible && (
-                        <p className="mt-1 text-xs text-orange-600">
-                          No apto para hoja de ruta: {routeIneligibilityReason || "pendiente de validación"}
-                        </p>
-                      )}
                     </div>
-                    <div className="space-y-2">
-                      <p className="font-medium">Items del pedido</p>
-                      <ul className="space-y-1 text-muted-foreground">
-                        {order.items.map((item) => (
-                          <li key={item.id}>
-                            {item.quantity}x {item.name}
-                          </li>
-                        ))}
-                      </ul>
-                      {order.customerNotes ? (
-                        <p className="text-xs text-muted-foreground">
-                          Nota: {order.customerNotes}
-                        </p>
+                    <div className="rounded-md border bg-muted/30 p-3">
+                      <p className="font-medium">
+                        {order.shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"}
+                      </p>
+                      {order.shippingMethod !== "pickup" ? (
+                        formattedAddress ? (
+                          <>
+                            <p className="text-muted-foreground">{formattedAddress.streetLine}</p>
+                            <p className="text-muted-foreground">{formattedAddress.localityLine}</p>
+                            {formattedAddress.instructions ? (
+                              <p className="text-muted-foreground">Indicaciones: {formattedAddress.instructions}</p>
+                            ) : null}
+                          </>
+                        ) : (
+                          <p className="text-muted-foreground">Sin domicilio de entrega</p>
+                        )
                       ) : null}
                     </div>
                     <div className="text-left md:text-right">
-                      <p className="font-bold">${Number(order.total).toLocaleString("es-AR")}</p>
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${paymentStatusColors[order.paymentStatus] || "bg-gray-100 text-gray-700"}`}>
+                      <p className="font-bold">{formatOrderCurrency(order.total)}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 md:justify-end">
+                        <span className={`rounded px-1.5 py-0.5 text-xs ${paymentStatusColors[order.paymentStatus] || "bg-gray-100 text-gray-700"}`}>
                           {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {paymentMethodLabels[order.paymentMethod] || order.paymentMethod}
                         </span>
                       </div>
+                    </div>
+                    <div className="space-y-2 md:col-span-3">
+                      <p className="font-medium">Items del pedido</p>
+                      <div className="rounded-md border bg-muted/30 p-3">
+                        <ul className="divide-y">
+                          {order.items.map((item) => (
+                            <li key={item.id} className="grid gap-1 py-2 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                              <div className="min-w-0">
+                                <p className="break-words text-muted-foreground">
+                                  {item.quantity}x {item.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Unitario: {formatOrderCurrency(item.price)}
+                                </p>
+                              </div>
+                              <p className="font-medium sm:text-right">
+                                {formatOrderCurrency(item.unitTotal)}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {!isRouteEligible && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          No apto para hoja de ruta: {routeIneligibilityReason || "pendiente de validación"}
+                        </p>
+                      )}
+                      {order.customerNotes ? (
+                        <p className="text-xs text-muted-foreground">
+                          Nota: {order.customerNotes}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>

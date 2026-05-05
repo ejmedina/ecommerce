@@ -41,11 +41,18 @@ export function SalesComparisonChart({
   currentCumulative,
   lastCumulative,
 }: SalesComparisonChartProps) {
+  const currentData = currentCumulative
+    .map((val, idx) => val !== null ? { val, idx } : null)
+    .filter((item): item is { val: number; idx: number } => item !== null)
+  const elapsedDays = currentData.length
+  const visibleSteps = Math.max(7, elapsedDays, 2)
+  const visibleCurrent = currentCumulative.slice(0, visibleSteps)
+  const visibleLast = lastCumulative.slice(0, visibleSteps)
+
   // Find max value for scaling
-  const totalSteps = Math.max(currentCumulative.length, lastCumulative.length, 2)
   const maxVal = Math.max(
-    ...lastCumulative,
-    ...(currentCumulative.filter(v => v !== null) as number[]),
+    ...visibleLast,
+    ...(visibleCurrent.filter(v => v !== null) as number[]),
     1000 // min scale
   )
 
@@ -53,17 +60,21 @@ export function SalesComparisonChart({
   const height = 300
   const padding = 40
 
-  const getX = (index: number) => (index / (totalSteps - 1)) * (width - padding * 2) + padding
+  const getX = (index: number) => (index / (visibleSteps - 1)) * (width - padding * 2) + padding
   const getY = (value: number) => height - padding - (value / maxVal) * (height - padding * 2)
 
   // Draw paths
-  const lastPath = lastCumulative.map((val, idx) => `${idx === 0 ? "M" : "L"} ${getX(idx)} ${getY(val)}`).join(" ")
+  const lastPath = visibleLast.map((val, idx) => `${idx === 0 ? "M" : "L"} ${getX(idx)} ${getY(val)}`).join(" ")
   
-  const filteredCurrent = currentCumulative.map((val, idx) => val !== null ? { val, idx } : null).filter(v => v !== null)
-  const currentPath = filteredCurrent.map((item, idx) => `${idx === 0 ? "M" : "L"} ${getX(item!.idx)} ${getY(item!.val)}`).join(" ")
+  const visibleCurrentData = currentData.filter((item) => item.idx < visibleSteps)
+  const currentPath = visibleCurrentData.map((item, idx) => `${idx === 0 ? "M" : "L"} ${getX(item.idx)} ${getY(item.val)}`).join(" ")
+  const currentMarkers = visibleCurrentData.filter((item, idx, items) => {
+    const previous = idx > 0 ? items[idx - 1].val : 0
+    return item.val !== previous || idx === items.length - 1
+  })
 
   // Compare today vs same day last month
-  const todayIdx = currentCumulative.filter(v => v !== null).length - 1
+  const todayIdx = elapsedDays - 1
   const todayVal = currentCumulative[todayIdx] || 0
   const lastMonthSameDayVal = lastCumulative[todayIdx] || 0
   const diff = todayVal - lastMonthSameDayVal
@@ -95,7 +106,7 @@ export function SalesComparisonChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px] w-full relative">
+        <div className="h-[340px] w-full relative">
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
             {/* Grid lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((p) => (
@@ -131,16 +142,53 @@ export function SalesComparisonChart({
               strokeLinejoin="round"
             />
 
-            {/* Points for last recorded day */}
-            {filteredCurrent.length > 0 && (
-              <circle
-                cx={getX(todayIdx)}
-                cy={getY(todayVal)}
-                r="6"
-                fill="hsl(var(--primary))"
-                className="animate-pulse"
-              />
-            )}
+            {/* Current month points with movement */}
+            {currentMarkers.map((item) => (
+              <g key={item.idx}>
+                <circle
+                  cx={getX(item.idx)}
+                  cy={getY(item.val)}
+                  r={item.idx === todayIdx ? 7 : 5}
+                  fill="white"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="4"
+                />
+                <text
+                  x={getX(item.idx)}
+                  y={Math.max(14, getY(item.val) - 14)}
+                  textAnchor="middle"
+                  className="fill-foreground text-[11px] font-semibold"
+                >
+                  D{item.idx + 1}
+                </text>
+                <text
+                  x={getX(item.idx)}
+                  y={Math.max(28, getY(item.val) - 2)}
+                  textAnchor="middle"
+                  className="fill-muted-foreground text-[10px]"
+                >
+                  {item.val.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                    notation: "compact",
+                    maximumFractionDigits: 1,
+                  })}
+                </text>
+              </g>
+            ))}
+
+            {/* X-axis day labels for the visible window */}
+            {Array.from({ length: visibleSteps }, (_, idx) => (
+              <text
+                key={idx}
+                x={getX(idx)}
+                y={height - padding + 18}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px]"
+              >
+                {idx + 1}
+              </text>
+            ))}
 
             {/* Legends */}
             <g transform={`translate(${padding}, ${height - 10})`}>
@@ -151,6 +199,9 @@ export function SalesComparisonChart({
               <text x="110" y="4" className="text-[12px] fill-muted-foreground">{currentMonthName}</text>
             </g>
           </svg>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Mostrando días 1 al {visibleSteps} para distinguir el avance real de {currentMonthName}.
+          </div>
         </div>
       </CardContent>
     </Card>

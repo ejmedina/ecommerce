@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils"
 import { AddToCartButton } from "@/components/add-to-cart-button"
 import { getProductsAction } from "./actions"
 import { Loader2 } from "lucide-react"
+import { getProductPromotions } from "@/lib/product-promotions"
 import {
   createAnalyticsItem,
   createEcommercePayload,
@@ -19,6 +20,9 @@ interface Product {
   slug: string
   price: string
   comparePrice?: string | null
+  discountType?: string | null
+  discountConfig?: unknown
+  hasVariants?: boolean
   category: { name: string } | null
   images: { url: string; alt: string | null }[]
   stock: number
@@ -92,7 +96,13 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product, index) => (
+        {products.map((product, index) => {
+          const promotions = getProductPromotions(product)
+          const visiblePromotions = promotions.slice(0, 2)
+          const price = Number(product.price)
+          const comparePrice = product.comparePrice ? Number(product.comparePrice) : null
+
+          return (
           <div key={product.id} className="group flex flex-col">
             <Link
               href={`/products/${product.slug}`}
@@ -128,13 +138,37 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
                     Sin imagen
                   </div>
                 )}
+                {visiblePromotions.length > 0 && (
+                  <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1">
+                    {visiblePromotions.map((promotion) => (
+                      <span
+                        key={promotion.type}
+                        className="w-fit rounded bg-primary px-2 py-1 text-[11px] font-semibold leading-none text-primary-foreground shadow-sm"
+                      >
+                        {promotion.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1 leading-snug">
                 {product.name}
               </h3>
-              <p className="text-lg font-semibold mt-1">
-                {formatCurrency(Number(product.price))}
-              </p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <p className="text-lg font-semibold">
+                  {formatCurrency(price)}
+                </p>
+                {comparePrice !== null && comparePrice > price && (
+                  <p className="text-sm text-muted-foreground line-through">
+                    {formatCurrency(comparePrice)}
+                  </p>
+                )}
+              </div>
+              {promotions.some((promotion) => promotion.type === "variant_combo") && (
+                <p className="mt-1 text-xs font-medium text-primary">
+                  Promo combinando variantes
+                </p>
+              )}
             </Link>
             <div className="mt-auto pt-3">
               <AddToCartButton
@@ -145,7 +179,8 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
               />
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Observer Target */}

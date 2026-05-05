@@ -4,6 +4,26 @@ import { db } from "@/lib/db"
 import { slugify } from "@/lib/utils"
 import { revalidatePath } from "next/cache"
 
+interface ParsedProductOption {
+  name: string
+  values: string[]
+}
+
+interface ParsedProductVariant {
+  id?: string
+  sku: string | null
+  price: string | number | null
+  comparePrice: string | number | null
+  stock: string | number
+  options: Record<string, string>
+  title: string | null
+  isActive?: boolean
+}
+
+function parseNumericValue(value: string | number | null | undefined, fallback: number) {
+  return value ? Number(value) : fallback
+}
+
 export async function createProduct(formData: FormData) {
   try {
     const name = formData.get("name") as string
@@ -20,6 +40,9 @@ export async function createProduct(formData: FormData) {
     const isActive = formData.get("isActive") === "1"
     const isFeatured = formData.get("isFeatured") === "1"
     const hasPermanentStock = formData.get("hasPermanentStock") === "1"
+    const discountType = formData.get("discountType") as string || "NONE"
+    const discountConfigJson = formData.get("discountConfig") as string | null
+    const discountConfig = discountConfigJson ? JSON.parse(discountConfigJson) : null
     
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
@@ -48,6 +71,8 @@ export async function createProduct(formData: FormData) {
         isFeatured,
         hasPermanentStock,
         hasVariants,
+        discountType,
+        discountConfig,
         publishedAt: isActive ? new Date() : null,
         ...(imageUrl && {
           images: {
@@ -57,7 +82,7 @@ export async function createProduct(formData: FormData) {
         // Create options if provided
         ...(hasVariants && optionsJson && {
           options: {
-            create: JSON.parse(optionsJson).map((opt: any, index: number) => ({
+            create: (JSON.parse(optionsJson) as ParsedProductOption[]).map((opt, index) => ({
               name: opt.name,
               values: opt.values,
               position: index,
@@ -69,14 +94,14 @@ export async function createProduct(formData: FormData) {
 
     // Create variants if provided
     if (hasVariants && variantsJson) {
-      const variantsData = JSON.parse(variantsJson)
+      const variantsData = JSON.parse(variantsJson) as ParsedProductVariant[]
       await db.productVariant.createMany({
-        data: variantsData.map((v: any) => ({
+        data: variantsData.map((v) => ({
           productId: product.id,
           sku: v.sku,
-          price: v.price ? parseFloat(v.price) : price,
-          comparePrice: v.comparePrice ? parseFloat(v.comparePrice) : null,
-          stock: parseInt(v.stock) || 0,
+          price: parseNumericValue(v.price, price),
+          comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+          stock: parseNumericValue(v.stock, 0),
           options: v.options,
           title: v.title,
           isActive: v.isActive ?? true,
@@ -112,6 +137,9 @@ export async function updateProduct(formData: FormData) {
     const isActive = formData.get("isActive") === "1"
     const isFeatured = formData.get("isFeatured") === "1"
     const hasPermanentStock = formData.get("hasPermanentStock") === "1"
+    const discountType = formData.get("discountType") as string || "NONE"
+    const discountConfigJson = formData.get("discountConfig") as string | null
+    const discountConfig = discountConfigJson ? JSON.parse(discountConfigJson) : null
 
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
@@ -134,6 +162,8 @@ export async function updateProduct(formData: FormData) {
         isFeatured,
         hasPermanentStock,
         hasVariants,
+        discountType,
+        discountConfig,
         publishedAt: isActive ? new Date() : null,
       },
     })
@@ -141,9 +171,9 @@ export async function updateProduct(formData: FormData) {
     // Sincronizar Opciones (Borrar y Volver a crear es más simple para este caso)
     if (hasVariants && optionsJson) {
       await db.productOption.deleteMany({ where: { productId: id } })
-      const optionsData = JSON.parse(optionsJson)
+      const optionsData = JSON.parse(optionsJson) as ParsedProductOption[]
       await db.productOption.createMany({
-        data: optionsData.map((opt: any, index: number) => ({
+        data: optionsData.map((opt, index) => ({
           productId: id,
           name: opt.name,
           values: opt.values,
@@ -156,11 +186,8 @@ export async function updateProduct(formData: FormData) {
 
     // Sincronizar Variantes
     if (hasVariants && variantsJson) {
-      const variantsData = JSON.parse(variantsJson)
-      
-      // Obtenemos variantes actuales para saber qué borrar
-      const currentVariants = await db.productVariant.findMany({ where: { productId: id } })
-      const newVariantIds = variantsData.map((v: any) => v.id).filter(Boolean)
+      const variantsData = JSON.parse(variantsJson) as ParsedProductVariant[]
+      const newVariantIds = variantsData.flatMap((v) => v.id ? [v.id] : [])
       
       // Borramos las que ya no están
       await db.productVariant.deleteMany({
@@ -177,9 +204,9 @@ export async function updateProduct(formData: FormData) {
             where: { id: v.id },
             data: {
               sku: v.sku,
-              price: v.price ? parseFloat(v.price) : price,
-              comparePrice: v.comparePrice ? parseFloat(v.comparePrice) : null,
-              stock: parseInt(v.stock) || 0,
+              price: parseNumericValue(v.price, price),
+              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+              stock: parseNumericValue(v.stock, 0),
               options: v.options,
               title: v.title,
               isActive: v.isActive ?? true,
@@ -190,9 +217,9 @@ export async function updateProduct(formData: FormData) {
             data: {
               productId: id,
               sku: v.sku,
-              price: v.price ? parseFloat(v.price) : price,
-              comparePrice: v.comparePrice ? parseFloat(v.comparePrice) : null,
-              stock: parseInt(v.stock) || 0,
+              price: parseNumericValue(v.price, price),
+              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+              stock: parseNumericValue(v.stock, 0),
               options: v.options,
               title: v.title,
               isActive: v.isActive ?? true,
@@ -256,14 +283,17 @@ export async function deleteProduct(id: string) {
     revalidatePath("/products")
     
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : error
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined
+
     console.error("[DELETE_PRODUCT_ERROR]", {
       productId: id,
-      error: error?.message || error,
-      code: error?.code
+      error: message,
+      code
     })
     
-    if (error?.code === 'P2003') {
+    if (code === 'P2003') {
       return { error: "No se puede eliminar: el producto está siendo referenciado por otros registros (carritos u órdenes)." }
     }
     

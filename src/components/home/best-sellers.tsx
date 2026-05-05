@@ -3,6 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/format"
+import { getProductPromotions } from "@/lib/product-promotions"
 import {
   createAnalyticsItem,
   createEcommercePayload,
@@ -14,6 +15,10 @@ interface Product {
   name: string
   slug: string
   price: string
+  comparePrice?: string | null
+  discountType?: string | null
+  discountConfig?: unknown
+  hasVariants?: boolean
   images?: { url: string }[]
 }
 
@@ -40,7 +45,13 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-          {products.map((product) => (
+          {products.map((product) => {
+            const promotions = getProductPromotions(product)
+            const visiblePromotions = promotions.slice(0, 2)
+            const price = Number(product.price)
+            const comparePrice = product.comparePrice ? Number(product.comparePrice) : null
+
+            return (
             <Link
               key={product.id}
               href={`/products/${product.slug}`}
@@ -73,17 +84,42 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                     Sin imagen
                   </div>
                 )}
+                {visiblePromotions.length > 0 && (
+                  <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1">
+                    {visiblePromotions.map((promotion) => (
+                      <span
+                        key={promotion.type}
+                        className="w-fit rounded bg-primary px-2 py-1 text-[10px] font-semibold leading-none text-primary-foreground shadow-sm"
+                      >
+                        {promotion.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="p-3">
                 <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1 leading-snug">
                   {product.name}
                 </h3>
-                <p className="text-primary font-bold">
-                  {formatCurrency(Number(product.price))}
-                </p>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <p className="text-primary font-bold">
+                    {formatCurrency(price)}
+                  </p>
+                  {comparePrice !== null && comparePrice > price && (
+                    <p className="text-xs text-gray-500 line-through">
+                      {formatCurrency(comparePrice)}
+                    </p>
+                  )}
+                </div>
+                {promotions.some((promotion) => promotion.type === "variant_combo") && (
+                  <p className="mt-1 text-[11px] font-medium text-primary">
+                    Combinalas
+                  </p>
+                )}
               </div>
             </Link>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>
