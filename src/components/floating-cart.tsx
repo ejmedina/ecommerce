@@ -8,6 +8,65 @@ import { useCart } from "@/components/cart-context"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
+import { parseVolumeFixedDiscountConfig } from "@/lib/product-promotions"
+
+interface VolumeDiscountIncentive {
+  productId: string
+  itemId: string
+  productName: string
+  quantity: number
+  missingQuantity: number
+  threshold: number
+  savings: number
+}
+
+function getVolumeDiscountIncentives(cart: NonNullable<ReturnType<typeof useCart>["cart"]>): VolumeDiscountIncentive[] {
+  const groups = new Map<string, {
+    productId: string
+    itemId: string
+    productName: string
+    quantity: number
+    discountConfig: unknown
+  }>()
+
+  for (const item of cart.items) {
+    if (item.product.discountType !== "VOLUME_FIXED") continue
+
+    const group = groups.get(item.productId)
+    if (group) {
+      group.quantity += item.quantity
+      continue
+    }
+
+    groups.set(item.productId, {
+      productId: item.productId,
+      itemId: item.id,
+      productName: item.product.name,
+      quantity: item.quantity,
+      discountConfig: item.product.discountConfig,
+    })
+  }
+
+  return Array.from(groups.values()).flatMap((group) => {
+    const config = parseVolumeFixedDiscountConfig(group.discountConfig)
+    const threshold = Number(config?.threshold || 0)
+    const savings = Number(config?.value || 0)
+    if (threshold <= 1 || savings <= 0) return []
+
+    const remainder = group.quantity % threshold
+    if (remainder === 0) return []
+
+    return [{
+      productId: group.productId,
+      itemId: group.itemId,
+      productName: group.productName,
+      quantity: group.quantity,
+      missingQuantity: threshold - remainder,
+      threshold,
+      savings,
+    }]
+  })
+}
 
 export function FloatingCart() {
   const { cart, isOpen, setIsOpen, refreshCart, pricingResult, settings, updateItemQuantityOptimistic, isSyncing } = useCart()
@@ -36,6 +95,7 @@ export function FloatingCart() {
   const totalToPay = pricingResult?.totalToPay || 0
   const appliedDiscounts = pricingResult?.discounts || []
   const minShippingOrderAmount = Number(settings?.minShippingOrderAmount || 0)
+  const volumeDiscountIncentives = cart ? getVolumeDiscountIncentives(cart) : []
 
   return (
     <>
@@ -99,7 +159,7 @@ export function FloatingCart() {
                   {/* Details */}
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/products/${item.product.id}`}
+                      href={`/products/${item.product.slug || item.product.id}`}
                       className="font-medium text-sm truncate block hover:underline"
                       onClick={() => setIsOpen(false)}
                     >
@@ -141,6 +201,34 @@ export function FloatingCart() {
                 </div>
                 )
               })}
+
+              {volumeDiscountIncentives.length > 0 && (
+                <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-950">
+                  <p className="font-semibold">Promos por cantidad disponibles</p>
+                  {volumeDiscountIncentives.map((incentive) => (
+                    <div key={incentive.productId} className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium leading-snug">{incentive.productName}</p>
+                        <p className="text-red-800">
+                          Sumá {incentive.missingQuantity} más y ahorrá {formatCurrency(incentive.savings)}
+                          {" "}cada {incentive.threshold} unidades.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-red-200 bg-white text-red-900 hover:bg-red-100"
+                        onClick={() => {
+                          updateQuantity(incentive.itemId, incentive.quantity + incentive.missingQuantity)
+                        }}
+                      >
+                        Sumar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

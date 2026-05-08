@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
@@ -46,7 +45,6 @@ interface ProductDetailsClientProps {
 }
 
 export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
-  const router = useRouter()
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState(false)
 
@@ -77,7 +75,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
   const [quantity, setQuantity] = useState(1)
 
-  const { cart, refreshCart, updateItemQuantityOptimistic } = useCart()
+  const { cart, refreshCart, setIsOpen, updateItemQuantityOptimistic } = useCart()
   const cartItem = cart?.items.find((item) => 
     item.productId === product.id && 
     (product.hasVariants ? item.variantId === selectedVariant?.id : !item.variantId)
@@ -181,7 +179,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           })
         )
         await refreshCart()
-        router.push("/cart")
+        setIsOpen(true)
       }
     } catch (error) {
       console.error("Cart error:", error)

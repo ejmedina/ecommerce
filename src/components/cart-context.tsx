@@ -19,6 +19,7 @@ interface CartItem {
     product: {
       id: string
       name: string
+      slug?: string
       price: number
       discountType?: string | null
       discountConfig?: unknown | null
