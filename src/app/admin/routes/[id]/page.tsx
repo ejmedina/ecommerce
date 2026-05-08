@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RouteSheetActions } from "./route-sheet-actions"
-import { OrderCard } from "./order-card"
+import { OrderCard, type RouteSheetOrderCardItem } from "./order-card"
 import { SortableRouteItems } from "./sortable-route-items"
 
 interface RouteSheetDetailPageProps {
@@ -16,14 +16,29 @@ interface RouteSheetDetailPageProps {
 
 export default async function RouteSheetDetailPage({ params }: RouteSheetDetailPageProps) {
   const { id } = await params
-  const [routeSheet, settings, depots, vehicles] = await Promise.all([
-    getRouteSheet(id),
-    db.storeSettings.findFirst(),
-    getDepots(),
-    getVehicles()
-  ])
+  let routeSheet: Awaited<ReturnType<typeof getRouteSheet>>
+  let settings: Awaited<ReturnType<typeof db.storeSettings.findFirst>>
+  let depots: Awaited<ReturnType<typeof getDepots>>
+  let vehicles: Awaited<ReturnType<typeof getVehicles>>
+
+  try {
+    ;[routeSheet, settings, depots, vehicles] = await Promise.all([
+      getRouteSheet(id),
+      db.storeSettings.findFirst(),
+      getDepots(),
+      getVehicles()
+    ])
+  } catch (error) {
+    console.error("[ADMIN_ROUTE_SHEET_DETAIL_LOAD_ERROR]", {
+      routeSheetId: id,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    throw error
+  }
 
   if (!routeSheet) {
+    console.warn("[ADMIN_ROUTE_SHEET_DETAIL_NOT_FOUND]", { routeSheetId: id })
     notFound()
   }
 
@@ -36,12 +51,13 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
     COMPLETED: "Finalizada",
     CANCELLED: "Cancelada",
   }
+  const routeItems = routeSheet.items as RouteSheetOrderCardItem[]
 
-  const deliveredCount = routeSheet.items.filter(
-    (item: any) => item.deliveryOutcome === "DELIVERED"
+  const deliveredCount = routeItems.filter(
+    (item) => item.deliveryOutcome === "DELIVERED"
   ).length
-  const notDeliveredCount = routeSheet.items.filter(
-    (item: any) => item.deliveryOutcome === "NOT_DELIVERED"
+  const notDeliveredCount = routeItems.filter(
+    (item) => item.deliveryOutcome === "NOT_DELIVERED"
   ).length
 
   // Serializar datos para pasar a componentes cliente
@@ -66,7 +82,7 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
             <span>•</span>
             <span>Creada por: {routeSheet.createdBy?.name || "Sistema"}</span>
             <span>•</span>
-            <span>{routeSheet.items.length} pedidos</span>
+            <span>{routeItems.length} pedidos</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -82,7 +98,7 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
         <Card>
           <CardContent className="py-4">
             <div className="text-center">
-              <p className="text-2xl font-bold">{routeSheet.items.length}</p>
+              <p className="text-2xl font-bold">{routeItems.length}</p>
               <p className="text-sm text-muted-foreground">Total pedidos</p>
             </div>
           </CardContent>
@@ -99,7 +115,7 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
           <CardContent className="py-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-yellow-600">
-                {routeSheet.items.length - deliveredCount - notDeliveredCount}
+                {routeItems.length - deliveredCount - notDeliveredCount}
               </p>
               <p className="text-sm text-muted-foreground">Pendientes</p>
             </div>
@@ -133,7 +149,7 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
           </p>
           <SortableRouteItems 
             items={routeSheet.items}
-            whatsappMessage={settings?.whatsappRouteMessage || ""}
+            whatsappMessage={whatsappMessage}
             storeName={settings?.storeName || "Mi Tienda"}
             depots={depots}
             vehicles={vehicles}
@@ -147,13 +163,13 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
             Vista optimizada para usar durante la entrega.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
-            {routeSheet.items.map((item: any, index: number) => (
+            {routeItems.map((item, index) => (
               <OrderCard
                 key={item.id}
                 item={item}
                 index={index}
                 mode="delivery"
-                totalItems={routeSheet.items.length}
+                totalItems={routeItems.length}
                 whatsappMessage={whatsappMessage}
                 storeName={settings?.storeName || "Mi Tienda"}
               />

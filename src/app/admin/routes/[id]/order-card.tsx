@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState, useTransition, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { 
@@ -49,9 +49,9 @@ interface OrderCardProps {
     order: {
       id: string
       orderNumber: string
-      total: any
+      total: number | string
       orderStatus: string
-      shippingAddress: any
+      shippingAddress: ShippingAddress | null
       user: {
         name: string | null
         email: string
@@ -81,24 +81,56 @@ interface OrderCardProps {
   storeName?: string
 }
 
+export type RouteSheetOrderCardItem = OrderCardProps["item"]
+
+type DeliveryFailureReason = "CUSTOMER_NOT_HOME" | "WRONG_ADDRESS" | "INACCESSIBLE_LOCATION" | "CUSTOMER_REFUSED" | "OTHER"
+
+type ShippingAddress = {
+  street?: string
+  number?: string
+  floor?: string
+  apartment?: string
+  city?: string
+  state?: string
+  phone?: string
+  shippingMethod?: string
+  lat?: unknown
+  lng?: unknown
+}
+
 const failureReasons = [
   { value: "CUSTOMER_NOT_HOME", label: "No estaba el cliente" },
   { value: "WRONG_ADDRESS", label: "Domicilio incorrecto" },
   { value: "INACCESSIBLE_LOCATION", label: "Lugar inaccesible" },
   { value: "CUSTOMER_REFUSED", label: "Cliente rechazó" },
   { value: "OTHER", label: "Otro" },
-]
+] satisfies { value: DeliveryFailureReason; label: string }[]
+
+function parseCoordinate(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function getQuantity(orderItem: { quantityOrdered?: number | null; quantity?: number | null }) {
+  return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
+}
 
 export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName }: OrderCardProps) {
   const router = useRouter()
-  const shippingAddress = item.order.shippingAddress as any
+  const shippingAddress = item.order.shippingAddress
+  const latitude = parseCoordinate(shippingAddress?.lat)
+  const longitude = parseCoordinate(shippingAddress?.lng)
   const phone = item.order.user.phone || shippingAddress?.phone
   const isDelivered = item.deliveryOutcome === "DELIVERED"
   const isNotDelivered = item.deliveryOutcome === "NOT_DELIVERED"
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
   const [deliveryStatus, setDeliveryStatus] = useState<"DELIVERED" | "NOT_DELIVERED">("DELIVERED")
-  const [failureReason, setFailureReason] = useState("")
+  const [failureReason, setFailureReason] = useState<DeliveryFailureReason | "">("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
@@ -115,11 +147,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
 
   // Coordinate validation for UI highlighting
   // Range expanded slightly but strict enough to catch ocean or weird locations
-  const hasBadCoords = shippingAddress?.lat && shippingAddress?.lng && (
-    shippingAddress.lat > -10 || shippingAddress.lat < -56 || 
-    shippingAddress.lng > -30 || shippingAddress.lng < -76
+  const hasCoords = latitude !== null && longitude !== null
+  const hasBadCoords = hasCoords && (
+    latitude > -10 || latitude < -56 || 
+    longitude > -30 || longitude < -76
   )
-  const hasNoCoords = !shippingAddress?.lat || !shippingAddress?.lng
+  const hasNoCoords = !hasCoords
 
   const {
     attributes,
@@ -130,11 +163,11 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     isDragging
   } = useSortable({ id: item.id, disabled: mode !== "preparation" })
 
-  const style = {
+  const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
-    position: 'relative' as any
+    position: "relative",
   }
 
   useEffect(() => {
@@ -168,10 +201,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const handleSetDeliveryOutcome = async () => {
     if (deliveryStatus === "NOT_DELIVERED" && !failureReason) return
     setIsLoading(true)
+    const selectedFailureReason =
+      deliveryStatus === "NOT_DELIVERED" ? (failureReason as DeliveryFailureReason) : undefined
     await setDeliveryOutcome(
       item.id,
       deliveryStatus,
-      deliveryStatus === "NOT_DELIVERED" ? failureReason as any : undefined,
+      selectedFailureReason,
       deliveryNotes || undefined
     )
     setIsLoading(false)
@@ -199,6 +234,11 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
       next[index] = { ...next[index], missingReason: value }
       return next
     })
+  }
+
+  const handleFailureReasonChange = (value: string) => {
+    const reason = failureReasons.find((candidate) => candidate.value === value)
+    if (reason) setFailureReason(reason.value)
   }
 
   const saveFulfillment = async () => {
@@ -229,11 +269,6 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     } finally {
       setIsSavingFulfillment(false)
     }
-  }
-
-  // Helper para obtener cantidad total del item (usa quantityOrdered o fallback a quantity)
-  const getQuantity = (orderItem: any) => {
-    return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
   }
 
   // VISTA DE REPARTO - Formato práctica
@@ -380,7 +415,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                   {deliveryStatus === "NOT_DELIVERED" && (
                     <div className="space-y-2">
                       <Label>Motivo</Label>
-                      <Select value={failureReason} onValueChange={setFailureReason}>
+                      <Select value={failureReason} onValueChange={handleFailureReasonChange}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar motivo" />
                         </SelectTrigger>
@@ -512,10 +547,10 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                 <p className="text-sm text-muted-foreground">
                   Pedido #{item.order.orderNumber} • {formatCurrency(Number(item.order.total))}
                 </p>
-                {shippingAddress?.lat && shippingAddress?.lng && (
+                {hasCoords && (
                   <div className={`flex items-center gap-1.5 text-[11px] font-mono mt-1 ${hasBadCoords ? "text-amber-600 font-bold" : "text-muted-foreground"}`}>
                     <Globe className="h-3 w-3" />
-                    <span>GPS: {shippingAddress.lat.toFixed(6)}, {shippingAddress.lng.toFixed(6)}</span>
+                    <span>GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)}</span>
                     {hasBadCoords && <AlertTriangle className="h-3 w-3 animate-pulse" />}
                   </div>
                 )}
@@ -535,8 +570,8 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
             <div className="flex gap-2">
               <UpdateCoordinatesDialog 
                 orderId={item.order.id}
-                currentLat={shippingAddress?.lat}
-                currentLng={shippingAddress?.lng}
+                currentLat={latitude ?? undefined}
+                currentLng={longitude ?? undefined}
                 addressLabel={`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}`}
                 onUpdate={() => startTransition(() => router.refresh())}
               />
@@ -552,7 +587,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         {hasBadCoords && (
           <div className="mt-2 bg-amber-100 text-amber-800 p-2 rounded-md text-xs flex items-center gap-2 border border-amber-200">
             <AlertTriangle className="h-4 w-4" />
-            <span><strong>Ubicación detectada fuera de rango ({shippingAddress.lat}, {shippingAddress.lng}).</strong> El ruteo automático podría fallar. Por favor corrija las coordenadas manualmente.</span>
+            <span><strong>Ubicación detectada fuera de rango ({latitude}, {longitude}).</strong> El ruteo automático podría fallar. Por favor corrija las coordenadas manualmente.</span>
           </div>
         )}
         {hasNoCoords && shippingAddress?.shippingMethod !== "pickup" && (
