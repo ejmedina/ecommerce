@@ -69,6 +69,49 @@ function isRouteEligibleOrder(order: { shippingMethod: string; shippingAddress: 
   return !getRouteIneligibilityReason(order)
 }
 
+async function getRouteSheetCreatorId(sessionUser: {
+  id?: string | null
+  email?: string | null
+}) {
+  if (sessionUser.id) {
+    const userById = await db.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { id: true },
+    })
+
+    if (userById) return userById.id
+  }
+
+  if (sessionUser.email) {
+    const userByEmail = await db.user.findUnique({
+      where: { email: sessionUser.email },
+      select: { id: true },
+    })
+
+    if (userByEmail) return userByEmail.id
+  }
+
+  return null
+}
+
+function getCreateRouteSheetErrorMessage(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2003") {
+      return "No se pudo crear la hoja de ruta porque algún dato relacionado ya no existe en la base local. Actualizá la página, volvé a iniciar sesión si hace falta, y reintentá."
+    }
+
+    if (error.code === "P2002") {
+      return "No se pudo crear la hoja de ruta porque hay un dato duplicado. Actualizá la página y revisá si la ruta ya fue creada."
+    }
+  }
+
+  if (error instanceof Error && process.env.NODE_ENV !== "production") {
+    return `Error al crear la hoja de ruta: ${error.message}`
+  }
+
+  return "Error al crear la hoja de ruta"
+}
+
 // ============================================
 // CREATE ROUTE SHEET
 // ============================================
@@ -93,7 +136,16 @@ export async function createRouteSheet(
       return { error: "UNAUTHORIZED", message: "No tienes permisos para crear hojas de ruta" }
     }
     
-    const createdById = session.user.id
+    const createdById = await getRouteSheetCreatorId({
+      id: session.user.id,
+      email: session.user.email,
+    })
+
+    if (!createdById) {
+      return {
+        error: "Tu sesión no coincide con un usuario de esta base local. Cerrá sesión, volvé a entrar con un admin local y reintentá.",
+      }
+    }
 
     // Obtener pedidos - el operador decide cuáles incluir (sin filtro de estado)
     const orders = await db.order.findMany({
@@ -175,7 +227,7 @@ export async function createRouteSheet(
     return { routeSheet: serializedRouteSheet }
   } catch (error) {
     console.error("Create route sheet error:", error)
-    return { error: "Error al crear la hoja de ruta" }
+    return { error: getCreateRouteSheetErrorMessage(error) }
   }
 }
 
