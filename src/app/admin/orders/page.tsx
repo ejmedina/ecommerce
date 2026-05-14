@@ -176,9 +176,14 @@ function hasDeliveryAddress(shippingAddress: unknown) {
   return Boolean(address.street && address.number && address.city)
 }
 
+function isPickupShippingMethod(shippingMethod: string) {
+  const normalized = shippingMethod.trim().toLowerCase()
+  return normalized.includes("pickup") || normalized.includes("retiro")
+}
+
 function isRouteEligibleOrder(order: {
   shippingMethod: string
   shippingAddress: unknown
 }) {
-  return order.shippingMethod !== "pickup" && hasDeliveryAddress(order.shippingAddress)
+  return !isPickupShippingMethod(order.shippingMethod) && hasDeliveryAddress(order.shippingAddress)
 }

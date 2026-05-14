@@ -45,8 +45,28 @@ function hasDeliveryAddress(shippingAddress: Prisma.JsonValue) {
   return Boolean(address.street && address.number && address.city)
 }
 
+function isPickupShippingMethod(shippingMethod: string) {
+  const normalized = shippingMethod.trim().toLowerCase()
+  return normalized.includes("pickup") || normalized.includes("retiro")
+}
+
+function getRouteIneligibilityReason(order: {
+  shippingMethod: string
+  shippingAddress: Prisma.JsonValue
+}) {
+  if (isPickupShippingMethod(order.shippingMethod)) {
+    return "retiro en tienda"
+  }
+
+  if (!hasDeliveryAddress(order.shippingAddress)) {
+    return "sin domicilio de entrega"
+  }
+
+  return null
+}
+
 function isRouteEligibleOrder(order: { shippingMethod: string; shippingAddress: Prisma.JsonValue }) {
-  return order.shippingMethod !== "pickup" && hasDeliveryAddress(order.shippingAddress)
+  return !getRouteIneligibilityReason(order)
 }
 
 // ============================================
@@ -80,16 +100,43 @@ export async function createRouteSheet(
       where: { 
         id: { in: orderIds },
       },
+      select: {
+        id: true,
+        orderNumber: true,
+        shippingMethod: true,
+        shippingAddress: true,
+      },
     })
 
+    const missingOrderCount = orderIds.length - orders.length
+    if (missingOrderCount > 0) {
+      return { error: "Hay pedidos seleccionados que ya no existen o no están disponibles. Actualizá la página y volvé a intentar." }
+    }
+
     const routeEligibleOrders = orders.filter(isRouteEligibleOrder)
+    const ineligibleOrders = orders
+      .map((order) => ({
+        orderNumber: order.orderNumber,
+        reason: getRouteIneligibilityReason(order),
+      }))
+      .filter((order): order is { orderNumber: string; reason: string } => Boolean(order.reason))
 
     if (routeEligibleOrders.length === 0) {
       return { error: "No se encontraron pedidos con domicilio de entrega para crear la hoja de ruta" }
     }
 
-    if (routeEligibleOrders.length !== orders.length) {
-      return { error: "No se pueden agregar pedidos con retiro en tienda o sin domicilio a una hoja de ruta" }
+    if (ineligibleOrders.length > 0) {
+      const examples = ineligibleOrders
+        .slice(0, 3)
+        .map((order) => `${order.orderNumber}: ${order.reason}`)
+        .join("; ")
+      const remaining = ineligibleOrders.length > 3
+        ? ` y ${ineligibleOrders.length - 3} más`
+        : ""
+
+      return {
+        error: `No se puede crear una hoja de ruta con pedidos no aptos para reparto. Quitá de la selección: ${examples}${remaining}.`,
+      }
     }
 
     const routeSheet = await db.routeSheet.create({

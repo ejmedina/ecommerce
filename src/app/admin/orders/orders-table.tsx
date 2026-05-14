@@ -154,6 +154,11 @@ const cashOnDeliveryPaymentMethods = new Set([
   "TRANSFER_ON_DELIVERY",
 ])
 
+function isPickupShippingMethod(shippingMethod: string) {
+  const normalized = shippingMethod.trim().toLowerCase()
+  return normalized.includes("pickup") || normalized.includes("retiro")
+}
+
 function getShippingAddress(address: unknown): ShippingAddress | null {
   if (!address || typeof address !== "object" || Array.isArray(address)) return null
   return address as ShippingAddress
@@ -196,7 +201,7 @@ function formatOrderCurrency(value: number) {
 }
 
 function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boolean) {
-  if (order.shippingMethod === "pickup") {
+  if (isPickupShippingMethod(order.shippingMethod)) {
     return "retiro en tienda"
   }
 
@@ -312,6 +317,31 @@ export function OrdersTable({
   // Crear hoja de ruta
   const handleCreateRouteSheet = async () => {
     if (selectedOrders.size === 0) return
+
+    const ineligibleSelectedOrders = orders
+      .filter((order) => selectedOrders.has(order.id))
+      .map((order) => ({
+        orderNumber: order.orderNumber,
+        reason: getRouteIneligibilityReason(order, requiresPaymentToFulfill),
+      }))
+      .filter((order): order is { orderNumber: string; reason: string } => Boolean(order.reason))
+
+    if (ineligibleSelectedOrders.length > 0) {
+      const examples = ineligibleSelectedOrders
+        .slice(0, 3)
+        .map((order) => `${order.orderNumber}: ${order.reason}`)
+        .join("; ")
+      const remaining = ineligibleSelectedOrders.length > 3
+        ? ` y ${ineligibleSelectedOrders.length - 3} más`
+        : ""
+
+      setError(
+        `No se puede crear una hoja de ruta con pedidos no aptos para reparto. Quitá de la selección: ${examples}${remaining}.`
+      )
+      setCreateDialogOpen(true)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     
