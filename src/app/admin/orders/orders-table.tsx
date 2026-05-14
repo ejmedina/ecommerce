@@ -4,12 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useNavigationFeedback } from "@/components/navigation-feedback"
-import { Printer } from "lucide-react"
+import { AlertCircle, Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   Dialog, 
   DialogContent, 
@@ -277,6 +278,11 @@ export function OrdersTable({
   const goToPage = (page: number) => {
     startNavigation()
     router.push(buildUrl(filters, page))
+  }
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    setCreateDialogOpen(open)
+    setError(null)
   }
 
   // Toggle orden
@@ -768,7 +774,7 @@ export function OrdersTable({
                 </Dialog>
 
                 {/* Crear Hoja de Ruta */}
-                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
                   <DialogTrigger asChild>
                     <Button disabled={selectedOrders.size === 0} className="w-full whitespace-nowrap px-3 sm:w-auto">
                       📋 Ruta ({selectedOrders.size})
@@ -797,9 +803,16 @@ export function OrdersTable({
                       <p className="text-sm text-muted-foreground">
                         {selectedOrders.size} pedidos seleccionados
                       </p>
+                      {error ? (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>No se pudo crear la hoja de ruta</AlertTitle>
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      ) : null}
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => handleCreateDialogOpenChange(false)}>
                         Cancelar
                       </Button>
                       <Button onClick={handleCreateRouteSheet} disabled={isLoading}>
@@ -813,10 +826,6 @@ export function OrdersTable({
           </CardHeader>
         </Card>
       )}
-
-      {error ? (
-        <p className="text-sm text-red-600">{error}</p>
-      ) : null}
 
       {/* Lista de pedidos */}
       {orders.length === 0 ? (
