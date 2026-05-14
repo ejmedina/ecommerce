@@ -6,6 +6,7 @@ import Link from "next/link"
 import { getEffectiveDeliveryOutcome } from "../delivery-status"
 import { 
   reorderRouteSheetItem, 
+  removeOrderFromRouteSheet,
   setDeliveryOutcome 
 } from "@/lib/actions/route-sheet-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,7 +36,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2 } from "lucide-react"
+import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2, Trash2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
 interface OrderCardProps {
@@ -132,10 +133,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const isNotDelivered = effectiveDeliveryOutcome === "NOT_DELIVERED"
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [deliveryStatus, setDeliveryStatus] = useState<"DELIVERED" | "NOT_DELIVERED">("DELIVERED")
   const [failureReason, setFailureReason] = useState<DeliveryFailureReason | "">("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
   const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
   const [, startTransition] = useTransition()
   const [fulfillmentData, setFulfillmentData] = useState(() =>
@@ -215,6 +218,24 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
     setIsLoading(false)
     setDeliveryDialogOpen(false)
     router.refresh()
+  }
+
+  const handleRemoveFromRoute = async () => {
+    setIsRemoving(true)
+    const result = await removeOrderFromRouteSheet(item.id)
+    setIsRemoving(false)
+
+    if (result.success) {
+      setRemoveDialogOpen(false)
+      router.refresh()
+      return
+    }
+
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: result.error || "No se pudo quitar el pedido de la hoja de ruta",
+    })
   }
 
   const handleFulfilledChange = (index: number, value: string) => {
@@ -583,6 +604,36 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                   Ver pedido
                 </Button>
               </Link>
+              <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-9 text-red-600">
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    Quitar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Quitar pedido de la hoja de ruta</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2 py-2 text-sm text-muted-foreground">
+                    <p>
+                      Vas a quitar el pedido <strong>{item.order.orderNumber}</strong> de esta hoja de ruta.
+                    </p>
+                    <p>
+                      Podrás volver a agregarlo más tarde desde la lista de pedidos si hace falta.
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setRemoveDialogOpen(false)} disabled={isRemoving}>
+                      Cancelar
+                    </Button>
+                    <Button variant="destructive" onClick={handleRemoveFromRoute} disabled={isRemoving}>
+                      {isRemoving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1.5 h-4 w-4" />}
+                      Quitar pedido
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
