@@ -195,6 +195,10 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   }
 
   const encodedMessage = encodeURIComponent(getWhatsAppMessage())
+  const mapQuery = hasCoords
+    ? `${latitude},${longitude}`
+    : `${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state || ""}, Argentina`
+  const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
 
   const handleReorder = async (direction: "up" | "down") => {
     if ((direction === "up" && index === 0) || (direction === "down" && index === totalItems - 1)) {
@@ -339,7 +343,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
               <p className="font-medium text-sm">{displayAddress}</p>
               {shippingAddress?.shippingMethod !== "pickup" && (
                 <a 
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state || ''}, Argentina`)}`}
+                  href={mapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0"
@@ -572,11 +576,16 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                   Pedido #{item.order.orderNumber} • {formatCurrency(Number(item.order.total))}
                 </p>
                 {hasCoords && (
-                  <div className={`flex items-center gap-1.5 text-[11px] font-mono mt-1 ${hasBadCoords ? "text-amber-600 font-bold" : "text-muted-foreground"}`}>
+                  <a
+                    href={mapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`mt-1 inline-flex items-center gap-1.5 text-[11px] font-mono hover:underline ${hasBadCoords ? "text-amber-600 font-bold" : "text-muted-foreground"}`}
+                  >
                     <Globe className="h-3 w-3" />
                     <span>GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)}</span>
                     {hasBadCoords && <AlertTriangle className="h-3 w-3 animate-pulse" />}
-                  </div>
+                  </a>
                 )}
               </div>
             </div>
@@ -660,7 +669,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           </div>
           {shippingAddress?.shippingMethod !== "pickup" && (
             <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state || ''}, Argentina`)}`}
+              href={mapsLink}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1"
