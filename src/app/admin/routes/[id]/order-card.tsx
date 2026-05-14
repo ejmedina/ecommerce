@@ -51,6 +51,7 @@ interface OrderCardProps {
       orderNumber: string
       total: number | string
       orderStatus: string
+      customerNotes?: string | null
       shippingAddress: ShippingAddress | null
       user: {
         name: string | null

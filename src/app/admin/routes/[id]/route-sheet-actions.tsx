@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { 
   updateRouteSheetStatus, 
   updateRouteSheet,
-  removeOrderFromRouteSheet 
 } from "@/lib/actions/route-sheet-actions"
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
@@ -20,29 +19,30 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { type RouteSheetOrderCardItem } from "./order-card"
+
+type RouteSheetWorkflowStatus =
+  | "DRAFT"
+  | "IN_PREPARATION"
+  | "IN_DELIVERY"
+  | "COMPLETED"
+  | "CANCELLED"
 
 interface RouteSheetActionsProps {
   routeSheet: {
     id: string
     name: string
-    date: Date
+    date: Date | string
     notes: string | null
     status: string
   }
+  showWorkflowAction?: boolean
 }
 
-const statusFlow = {
+const statusFlow: Partial<Record<RouteSheetWorkflowStatus, RouteSheetWorkflowStatus>> = {
   DRAFT: "IN_PREPARATION",
   IN_PREPARATION: "IN_DELIVERY",
   IN_DELIVERY: "COMPLETED",
-}
-
-const statusLabels: Record<string, string> = {
-  DRAFT: "Borrador",
-  IN_PREPARATION: "En preparación",
-  IN_DELIVERY: "En reparto",
-  COMPLETED: "Finalizada",
-  CANCELLED: "Cancelada",
 }
 
 const nextStatusLabels: Record<string, string> = {
@@ -52,22 +52,28 @@ const nextStatusLabels: Record<string, string> = {
 }
 
 type RouteSheetWithItems = RouteSheetActionsProps["routeSheet"] & {
-  items: any[]
+  items: RouteSheetOrderCardItem[]
 }
 
-export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithItems }) {
+export function RouteSheetActions({
+  routeSheet,
+  showWorkflowAction = true,
+}: {
+  routeSheet: RouteSheetWithItems
+  showWorkflowAction?: boolean
+}) {
   const router = useRouter()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [name, setName] = useState(routeSheet.name)
   const [notes, setNotes] = useState(routeSheet.notes || "")
   const [isLoading, setIsLoading] = useState(false)
 
-  const nextStatus = statusFlow[routeSheet.status as keyof typeof statusFlow]
+  const nextStatus = statusFlow[routeSheet.status as RouteSheetWorkflowStatus]
 
   const handleStatusChange = async () => {
     if (!nextStatus) return
     setIsLoading(true)
-    const result = await updateRouteSheetStatus(routeSheet.id, nextStatus as any)
+    const result = await updateRouteSheetStatus(routeSheet.id, nextStatus)
     setIsLoading(false)
     if (result.success) {
       router.refresh()
@@ -100,7 +106,7 @@ export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithIt
     const ordersHtml = routeSheet.items.map((item, index) => {
       const order = item.order
       const address = order.shippingAddress
-      const itemsList = order.items.map((oi: any) => 
+      const itemsList = order.items.map((oi) =>
         `<li>${oi.quantityOrdered}x ${oi.name}</li>`
       ).join('')
 
@@ -114,8 +120,8 @@ export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithIt
             <div>
               <p><strong>Cliente:</strong> ${order.user.name || 'Invitado'}</p>
               <p><strong>Teléfono:</strong> ${order.user.phone || 'N/A'}</p>
-              <p><strong>Dirección:</strong> ${address.street} ${address.number} ${address.floor ? ', Piso ' + address.floor : ''} ${address.apartment ? ', Depto ' + address.apartment : ''}</p>
-              <p><strong>Localidad:</strong> ${address.city}, ${address.state}</p>
+              <p><strong>Dirección:</strong> ${address?.street || ''} ${address?.number || ''} ${address?.floor ? ', Piso ' + address.floor : ''} ${address?.apartment ? ', Depto ' + address.apartment : ''}</p>
+              <p><strong>Localidad:</strong> ${address?.city || ''}, ${address?.state || ''}</p>
               ${order.customerNotes ? `<p><strong>Notas:</strong> ${order.customerNotes}</p>` : ''}
             </div>
             <div>
@@ -206,7 +212,7 @@ export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithIt
       </Dialog>
 
       {/* Next Status Button */}
-      {nextStatus && (
+      {showWorkflowAction && nextStatus && (
         <Button onClick={handleStatusChange} disabled={isLoading} className="whitespace-normal text-center sm:whitespace-nowrap">
           {nextStatusLabels[routeSheet.status]}
         </Button>
