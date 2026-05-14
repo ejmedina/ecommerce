@@ -163,11 +163,11 @@ export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithIt
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex max-w-full flex-wrap items-center gap-2">
       {/* Edit Button */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="whitespace-nowrap">
             Editar
           </Button>
         </DialogTrigger>
@@ -207,20 +207,20 @@ export function RouteSheetActions({ routeSheet }: { routeSheet: RouteSheetWithIt
 
       {/* Next Status Button */}
       {nextStatus && (
-        <Button onClick={handleStatusChange} disabled={isLoading}>
+        <Button onClick={handleStatusChange} disabled={isLoading} className="whitespace-normal text-center sm:whitespace-nowrap">
           {nextStatusLabels[routeSheet.status]}
         </Button>
       )}
 
       {/* Cancel Button (only if not completed or cancelled) */}
       {routeSheet.status !== "COMPLETED" && routeSheet.status !== "CANCELLED" && (
-        <Button variant="destructive" size="sm" onClick={handleCancel} disabled={isLoading}>
+        <Button variant="destructive" size="sm" onClick={handleCancel} disabled={isLoading} className="whitespace-nowrap">
           Cancelar
         </Button>
       )}
 
       {/* Print Button */}
-      <Button variant="outline" size="sm" onClick={handlePrint} className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={handlePrint} className="flex items-center gap-2 whitespace-nowrap">
         <Printer className="h-4 w-4" />
         Imprimir
       </Button>

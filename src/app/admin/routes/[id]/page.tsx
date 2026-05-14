@@ -71,13 +71,13 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
           <Link href="/admin/routes" className="text-sm text-muted-foreground hover:underline">
             ← Volver a Hojas de Ruta
           </Link>
           <h1 className="text-2xl font-semibold mt-1">{routeSheet.name}</h1>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span>Fecha: {new Date(routeSheet.date).toLocaleDateString("es-AR")}</span>
             <span>•</span>
             <span>Creada por: {routeSheet.createdBy?.name || "Sistema"}</span>
@@ -85,8 +85,8 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
             <span>{routeItems.length} pedidos</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-lg px-3 py-1">
+        <div className="flex w-full max-w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+          <Badge variant="outline" className="px-3 py-1 text-lg">
             {statusLabels[routeSheet.status]}
           </Badge>
           <RouteSheetActions routeSheet={serializedRouteSheet} />

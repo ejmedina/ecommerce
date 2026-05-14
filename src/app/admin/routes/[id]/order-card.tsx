@@ -287,17 +287,17 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         ${isDragging ? 'opacity-70 shadow-lg ring-2 ring-primary border-primary' : ''}
       `}>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Sequence number for easy bag identification */}
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground shrink-0 shadow-sm border-2 border-white">
                 {index + 1}
               </div>
-              <div>
-                <CardTitle className="text-base md:text-lg">
+              <div className="min-w-0">
+                <CardTitle className="break-words text-base md:text-lg">
                   {item.order.user.name || item.order.user.email}
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">Pedido #{item.order.orderNumber}</p>
+                <p className="break-all text-xs text-muted-foreground">Pedido #{item.order.orderNumber}</p>
               </div>
             </div>
             {isDelivered && (
@@ -327,11 +327,11 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
               )}
             </div>
             {phone && (
-              <div className="flex gap-2 flex-wrap">
-                <a href={`tel:${phone}`}>
-                  <Button size="sm" variant="outline">
+              <div className="flex max-w-full flex-wrap gap-2">
+                <a href={`tel:${phone}`} className="min-w-0">
+                  <Button size="sm" variant="outline" className="max-w-full">
                     <Phone className="w-4 h-4 mr-1" />
-                    {phone}
+                    <span className="truncate">{phone}</span>
                   </Button>
                 </a>
                 {phone && (
