@@ -321,3 +321,97 @@ export async function updateOrderCoordinates(orderId: string, lat: number, lng: 
     return { error: "SERVER_ERROR", message: error.message }
   }
 }
+
+// ============================================
+// UPDATE ORDER SHIPPING ADDRESS (Admin)
+// ============================================
+
+interface OrderShippingAddressInput {
+  street: string
+  number: string
+  floor?: string
+  apartment?: string
+  city: string
+  state: string
+  postalCode: string
+  country?: string
+  instructions?: string
+}
+
+export async function updateOrderShippingAddress(orderId: string, addressData: OrderShippingAddressInput) {
+  try {
+    const session = await auth()
+    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as any).role)) {
+      return { error: "AUTH_REQUIRED", message: "No autorizado" }
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      select: {
+        shippingMethod: true,
+        shippingAddress: true,
+        routeSheetItems: {
+          select: {
+            routeSheetId: true,
+          },
+        },
+      },
+    })
+
+    if (!order) {
+      return { error: "ORDER_NOT_FOUND", message: "Pedido no encontrado" }
+    }
+
+    if (order.shippingMethod === "pickup") {
+      return { error: "INVALID_SHIPPING_METHOD", message: "Los pedidos con retiro en tienda no tienen domicilio editable." }
+    }
+
+    const street = addressData.street.trim()
+    const number = addressData.number.trim()
+    const city = addressData.city.trim()
+    const state = addressData.state.trim()
+    const postalCode = addressData.postalCode.trim()
+
+    if (!street || !number || !city || !state || !postalCode) {
+      return { error: "INVALID_ADDRESS", message: "Completá calle, número, ciudad, provincia y código postal." }
+    }
+
+    const currentShippingAddress =
+      order.shippingAddress && typeof order.shippingAddress === "object" && !Array.isArray(order.shippingAddress)
+        ? (order.shippingAddress as Record<string, unknown>)
+        : {}
+
+    const shippingAddress = {
+      ...currentShippingAddress,
+      street,
+      number,
+      floor: addressData.floor?.trim() || null,
+      apartment: addressData.apartment?.trim() || null,
+      city,
+      state,
+      postalCode,
+      country: addressData.country?.trim() || currentShippingAddress.country || "AR",
+      instructions: addressData.instructions?.trim() || null,
+      lat: null,
+      lng: null,
+    }
+
+    await db.order.update({
+      where: { id: orderId },
+      data: { shippingAddress },
+    })
+
+    revalidatePath(`/admin/orders/${orderId}`)
+    revalidatePath("/admin/orders")
+    revalidatePath("/admin/routes")
+
+    for (const routeSheetItem of order.routeSheetItems) {
+      revalidatePath(`/admin/routes/${routeSheetItem.routeSheetId}`)
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Update shipping address error:", error)
+    return { error: "SERVER_ERROR", message: error.message }
+  }
+}

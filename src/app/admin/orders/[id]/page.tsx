@@ -11,9 +11,24 @@ import { OrderFulfillment } from "@/components/order-fulfillment"
 
 import { Button } from "@/components/ui/button"
 import { UpdateCoordinatesDialog } from "@/components/logistics/update-coordinates-dialog"
+import { EditShippingAddressDialog } from "./edit-shipping-address-dialog"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
+}
+
+type ShippingAddress = {
+  street?: string
+  number?: string
+  floor?: string | null
+  apartment?: string | null
+  city?: string
+  state?: string
+  postalCode?: string
+  country?: string
+  instructions?: string | null
+  lat?: number | null
+  lng?: number | null
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
@@ -93,7 +108,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     return labels[method] || method
   }
 
-  const shippingAddress = order.shippingAddress as any
+  const shippingAddress = order.shippingAddress as ShippingAddress | null
   const subtotal = Number(order.subtotal)
   const shippingCost = Number(order.shippingCost)
   const discountAmount = Number(order.discountAmount)
@@ -203,6 +218,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       Ver en mapa
                     </Button>
                   </a>
+                  <EditShippingAddressDialog orderId={order.id} address={shippingAddress} />
                   <UpdateCoordinatesDialog 
                     orderId={order.id} 
                     currentLat={shippingAddress?.lat} 
@@ -264,7 +280,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       {/* Fulfillment Management Section */}
       <OrderFulfillment 
         orderId={order.id} 
-        items={order.items as any}
+        items={order.items}
         currentStatus={order.orderStatus}
       />
 
