@@ -116,26 +116,6 @@ export default async function OrdersPage({ searchParams }: Props) {
     })),
   }))
 
-  // Obtener pedidos válidos para crear hoja de ruta
-  // Para pago contra entrega: cualquier pedido confirmado
-  // Para pago prepago: pedido con paymentStatus = PAID
-  const validOrdersForRouteSheet = orders
-    .filter((order) => {
-      if (!isRouteEligibleOrder(order)) return false
-
-      if (!settings?.requiresPaymentToFulfill) {
-        return true
-      }
-
-      const isCashOnDelivery = ["CASH_ON_DELIVERY", "CARD_ON_DELIVERY", "TRANSFER_ON_DELIVERY"].includes(order.paymentMethod)
-      if (isCashOnDelivery) {
-        return ["CONFIRMED", "PREPARING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY"].includes(order.orderStatus)
-      }
-
-      return order.paymentStatus === "PAID"
-    })
-    .map((order) => ({ id: order.id, orderNumber: order.orderNumber }))
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -151,7 +131,6 @@ export default async function OrdersPage({ searchParams }: Props) {
 
       <OrdersTable 
         orders={ordersData} 
-        validOrdersForRouteSheet={validOrdersForRouteSheet} 
         requiresPaymentToFulfill={settings?.requiresPaymentToFulfill ?? false}
         currentPage={page}
         totalPages={totalPages}
@@ -167,23 +146,4 @@ export default async function OrdersPage({ searchParams }: Props) {
       />
     </div>
   )
-}
-
-function hasDeliveryAddress(shippingAddress: unknown) {
-  if (!shippingAddress || typeof shippingAddress !== "object" || Array.isArray(shippingAddress)) return false
-
-  const address = shippingAddress as Record<string, unknown>
-  return Boolean(address.street && address.number && address.city)
-}
-
-function isPickupShippingMethod(shippingMethod: string) {
-  const normalized = shippingMethod.trim().toLowerCase()
-  return normalized.includes("pickup") || normalized.includes("retiro")
-}
-
-function isRouteEligibleOrder(order: {
-  shippingMethod: string
-  shippingAddress: unknown
-}) {
-  return !isPickupShippingMethod(order.shippingMethod) && hasDeliveryAddress(order.shippingAddress)
 }

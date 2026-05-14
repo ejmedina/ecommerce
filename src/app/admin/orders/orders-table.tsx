@@ -65,10 +65,6 @@ interface Order {
 
 interface OrdersTableProps {
   orders: Order[]
-  validOrdersForRouteSheet: {
-    id: string
-    orderNumber: string
-  }[]
   requiresPaymentToFulfill: boolean
   currentPage: number
   totalPages: number
@@ -237,7 +233,6 @@ function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boo
 
 export function OrdersTable({ 
   orders, 
-  validOrdersForRouteSheet, 
   requiresPaymentToFulfill,
   currentPage,
   totalPages,
@@ -256,7 +251,6 @@ export function OrdersTable({
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split("T")[0])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const routeEligibleOrderIds = new Set(validOrdersForRouteSheet.map((order) => order.id))
 
   // Construir URL con filtros
   const buildUrl = (newFilters: typeof filters, newPage?: number) => {
@@ -292,8 +286,6 @@ export function OrdersTable({
 
   // Toggle orden
   const toggleOrder = (orderId: string) => {
-    if (!routeEligibleOrderIds.has(orderId)) return
-
     const newSelected = new Set(selectedOrders)
     if (newSelected.has(orderId)) {
       newSelected.delete(orderId)
@@ -305,12 +297,12 @@ export function OrdersTable({
 
   // Toggle todos
   const toggleAll = () => {
-    const eligibleIds = orders.filter((order) => routeEligibleOrderIds.has(order.id)).map((order) => order.id)
+    const orderIds = orders.map((order) => order.id)
 
-    if (selectedOrders.size === eligibleIds.length) {
+    if (selectedOrders.size === orderIds.length) {
       setSelectedOrders(new Set())
     } else {
-      setSelectedOrders(new Set(eligibleIds))
+      setSelectedOrders(new Set(orderIds))
     }
   }
 
@@ -729,12 +721,12 @@ export function OrdersTable({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <Checkbox
-                  checked={selectedOrders.size > 0 && selectedOrders.size === routeEligibleOrderIds.size}
+                  checked={selectedOrders.size > 0 && selectedOrders.size === orders.length}
                   onCheckedChange={toggleAll}
-                  disabled={routeEligibleOrderIds.size === 0}
+                  disabled={orders.length === 0}
                 />
                 <span className="text-sm leading-tight">
-                  Seleccionar ruta ({selectedOrders.size} de {routeEligibleOrderIds.size})
+                  Seleccionar pedidos ({selectedOrders.size} de {orders.length})
                 </span>
               </div>
               <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
@@ -868,7 +860,6 @@ export function OrdersTable({
         <div className="space-y-4">
           {orders.map((order) => {
             const isSelected = selectedOrders.has(order.id)
-            const isRouteEligible = routeEligibleOrderIds.has(order.id)
             const formattedAddress = formatShippingAddress(order.shippingAddress)
             const routeIneligibilityReason = getRouteIneligibilityReason(
               order,
@@ -879,14 +870,12 @@ export function OrdersTable({
               <Card key={order.id} className={`
                 hover:bg-muted/50 transition-colors
                 ${isSelected ? "border-primary bg-primary/5 ring-2 ring-primary/20" : ""}
-                ${!isRouteEligible ? "opacity-70" : ""}
               `}>
                 <CardHeader className="pb-2">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="flex min-w-0 items-start gap-3">
                       <Checkbox
                         checked={isSelected}
-                        disabled={!isRouteEligible}
                         onCheckedChange={() => toggleOrder(order.id)}
                         className="mt-1"
                       />
@@ -931,9 +920,9 @@ export function OrdersTable({
                     </div>
                     <div className="rounded-md border bg-muted/30 p-3">
                       <p className="font-medium">
-                        {order.shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"}
+                        {isPickupShippingMethod(order.shippingMethod) ? "Retiro en tienda" : "Envío a domicilio"}
                       </p>
-                      {order.shippingMethod !== "pickup" ? (
+                      {!isPickupShippingMethod(order.shippingMethod) ? (
                         formattedAddress ? (
                           <>
                             <p className="text-muted-foreground">{formattedAddress.streetLine}</p>
@@ -979,11 +968,11 @@ export function OrdersTable({
                           ))}
                         </ul>
                       </div>
-                      {!isRouteEligible && (
+                      {routeIneligibilityReason ? (
                         <p className="mt-1 text-xs text-orange-600">
-                          No apto para hoja de ruta: {routeIneligibilityReason || "pendiente de validación"}
+                          No apto para hoja de ruta: {routeIneligibilityReason}
                         </p>
-                      )}
+                      ) : null}
                       {order.customerNotes ? (
                         <p className="text-xs text-muted-foreground">
                           Nota: {order.customerNotes}
