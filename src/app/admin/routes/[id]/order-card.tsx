@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { getEffectiveDeliveryOutcome } from "../delivery-status"
 import { 
   reorderRouteSheetItem, 
   setDeliveryOutcome 
@@ -126,8 +127,9 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const latitude = parseCoordinate(shippingAddress?.lat)
   const longitude = parseCoordinate(shippingAddress?.lng)
   const phone = item.order.user.phone || shippingAddress?.phone
-  const isDelivered = item.deliveryOutcome === "DELIVERED"
-  const isNotDelivered = item.deliveryOutcome === "NOT_DELIVERED"
+  const effectiveDeliveryOutcome = getEffectiveDeliveryOutcome(item)
+  const isDelivered = effectiveDeliveryOutcome === "DELIVERED"
+  const isNotDelivered = effectiveDeliveryOutcome === "NOT_DELIVERED"
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
   const [deliveryStatus, setDeliveryStatus] = useState<"DELIVERED" | "NOT_DELIVERED">("DELIVERED")
@@ -698,7 +700,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         )}
 
         {/* Delivery result for preparation mode */}
-        {item.deliveryOutcome && (
+        {effectiveDeliveryOutcome && (
           <div className={`
             p-3 rounded
             ${isDelivered ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}

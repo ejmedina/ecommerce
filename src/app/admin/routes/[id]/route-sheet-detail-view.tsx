@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OrderCard, type RouteSheetOrderCardItem } from "./order-card"
+import { getEffectiveDeliveryOutcome } from "../delivery-status"
 import { RouteSheetActions } from "./route-sheet-actions"
 import { SortableRouteItems } from "./sortable-route-items"
 
@@ -57,10 +58,10 @@ export function RouteSheetDetailView({
   const [activeView, setActiveView] = useState("preparation")
   const routeItems = routeSheet.items
   const deliveredCount = routeItems.filter(
-    (item) => item.deliveryOutcome === "DELIVERED"
+    (item) => getEffectiveDeliveryOutcome(item) === "DELIVERED"
   ).length
   const notDeliveredCount = routeItems.filter(
-    (item) => item.deliveryOutcome === "NOT_DELIVERED"
+    (item) => getEffectiveDeliveryOutcome(item) === "NOT_DELIVERED"
   ).length
 
   return (

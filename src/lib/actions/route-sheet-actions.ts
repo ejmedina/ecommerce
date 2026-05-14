@@ -511,6 +511,7 @@ export async function setDeliveryOutcome(
       data: { orderStatus },
     })
 
+    revalidatePath("/admin/routes")
     revalidatePath(`/admin/routes/${item.routeSheetId}`)
 
     return { success: true }
@@ -567,7 +568,15 @@ export async function getRouteSheets(skip = 0, take = 10) {
       db.routeSheet.findMany({
         include: {
           createdBy: { select: { name: true } },
-          items: true,
+          items: {
+            include: {
+              order: {
+                select: {
+                  orderStatus: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,

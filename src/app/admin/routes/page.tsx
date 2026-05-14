@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getRouteSheets } from "@/lib/actions/route-sheet-actions"
+import { getEffectiveDeliveryOutcome } from "./delivery-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -69,8 +70,8 @@ export default async function RoutesPage({ searchParams }: Props) {
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {routeSheets.map((rs) => {
-              const deliveredCount = rs.items.filter(i => (i as any).deliveryOutcome === "DELIVERED").length
-              const notDeliveredCount = rs.items.filter(i => (i as any).deliveryOutcome === "NOT_DELIVERED").length
+              const deliveredCount = rs.items.filter((item) => getEffectiveDeliveryOutcome(item) === "DELIVERED").length
+              const notDeliveredCount = rs.items.filter((item) => getEffectiveDeliveryOutcome(item) === "NOT_DELIVERED").length
               const pendingCount = rs.items.length - deliveredCount - notDeliveredCount
 
               return (
@@ -125,4 +126,3 @@ export default async function RoutesPage({ searchParams }: Props) {
     </div>
   )
 }
-
