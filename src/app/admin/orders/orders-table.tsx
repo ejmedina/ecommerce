@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { getDateInputValueInTimeZone, getDateRangeForDateInput } from "@/lib/time-zone"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 import { AlertCircle, Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
@@ -41,12 +42,26 @@ import {
 interface OrderItem {
   id: string
   productId: string
+  itemType?: "PRODUCT" | "COMBO"
   name: string
   quantity: number
   price: number
   unitTotal: number
   quantityFulfilled?: number | null
   quantityMissing?: number | null
+  components?: {
+    id: string
+    orderItemId: string
+    productId: string
+    variantId?: string | null
+    name: string
+    quantityOrdered: number
+    quantityFulfilled?: number | null
+    quantityMissing?: number | null
+    missingReason?: string | null
+    fulfilledAt?: string | null
+    quantityPerCombo?: number
+  }[]
 }
 
 interface Order {
@@ -415,10 +430,23 @@ export function OrdersTable({
   const selectedStockItems = orders
     .filter((order) => selectedOrders.has(order.id))
     .flatMap((order) =>
-      order.items.map((item) => ({
+      flattenOrderItemsForOperations(
+        order.items.map((item) => ({
+          id: item.id,
+          itemType: item.itemType,
+          productId: item.productId,
+          variantId: null,
+          name: item.name,
+          quantityOrdered: item.quantity,
+          quantityFulfilled: item.quantityFulfilled,
+          quantityMissing: item.quantityMissing,
+          components: item.components,
+        }))
+      ).map((item) => ({
+        summaryKey: item.summaryKey,
         productId: item.productId,
         name: item.name,
-        quantityOrdered: item.quantity,
+        quantityOrdered: item.quantityOrdered,
         quantityFulfilled: item.quantityFulfilled,
         quantityMissing: item.quantityMissing,
       }))

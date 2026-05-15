@@ -82,6 +82,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       items: {
         include: {
           product: { select: { name: true } },
+          components: true,
         },
       },
     },
@@ -112,12 +113,26 @@ export default async function OrdersPage({ searchParams }: Props) {
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
+      itemType: item.itemType,
       name: item.name,
       quantity: item.quantityOrdered,
       price: Number(item.price),
       unitTotal: Number(item.unitTotal),
       quantityFulfilled: item.quantityFulfilled,
       quantityMissing: item.quantityMissing,
+      components: item.components.map((component) => ({
+        id: component.id,
+        orderItemId: component.orderItemId,
+        productId: component.productId,
+        variantId: component.variantId,
+        name: component.name,
+        quantityOrdered: component.quantityOrdered,
+        quantityFulfilled: component.quantityFulfilled,
+        quantityMissing: component.quantityMissing,
+        missingReason: component.missingReason,
+        fulfilledAt: component.fulfilledAt?.toISOString() || null,
+        quantityPerCombo: component.quantityPerCombo,
+      })),
     })),
   }))
 

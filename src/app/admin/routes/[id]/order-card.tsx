@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getEffectiveDeliveryOutcome } from "../delivery-status"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 import { 
   reorderRouteSheetItem, 
   removeOrderFromRouteSheet,
@@ -62,6 +63,7 @@ interface OrderCardProps {
       }
       items: {
         id: string
+        itemType?: "PRODUCT" | "COMBO"
         name: string
         quantityOrdered: number | null
         quantity: number | null
@@ -74,6 +76,19 @@ interface OrderCardProps {
           name: string
           sku: string | null
         }
+        components?: {
+          id: string
+          orderItemId: string
+          productId: string
+          variantId?: string | null
+          name: string
+          quantityOrdered: number
+          quantityFulfilled?: number | null
+          quantityMissing?: number | null
+          missingReason?: string | null
+          fulfilledAt?: string | null
+          quantityPerCombo?: number
+        }[]
       }[]
     }
   }
@@ -119,10 +134,6 @@ function parseCoordinate(value: unknown) {
   return null
 }
 
-function getQuantity(orderItem: { quantityOrdered?: number | null; quantity?: number | null }) {
-  return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
-}
-
 export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName, timeZone }: OrderCardProps) {
   const router = useRouter()
   const shippingAddress = item.order.shippingAddress
@@ -142,12 +153,15 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [isRemoving, setIsRemoving] = useState(false)
   const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
   const [, startTransition] = useTransition()
+  const operationalItems = flattenOrderItemsForOperations(item.order.items)
   const [fulfillmentData, setFulfillmentData] = useState(() =>
-    item.order.items.map((orderItem) => ({
-      itemId: orderItem.id,
+    operationalItems.map((orderItem) => ({
+      targetId: orderItem.targetId,
+      targetType: orderItem.targetType,
+      orderItemId: orderItem.orderItemId,
       name: orderItem.name,
-      ordered: getQuantity(orderItem),
-      fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+      ordered: orderItem.quantityOrdered,
+      fulfilled: orderItem.quantityFulfilled,
       missingReason: orderItem.missingReason || "",
     }))
   )
@@ -179,11 +193,13 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
 
   useEffect(() => {
     setFulfillmentData(
-      item.order.items.map((orderItem) => ({
-        itemId: orderItem.id,
+      flattenOrderItemsForOperations(item.order.items).map((orderItem) => ({
+        targetId: orderItem.targetId,
+        targetType: orderItem.targetType,
+        orderItemId: orderItem.orderItemId,
         name: orderItem.name,
-        ordered: getQuantity(orderItem),
-        fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+        ordered: orderItem.quantityOrdered,
+        fulfilled: orderItem.quantityFulfilled,
         missingReason: orderItem.missingReason || "",
       }))
     )
@@ -392,12 +408,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           {/* Items summary */}
           <div className="space-y-1">
             <p className="text-sm font-medium">Productos:</p>
-            {item.order.items.map((orderItem) => {
-              const qty = getQuantity(orderItem)
+            {operationalItems.map((orderItem) => {
+              const qty = orderItem.quantityOrdered
               const missing = orderItem.quantityMissing ?? 0
               const hasFaltante = missing > 0
               return (
-                <div key={orderItem.id} className="flex justify-between text-sm">
+                <div key={`${orderItem.targetType}-${orderItem.targetId}`} className="flex justify-between text-sm">
                   <span>
                     {qty}x {orderItem.name}
                     {hasFaltante && <span className="text-red-500 ml-1">(Faltante: {missing})</span>}
@@ -687,14 +703,14 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         <div>
           <p className="text-sm font-medium mb-2">Productos:</p>
           <div className="space-y-2">
-            {item.order.items.map((orderItem, orderItemIndex) => {
-              const qty = getQuantity(orderItem)
+            {operationalItems.map((orderItem, orderItemIndex) => {
+              const qty = orderItem.quantityOrdered
               const missing = orderItem.quantityMissing ?? 0
               const hasFaltante = missing > 0
               const fulfillment = fulfillmentData[orderItemIndex]
               return (
                 <div 
-                  key={orderItem.id} 
+                  key={`${orderItem.targetType}-${orderItem.targetId}`}
                   className={`
                     flex flex-col gap-3 text-sm p-2 rounded md:flex-row md:items-center md:justify-between
                     ${hasFaltante ? "bg-red-50 border border-red-200" : "bg-muted/50"}
@@ -752,7 +768,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         </div>
 
         {/* Missing items summary */}
-        {item.order.items.some(oi => (oi.quantityMissing ?? 0) > 0) && (
+        {operationalItems.some((oi) => (oi.quantityMissing ?? 0) > 0) && (
           <div className="bg-red-50 border border-red-200 rounded p-3">
             <p className="text-sm font-medium text-red-600">
               ⚠️ Tiene productos con faltantes

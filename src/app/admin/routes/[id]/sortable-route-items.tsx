@@ -6,6 +6,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { OrderCard, type RouteSheetOrderCardItem } from "./order-card"
 import { reorderRouteSheetItemsBatch, optimizeRouteOrder } from "@/lib/actions/route-sheet-actions"
 import { StockSummaryDialog } from "@/components/admin/stock-summary-dialog"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Wand2 } from "lucide-react"
@@ -42,10 +43,11 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, timeZone
   const [endDepotId, setEndDepotId] = useState(routeSheet.endDepotId || "none")
   const [vehicleId, setVehicleId] = useState(routeSheet.vehicleId || "none")
   const stockItems = activeItems.flatMap((item) =>
-    item.order.items.map((orderItem) => ({
-      productId: orderItem.product.id,
+    flattenOrderItemsForOperations(item.order.items).map((orderItem) => ({
+      summaryKey: orderItem.summaryKey,
+      productId: orderItem.productId,
       name: orderItem.name,
-      quantityOrdered: orderItem.quantityOrdered ?? orderItem.quantity ?? 0,
+      quantityOrdered: orderItem.quantityOrdered,
       quantityFulfilled: orderItem.quantityFulfilled,
       quantityMissing: orderItem.quantityMissing,
     }))

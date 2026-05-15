@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { OrderStatusManager } from "@/components/order-status-manager"
 import { OrderFulfillment } from "@/components/order-fulfillment"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 
 import { Button } from "@/components/ui/button"
 import { UpdateCoordinatesDialog } from "@/components/logistics/update-coordinates-dialog"
@@ -130,6 +131,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const fulfilledTotalToCollect = fulfilledSubtotal !== null
     ? fulfilledSubtotal + shippingCost + taxAmount - discountAmount
     : null
+  const operationalItems = flattenOrderItemsForOperations(order.items)
 
   // Check for partial fulfillment (faltantes)
   const hasFaltantes = order.items.some(
@@ -292,7 +294,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       {/* Fulfillment Management Section */}
       <OrderFulfillment 
         orderId={order.id} 
-        items={order.items}
+        items={operationalItems}
         currentStatus={order.orderStatus}
       />
 

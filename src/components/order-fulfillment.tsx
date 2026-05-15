@@ -17,20 +17,20 @@ import {
   CheckCircle2, 
   Loader2, 
   Save, 
-  AlertCircle 
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/components/ui/use-toast"
 
 interface OrderItem {
-  id: string
+  targetId: string
+  targetType: "ORDER_ITEM" | "ORDER_ITEM_COMPONENT"
+  orderItemId: string
   name: string
-  quantity: number
-  quantityOrdered: number | null
-  quantityFulfilled: number | null
+  quantityOrdered: number
+  quantityFulfilled: number
+  quantityMissing: number
   missingReason: string | null
   fulfilledAt: string | Date | null
-  price: any
 }
 
 interface OrderFulfillmentProps {
@@ -39,17 +39,17 @@ interface OrderFulfillmentProps {
   currentStatus: string
 }
 
-export function OrderFulfillment({ orderId, items, currentStatus }: OrderFulfillmentProps) {
+export function OrderFulfillment({ orderId, items }: OrderFulfillmentProps) {
   const router = useRouter()
   const [fusing, setFusing] = useState(false)
   const [fulfillmentData, setFulfillmentData] = useState(
     items.map(item => ({
-      itemId: item.id,
+      targetId: item.targetId,
+      targetType: item.targetType,
+      orderItemId: item.orderItemId,
       name: item.name,
-      ordered: item.quantityOrdered ?? item.quantity,
-      fulfilled: item.fulfilledAt
-        ? item.quantityFulfilled ?? (item.quantityOrdered ?? item.quantity)
-        : item.quantityOrdered ?? item.quantity,
+      ordered: item.quantityOrdered,
+      fulfilled: item.quantityFulfilled,
       missingReason: item.missingReason || ""
     }))
   )
@@ -139,7 +139,7 @@ export function OrderFulfillment({ orderId, items, currentStatus }: OrderFulfill
 
         <div className="space-y-4">
           {fulfillmentData.map((item, idx) => (
-            <div key={item.itemId} className="flex flex-col md:flex-row md:items-center gap-4 p-3 rounded-lg border bg-muted/30">
+            <div key={`${item.targetType}-${item.targetId}`} className="flex flex-col md:flex-row md:items-center gap-4 p-3 rounded-lg border bg-muted/30">
               <div className="flex-1">
                 <p className="font-medium text-sm">{item.name}</p>
                 <p className="text-xs text-muted-foreground">Pedido: {item.ordered} unidades</p>

@@ -6,6 +6,7 @@ import {
   updateRouteSheetStatus, 
   updateRouteSheet,
 } from "@/lib/actions/route-sheet-actions"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
 import { 
@@ -106,7 +107,7 @@ export function RouteSheetActions({
     const ordersHtml = routeSheet.items.map((item, index) => {
       const order = item.order
       const address = order.shippingAddress
-      const itemsList = order.items.map((oi) =>
+      const itemsList = flattenOrderItemsForOperations(order.items).map((oi) =>
         `<li>${oi.quantityOrdered}x ${oi.name}</li>`
       ).join('')
 

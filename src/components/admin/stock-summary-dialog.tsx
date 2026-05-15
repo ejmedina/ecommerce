@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 
 export interface StockSummaryItemInput {
+  summaryKey?: string
   productId: string
   name: string
   quantityOrdered: number
@@ -31,7 +32,7 @@ interface StockSummaryDialogProps {
 }
 
 type StockSummaryRow = {
-  productId: string
+  summaryKey: string
   name: string
   totalOrdered: number
   totalCurrent: number
@@ -41,7 +42,8 @@ function calculateStockSummary(items: StockSummaryItemInput[]): StockSummaryRow[
   const stockMap = new Map<string, StockSummaryRow>()
 
   for (const item of items) {
-    const existing = stockMap.get(item.productId)
+    const key = item.summaryKey ?? item.productId
+    const existing = stockMap.get(key)
     const fulfilledQuantity = item.quantityFulfilled ?? item.quantityOrdered
     const missingQuantity = item.quantityMissing ?? Math.max(item.quantityOrdered - fulfilledQuantity, 0)
     const currentQuantity = Math.max(item.quantityOrdered - missingQuantity, 0)
@@ -52,8 +54,8 @@ function calculateStockSummary(items: StockSummaryItemInput[]): StockSummaryRow[
       continue
     }
 
-    stockMap.set(item.productId, {
-      productId: item.productId,
+    stockMap.set(key, {
+      summaryKey: key,
       name: item.name,
       totalOrdered: item.quantityOrdered,
       totalCurrent: currentQuantity,
@@ -183,7 +185,7 @@ export function StockSummaryDialog({
                 </thead>
                 <tbody>
                   {rows.map((item) => (
-                    <tr key={item.productId} className="border-b last:border-b-0">
+                    <tr key={item.summaryKey} className="border-b last:border-b-0">
                       <td className="px-4 py-3 font-medium">{item.name}</td>
                       <td className="px-4 py-3 text-right">{item.totalOrdered}</td>
                       <td className="px-4 py-3 text-right">

@@ -32,6 +32,11 @@ function serializeRouteSheet(rs: any) {
           ...oi,
           price: Number(oi.price),
           unitTotal: Number(oi.unitTotal),
+          fulfilledAt: oi.fulfilledAt?.toISOString() || null,
+          components: oi.components?.map((component: any) => ({
+            ...component,
+            fulfilledAt: component.fulfilledAt?.toISOString() || null,
+          })) || [],
         })),
       },
     })),
@@ -540,6 +545,7 @@ export async function getRouteSheet(routeSheetId: string) {
                 items: {
                   include: {
                     product: { select: { id: true, name: true, sku: true } },
+                    components: true,
                   },
                 },
               },
