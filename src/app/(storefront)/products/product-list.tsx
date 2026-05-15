@@ -23,6 +23,7 @@ interface Product {
   discountType?: string | null
   discountConfig?: unknown
   hasVariants?: boolean
+  isCombo?: boolean
   category: { name: string } | null
   images: { url: string; alt: string | null }[]
   stock: number
@@ -174,6 +175,8 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
               <AddToCartButton
                 productId={product.id}
                 productName={product.name}
+                productSlug={product.slug}
+                requiresConfiguration={Boolean(product.hasVariants || product.isCombo)}
                 className="w-full"
                 size="sm"
               />

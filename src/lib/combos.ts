@@ -33,3 +33,15 @@ export function getOperationalDemandKey(input: {
     ? `variant:${input.variantId}`
     : `product:${input.productId}`
 }
+
+export function summarizeComboConfiguration(
+  configuration: CartComboConfiguration,
+  comboQuantity = 1
+) {
+  return configuration.map((item) => {
+    const totalQuantity = item.quantityPerCombo * comboQuantity
+    const variantLabel = item.variantTitle ? ` - ${item.variantTitle}` : ""
+
+    return `${totalQuantity} x ${item.productName}${variantLabel}`
+  })
+}

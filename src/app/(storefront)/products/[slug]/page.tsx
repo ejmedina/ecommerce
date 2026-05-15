@@ -59,6 +59,17 @@ export default async function ProductPage({ params }: Props) {
         category: true,
         options: { orderBy: { position: "asc" } },
         variants: { where: { isActive: true } },
+        comboComponents: {
+          orderBy: { position: "asc" },
+          include: {
+            product: {
+              include: {
+                options: { orderBy: { position: "asc" } },
+                variants: { where: { isActive: true } },
+              },
+            },
+          },
+        },
       },
   })
 
@@ -175,6 +186,7 @@ export default async function ProductPage({ params }: Props) {
               categoryName: product.category?.name || null,
               price: Number(product.price),
               comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+              isCombo: product.isCombo,
               options: product.options.map(opt => ({
                 id: opt.id,
                 name: opt.name,
@@ -187,7 +199,32 @@ export default async function ProductPage({ params }: Props) {
                 stock: v.stock,
                 options: v.options,
                 title: v.title
-              }))
+              })),
+              comboComponents: product.comboComponents.map((component) => ({
+                id: component.id,
+                quantity: component.quantity,
+                product: {
+                  id: component.product.id,
+                  name: component.product.name,
+                  sku: component.product.sku,
+                  stock: component.product.stock,
+                  hasPermanentStock: component.product.hasPermanentStock,
+                  hasVariants: component.product.hasVariants,
+                  options: component.product.options.map((option) => ({
+                    id: option.id,
+                    name: option.name,
+                    values: option.values,
+                  })),
+                  variants: component.product.variants.map((variant) => ({
+                    id: variant.id,
+                    sku: variant.sku,
+                    price: variant.price ? Number(variant.price) : null,
+                    stock: variant.stock,
+                    options: variant.options,
+                    title: variant.title,
+                  })),
+                },
+              })),
             }} 
           />
 

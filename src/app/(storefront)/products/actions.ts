@@ -77,7 +77,9 @@ export async function getProductsAction({
   if (!s) {
     where.OR = [
       { stock: { gt: 0 } },
-      { hasPermanentStock: true }
+      { hasPermanentStock: true },
+      { hasVariants: true },
+      { isCombo: true },
     ]
   }
 
@@ -110,6 +112,7 @@ export async function getProductsAction({
   return {
     products: sortedProducts.map(p => ({
       ...p,
+      isCombo: p.isCombo,
       price: p.price.toString(),
       comparePrice: p.comparePrice?.toString() || null,
     })),

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react"
 import { useToast } from "@/components/ui/use-toast"
+import { type CartComboConfiguration } from "@/lib/combos"
 import {
   createAnalyticsItem,
   createEcommercePayload,
@@ -15,6 +16,8 @@ interface CartItem {
   id: string
   productId: string
   variantId: string | null
+  selectionSignature?: string | null
+  comboConfiguration?: CartComboConfiguration | null
   quantity: number
     product: {
       id: string
