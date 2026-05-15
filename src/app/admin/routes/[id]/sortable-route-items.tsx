@@ -1,21 +1,34 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { OrderCard } from "./order-card"
+import { OrderCard, type RouteSheetOrderCardItem } from "./order-card"
 import { reorderRouteSheetItemsBatch, optimizeRouteOrder } from "@/lib/actions/route-sheet-actions"
+import { StockSummaryDialog } from "@/components/admin/stock-summary-dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Wand2 } from "lucide-react"
 
+interface LogisticsOption {
+  id: string
+  name: string
+}
+
+interface RouteSheetLogisticsState {
+  id: string
+  startDepotId?: string | null
+  endDepotId?: string | null
+  vehicleId?: string | null
+}
+
 interface SortableRouteItemsProps {
-  items: any[]
+  items: RouteSheetOrderCardItem[]
   whatsappMessage: string
   storeName: string
-  depots: any[]
-  vehicles: any[]
-  routeSheet: any
+  depots: LogisticsOption[]
+  vehicles: LogisticsOption[]
+  routeSheet: RouteSheetLogisticsState
 }
 
 export function SortableRouteItems({ items, whatsappMessage, storeName, depots, vehicles, routeSheet }: SortableRouteItemsProps) {
@@ -27,6 +40,15 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
   const [startDepotId, setStartDepotId] = useState(routeSheet.startDepotId || "none")
   const [endDepotId, setEndDepotId] = useState(routeSheet.endDepotId || "none")
   const [vehicleId, setVehicleId] = useState(routeSheet.vehicleId || "none")
+  const stockItems = activeItems.flatMap((item) =>
+    item.order.items.map((orderItem) => ({
+      productId: orderItem.product.id,
+      name: orderItem.name,
+      quantityOrdered: orderItem.quantityOrdered ?? orderItem.quantity ?? 0,
+      quantityFulfilled: orderItem.quantityFulfilled,
+      quantityMissing: orderItem.quantityMissing,
+    }))
+  )
 
   useEffect(() => {
     setActiveItems(items)
@@ -37,23 +59,23 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    
+
     if (!over || active.id === over.id) return
 
-      const oldIndex = activeItems.findIndex(i => i.id === active.id)
-      const newIndex = activeItems.findIndex(i => i.id === over.id)
-      if (oldIndex < 0 || newIndex < 0) return
-      
-      const newItems = arrayMove(activeItems, oldIndex, newIndex)
-      setActiveItems(newItems)
+    const oldIndex = activeItems.findIndex((item) => item.id === active.id)
+    const newIndex = activeItems.findIndex((item) => item.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
 
-      // Sync with server in background
-      startTransition(async () => {
-        const itemIdsInOrder = newItems.map(i => i.id)
-        await reorderRouteSheetItemsBatch(routeSheet.id, itemIdsInOrder)
-      })
+    const newItems = arrayMove(activeItems, oldIndex, newIndex)
+    setActiveItems(newItems)
+
+    // Sync with server in background
+    startTransition(async () => {
+      const itemIdsInOrder = newItems.map((item) => item.id)
+      await reorderRouteSheetItemsBatch(routeSheet.id, itemIdsInOrder)
+    })
   }
 
   const handleOptimization = async () => {
@@ -61,9 +83,9 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
     setErrorMsg("")
     try {
       const result = await optimizeRouteOrder(
-        routeSheet.id, 
-        startDepotId === "none" ? null : startDepotId, 
-        endDepotId === "none" ? null : endDepotId, 
+        routeSheet.id,
+        startDepotId === "none" ? null : startDepotId,
+        endDepotId === "none" ? null : endDepotId,
         vehicleId === "none" ? null : vehicleId
       )
       if (result && !result.success) {
@@ -72,8 +94,8 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
         // Successful optimization will trigger revalidation, but page refresh is needed to see new order since it's server-driven props
         window.location.reload()
       }
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Ocurrió un error en el ruteo.")
     } finally {
       setIsOptimizing(false)
     }
@@ -82,7 +104,7 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
   return (
     <div className="space-y-6">
       {/* Optimization Header Controls */}
-      <div className="bg-muted/50 p-4 rounded-lg flex flex-col md:flex-row gap-4 items-end">
+      <div className="bg-muted/50 p-4 rounded-lg flex flex-col gap-4 md:flex-row md:items-end">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 w-full">
           <div className="space-y-1">
             <label className="text-sm font-medium">Vehículo (Opcional)</label>
@@ -127,15 +149,24 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
             </Select>
           </div>
         </div>
-        
-        <Button 
-          onClick={handleOptimization} 
-          disabled={isOptimizing || activeItems.length === 0}
-          className="shrink-0"
-        >
-          {isOptimizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
-          Optimizar Ruta
-        </Button>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <StockSummaryDialog
+            triggerLabel={`📦 Stock (${activeItems.length})`}
+            disabled={activeItems.length === 0}
+            title="Stock de la hoja de ruta"
+            selectionLabel={`Pedidos en la hoja: ${activeItems.length}`}
+            items={stockItems}
+          />
+          <Button
+            onClick={handleOptimization}
+            disabled={isOptimizing || activeItems.length === 0}
+            className="shrink-0"
+          >
+            {isOptimizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+            Optimizar Ruta
+          </Button>
+        </div>
       </div>
 
       {errorMsg && (

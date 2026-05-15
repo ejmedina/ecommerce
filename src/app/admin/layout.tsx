@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, LogOut, User, Tag } from "lucide-react"
+import { Package, FileText, Users, Settings, LayoutDashboard, Truck, Home, LogOut, User, Tag, Route } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { db } from "@/lib/db"
 import { auth, canAccessAdmin, signOut } from "@/lib/auth"
@@ -140,6 +140,13 @@ export default async function AdminLayout({
             >
               <Truck className="h-4 w-4" />
               Móviles
+            </Link>
+            <Link
+              href="/admin/routes"
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-muted"
+            >
+              <Route className="h-4 w-4" />
+              Hojas de Ruta
             </Link>
           </nav>
         </aside>

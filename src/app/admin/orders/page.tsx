@@ -113,6 +113,8 @@ export default async function OrdersPage({ searchParams }: Props) {
       quantity: item.quantityOrdered,
       price: Number(item.price),
       unitTotal: Number(item.unitTotal),
+      quantityFulfilled: item.quantityFulfilled,
+      quantityMissing: item.quantityMissing,
     })),
   }))
 

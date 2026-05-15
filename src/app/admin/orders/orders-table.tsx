@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { StockSummaryDialog } from "@/components/admin/stock-summary-dialog"
 import { 
   Dialog, 
   DialogContent, 
@@ -42,6 +43,8 @@ interface OrderItem {
   quantity: number
   price: number
   unitTotal: number
+  quantityFulfilled?: number | null
+  quantityMissing?: number | null
 }
 
 interface Order {
@@ -246,7 +249,6 @@ export function OrdersTable({
   const [filters, setFilters] = useState(currentFilters)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [estimateStockOpen, setEstimateStockOpen] = useState(false)
   const [routeName, setRouteName] = useState(`Ruta ${new Date().toLocaleDateString("es-AR")}`)
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split("T")[0])
   const [isLoading, setIsLoading] = useState(false)
@@ -404,95 +406,17 @@ export function OrdersTable({
     }
   }
 
-  // Calcular stock
-  const calculateEstimatedStock = () => {
-    const stockMap = new Map<string, { name: string; quantity: number }>()
-    
-    orders
-      .filter((order) => selectedOrders.has(order.id))
-      .forEach((order) => {
-        order.items.forEach((item) => {
-          const existing = stockMap.get(item.productId)
-          if (existing) {
-            existing.quantity += item.quantity
-          } else {
-            stockMap.set(item.productId, { name: item.name, quantity: item.quantity })
-          }
-        })
-      })
-    
-    return Array.from(stockMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }
-
-  const estimatedStock = calculateEstimatedStock()
-
-  const generateStockText = () => {
-    return estimatedStock
-      .map((item) => `${item.name}: ${item.quantity} unidades`)
-      .join("\n")
-  }
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(generateStockText())
-    } catch (err) {
-      console.error("Error al copiar:", err)
-    }
-  }
-
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
-    const stockHtml = estimatedStock
-      .map(item => `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 8px; text-align: left;">${item.name}</td>
-          <td style="padding: 8px; text-align: right; font-weight: bold;">${item.quantity}</td>
-        </tr>
-      `)
-      .join('')
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Estimación de Stock - ${new Date().toLocaleDateString('es-AR')}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            h1 { font-size: 20px; color: #333; }
-            .footer { margin-top: 30px; font-size: 12px; color: #666; }
-          </style>
-        </head>
-        <body>
-          <h1>Estimación de Stock</h1>
-          <p>Fecha: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR')}</p>
-          <p>Pedidos seleccionados: ${selectedOrders.size}</p>
-          <table>
-            <thead>
-              <tr style="background-color: #f9f9f9;">
-                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Producto</th>
-                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stockHtml}
-            </tbody>
-          </table>
-          <div class="footer">
-            Generado automáticamente el ${new Date().toLocaleString('es-AR')}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            }
-          </script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
-  }
+  const selectedStockItems = orders
+    .filter((order) => selectedOrders.has(order.id))
+    .flatMap((order) =>
+      order.items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantityOrdered: item.quantity,
+        quantityFulfilled: item.quantityFulfilled,
+        quantityMissing: item.quantityMissing,
+      }))
+    )
 
   const handlePrintOrder = (order: Order) => {
     const printWindow = window.open("", "_blank")
@@ -750,50 +674,13 @@ export function OrdersTable({
                 )}
 
                 {/* Estimar Stock */}
-                <Dialog open={estimateStockOpen} onOpenChange={setEstimateStockOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      disabled={selectedOrders.size === 0}
-                      className="w-full whitespace-nowrap px-3 sm:w-auto"
-                    >
-                      📦 Stock ({selectedOrders.size})
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Stock Estimado</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <div className="bg-muted rounded-lg p-4 max-h-64 overflow-y-auto">
-                        {estimatedStock.length === 0 ? (
-                          <p className="text-muted-foreground text-sm">No hay productos</p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {estimatedStock.map((item, index) => (
-                              <li key={index} className="flex justify-between">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="font-bold">{item.quantity}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                      <Button variant="outline" onClick={() => setEstimateStockOpen(false)}>
-                        Cerrar
-                      </Button>
-                      <Button variant="outline" onClick={handlePrint} disabled={estimatedStock.length === 0}>
-                        <Printer className="h-4 w-4 mr-2" />
-                        Imprimir
-                      </Button>
-                      <Button onClick={copyToClipboard} disabled={estimatedStock.length === 0}>
-                        📋 Copiar
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <StockSummaryDialog
+                  triggerLabel={`📦 Stock (${selectedOrders.size})`}
+                  disabled={selectedOrders.size === 0}
+                  title="Stock estimado"
+                  selectionLabel={`Pedidos seleccionados: ${selectedOrders.size}`}
+                  items={selectedStockItems}
+                />
 
                 {/* Crear Hoja de Ruta */}
                 <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
