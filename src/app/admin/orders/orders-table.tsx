@@ -4,9 +4,11 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useNavigationFeedback } from "@/components/navigation-feedback"
+import { getDateInputValueInTimeZone, getDateRangeForDateInput } from "@/lib/time-zone"
 import { AlertCircle, Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
+import { formatDate, formatDateTime } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -69,6 +71,7 @@ interface Order {
 interface OrdersTableProps {
   orders: Order[]
   requiresPaymentToFulfill: boolean
+  timeZone?: string | null
   currentPage: number
   totalPages: number
   totalOrders: number
@@ -237,6 +240,7 @@ function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boo
 export function OrdersTable({ 
   orders, 
   requiresPaymentToFulfill,
+  timeZone,
   currentPage,
   totalPages,
   totalOrders,
@@ -249,8 +253,8 @@ export function OrdersTable({
   const [filters, setFilters] = useState(currentFilters)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [routeName, setRouteName] = useState(`Ruta ${new Date().toLocaleDateString("es-AR")}`)
-  const [routeDate, setRouteDate] = useState(new Date().toISOString().split("T")[0])
+  const [routeName, setRouteName] = useState(`Ruta ${formatDate(new Date(), undefined, timeZone)}`)
+  const [routeDate, setRouteDate] = useState(getDateInputValueInTimeZone(new Date(), timeZone))
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -338,11 +342,13 @@ export function OrdersTable({
 
     setIsLoading(true)
     setError(null)
+
+    const { start } = getDateRangeForDateInput(routeDate, timeZone)
     
     const result = await createRouteSheet(
       routeName,
       Array.from(selectedOrders),
-      new Date(routeDate)
+      start
     )
     
     setIsLoading(false)
@@ -440,7 +446,7 @@ export function OrdersTable({
 
     const customerDetails = [
       ["Pedido", order.orderNumber],
-      ["Fecha", new Date(order.createdAt).toLocaleDateString("es-AR")],
+      ["Fecha", formatDate(order.createdAt, undefined, timeZone)],
       ["Estado", orderStatusLabels[order.orderStatus] || order.orderStatus],
       ["Total", formatOrderCurrency(order.total)],
       ["Pago", paymentStatusLabels[order.paymentStatus] || order.paymentStatus],
@@ -507,7 +513,7 @@ export function OrdersTable({
         <body>
           <h1>Ficha de Pedido</h1>
           <div class="meta">
-            Generado el ${new Date().toLocaleString("es-AR")}
+            Generado el ${formatDateTime(new Date(), timeZone)}
           </div>
           <div class="sheet">
             <p class="section-title">Datos del pedido y cliente</p>
@@ -680,6 +686,7 @@ export function OrdersTable({
                   title="Stock estimado"
                   selectionLabel={`Pedidos seleccionados: ${selectedOrders.size}`}
                   items={selectedStockItems}
+                  timeZone={timeZone}
                 />
 
                 {/* Crear Hoja de Ruta */}
@@ -773,7 +780,7 @@ export function OrdersTable({
                           </CardTitle>
                         </Link>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(order.createdAt).toLocaleDateString("es-AR")}
+                          {formatDate(order.createdAt, undefined, timeZone)}
                         </p>
                       </div>
                     </div>

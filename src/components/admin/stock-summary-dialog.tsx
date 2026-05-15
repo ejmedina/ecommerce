@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Clipboard, Loader2, Printer } from "lucide-react"
+import { formatDate, formatDateTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,6 +27,7 @@ interface StockSummaryDialogProps {
   title?: string
   selectionLabel: string
   items: StockSummaryItemInput[]
+  timeZone?: string | null
 }
 
 type StockSummaryRow = {
@@ -67,7 +69,13 @@ function buildStockSummaryText(rows: StockSummaryRow[]) {
     .join("\n")
 }
 
-function buildStockSummaryHtml(rows: StockSummaryRow[], title: string, selectionLabel: string) {
+function buildStockSummaryHtml(
+  rows: StockSummaryRow[],
+  title: string,
+  selectionLabel: string,
+  timeZone?: string | null
+) {
+  const generatedAt = new Date()
   const stockHtml = rows
     .map((item) => `
       <tr style="border-bottom: 1px solid #eee;">
@@ -81,7 +89,7 @@ function buildStockSummaryHtml(rows: StockSummaryRow[], title: string, selection
   return `
     <html>
       <head>
-        <title>${title} - ${new Date().toLocaleDateString("es-AR")}</title>
+        <title>${title} - ${formatDate(generatedAt, undefined, timeZone)}</title>
         <style>
           body { font-family: sans-serif; padding: 20px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -91,7 +99,7 @@ function buildStockSummaryHtml(rows: StockSummaryRow[], title: string, selection
       </head>
       <body>
         <h1>${title}</h1>
-        <p>Fecha: ${new Date().toLocaleDateString("es-AR")} ${new Date().toLocaleTimeString("es-AR")}</p>
+        <p>Fecha: ${formatDateTime(generatedAt, timeZone)}</p>
         <p>${selectionLabel}</p>
         <table>
           <thead>
@@ -106,7 +114,7 @@ function buildStockSummaryHtml(rows: StockSummaryRow[], title: string, selection
           </tbody>
         </table>
         <div class="footer">
-          Generado automáticamente el ${new Date().toLocaleString("es-AR")}
+          Generado automáticamente el ${formatDateTime(generatedAt, timeZone)}
         </div>
         <script>
           window.onload = function() {
@@ -125,6 +133,7 @@ export function StockSummaryDialog({
   title = "Stock estimado",
   selectionLabel,
   items,
+  timeZone,
 }: StockSummaryDialogProps) {
   const [open, setOpen] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
@@ -143,7 +152,7 @@ export function StockSummaryDialog({
     const printWindow = window.open("", "_blank")
     if (!printWindow) return
 
-    printWindow.document.write(buildStockSummaryHtml(rows, title, selectionLabel))
+    printWindow.document.write(buildStockSummaryHtml(rows, title, selectionLabel, timeZone))
     printWindow.document.close()
   }
 

@@ -35,7 +35,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2, Trash2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
@@ -82,6 +82,7 @@ interface OrderCardProps {
   totalItems: number
   whatsappMessage?: string
   storeName?: string
+  timeZone?: string | null
 }
 
 export type RouteSheetOrderCardItem = OrderCardProps["item"]
@@ -122,7 +123,7 @@ function getQuantity(orderItem: { quantityOrdered?: number | null; quantity?: nu
   return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
 }
 
-export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName }: OrderCardProps) {
+export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName, timeZone }: OrderCardProps) {
   const router = useRouter()
   const shippingAddress = item.order.shippingAddress
   const latitude = parseCoordinate(shippingAddress?.lat)
@@ -768,7 +769,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
             <p className="text-sm font-medium">
               {isDelivered ? "✓ Entregado" : "✗ No entregado"}
               {item.deliveredAt && (
-                <> • {new Date(item.deliveredAt).toLocaleString("es-AR")}</>
+                <> • {formatDateTime(item.deliveredAt, timeZone)}</>
               )}
             </p>
             {item.deliveryFailureReason && (

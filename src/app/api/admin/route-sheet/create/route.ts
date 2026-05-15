@@ -1,6 +1,8 @@
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/admin-auth"
+import { db } from "@/lib/db"
+import { getDateRangeForDateInput } from "@/lib/time-zone"
 
 export async function POST(request: Request) {
   const authError = await requireAuth()
@@ -17,10 +19,18 @@ export async function POST(request: Request) {
       )
     }
 
+    const settings = await db.storeSettings.findFirst({
+      select: { timeZone: true },
+    })
+    const normalizedDate =
+      typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? getDateRangeForDateInput(date, settings?.timeZone).start
+        : new Date(date)
+
     const result = await createRouteSheet(
       name,
       orderIds,
-      new Date(date)
+      normalizedDate
     )
 
     if (result.error) {

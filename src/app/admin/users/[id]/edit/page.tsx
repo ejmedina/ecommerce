@@ -2,6 +2,8 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 import { db } from "@/lib/db"
+import { getStoreTimeZone } from "@/lib/store-settings"
+import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +16,7 @@ interface Props {
 
 export default async function EditUserPage({ params }: Props) {
   const { id } = await params
+  const timeZone = await getStoreTimeZone()
   const user = await db.user.findUnique({
     where: { id },
     select: {
@@ -115,7 +118,7 @@ export default async function EditUserPage({ params }: Props) {
             </div>
 
             <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-              Registrado el {new Date(user.createdAt).toLocaleDateString("es-AR")}.
+              Registrado el {formatDate(user.createdAt, undefined, timeZone)}.
               {isPendingActivation
                 ? " Esta cuenta vino migrada y todavía necesita validación de email y creación de contraseña."
                 : null}

@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { getRouteSheets } from "@/lib/actions/route-sheet-actions"
+import { getStoreTimeZone } from "@/lib/store-settings"
+import { formatDate } from "@/lib/utils"
 import { getEffectiveDeliveryOutcome } from "./delivery-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,6 +18,7 @@ export default async function RoutesPage({ searchParams }: Props) {
   const params = await searchParams
   const currentPage = parseInt(params.page || "1")
   const skip = (currentPage - 1) * ITEMS_PER_PAGE
+  const timeZone = await getStoreTimeZone()
 
   const { routeSheets, total } = await getRouteSheets(skip, ITEMS_PER_PAGE)
 
@@ -87,7 +90,7 @@ export default async function RoutesPage({ searchParams }: Props) {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fecha:</span>
-                          <span>{new Date(rs.date).toLocaleDateString("es-AR")}</span>
+                          <span>{formatDate(rs.date, undefined, timeZone)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Pedidos:</span>

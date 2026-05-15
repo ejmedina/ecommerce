@@ -34,21 +34,30 @@ type ShippingAddress = {
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = await params
 
-  const order = await db.order.findUnique({
-    where: { id },
-    include: {
-      user: true,
-      items: {
-        include: {
-          product: true
-        }
+  const [order, settings] = await Promise.all([
+    db.order.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
       },
-    },
-  })
+    }),
+    db.storeSettings.findFirst({
+      select: {
+        timeZone: true,
+      },
+    }),
+  ])
 
   if (!order) {
     notFound()
   }
+
+  const timeZone = settings?.timeZone ?? null
 
   function getOrderStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
@@ -174,9 +183,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
       <div className="grid gap-4 text-sm text-muted-foreground">
         <div className="flex flex-wrap gap-4">
-          <span>Creado: {formatDateTime(order.createdAt)}</span>
-          {order.paidAt && <span>Pagado: {formatDateTime(order.paidAt)}</span>}
-          {order.cancelledAt && <span>Cancelado: {formatDateTime(order.cancelledAt)}</span>}
+          <span>Creado: {formatDateTime(order.createdAt, timeZone)}</span>
+          {order.paidAt && <span>Pagado: {formatDateTime(order.paidAt, timeZone)}</span>}
+          {order.cancelledAt && <span>Cancelado: {formatDateTime(order.cancelledAt, timeZone)}</span>}
         </div>
       </div>
 

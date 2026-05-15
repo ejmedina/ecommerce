@@ -3,6 +3,8 @@ import { Prisma, UserRole } from "@prisma/client"
 import { Edit, Home, MapPin, PackageSearch } from "lucide-react"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { getStoreTimeZone } from "@/lib/store-settings"
+import { formatDate } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PaginationControls } from "@/components/admin/pagination-controls"
@@ -58,6 +60,7 @@ function formatSavedAddress(address: {
 }
 
 export default async function UsersPage({ searchParams }: Props) {
+  const timeZone = await getStoreTimeZone()
   const params = await searchParams
   const session = await auth()
   const currentPage = Number.parseInt(params.page || "1", 10)
@@ -220,7 +223,7 @@ export default async function UsersPage({ searchParams }: Props) {
                           </p>
                           {latestOrder ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Usado el {new Date(latestOrder.createdAt).toLocaleDateString("es-AR")}
+                              Usado el {formatDate(latestOrder.createdAt, undefined, timeZone)}
                             </p>
                           ) : null}
                         </div>

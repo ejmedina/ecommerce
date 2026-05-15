@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { getDefaultShippingConfig } from "@/lib/shipping"
 import { requireAuth } from "@/lib/admin-auth"
+import { normalizeTimeZone } from "@/lib/time-zone"
 
 export async function GET() {
   const authError = await requireAuth()
@@ -28,10 +30,14 @@ export async function GET() {
           whatsappWidgetEnabled: false,
           whatsappWidgetPhone: null,
           whatsappWidgetMessage: null,
+          timeZone: "America/Argentina/Buenos_Aires",
         },
       })
-    } else if (!(settings as any).paymentMethods) {
-      (settings as any).paymentMethods = defaultPaymentMethods as any
+    } else if (!settings.paymentMethods) {
+      settings = {
+        ...settings,
+        paymentMethods: defaultPaymentMethods,
+      }
     }
 
     return NextResponse.json(settings)
@@ -71,6 +77,7 @@ export async function PUT(req: NextRequest) {
       requiresPaymentToFulfill,
       minShippingOrderAmount,
       storeUrl,
+      timeZone,
       // Store Pickup
       storePickupEnabled,
       // Home page fields
@@ -93,7 +100,7 @@ export async function PUT(req: NextRequest) {
     // If no shipping config provided, use default
     const finalShippingConfig = shippingConfig || (!existing ? getDefaultShippingConfig() : null)
 
-    const updateData: any = {
+    const updateData: Prisma.StoreSettingsUpdateInput = {
       storeName,
       storeEmail,
       storePhone,
@@ -109,6 +116,7 @@ export async function PUT(req: NextRequest) {
       whatsappWidgetPhone,
       whatsappWidgetMessage,
       storePickupEnabled,
+      timeZone: normalizeTimeZone(timeZone),
     }
 
     // Only update logo/favicon if provided
@@ -142,6 +150,7 @@ export async function PUT(req: NextRequest) {
 
     // Update store URL if provided
     if (storeUrl !== undefined) updateData.storeUrl = storeUrl
+    if (timeZone !== undefined) updateData.timeZone = timeZone
 
     await db.storeSettings.update({
       where: { id },

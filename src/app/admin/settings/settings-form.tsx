@@ -21,7 +21,7 @@ interface StoreSettings {
   storeName: string
   storeEmail: string | null
   storePhone: string | null
-  storeAddress: any
+  storeAddress: unknown
   logo: string | null
   logoWidth: number | null
   logoHeight: number | null
@@ -29,9 +29,9 @@ interface StoreSettings {
   faviconWidth: number | null
   faviconHeight: number | null
   shippingConfig: ShippingConfig | null
-  freeShippingMin: any
-  fixedShippingCost: any
-  bankAccount: any
+  freeShippingMin: number | string | null
+  fixedShippingCost: number | string | null
+  bankAccount: unknown
   autoConfirmOrders: boolean
   requiresPaymentToFulfill: boolean
   whatsappPreArrivalMessage: string | null
@@ -40,8 +40,10 @@ interface StoreSettings {
   whatsappWidgetMessage: string | null
   themeColors: ThemeColors | null
   paymentMethods: Record<string, { isActive: boolean, label: string, description: string }> | null
-  minShippingOrderAmount: any
+  minShippingOrderAmount: number | string | null
   storePickupEnabled: boolean
+  storeUrl: string | null
+  timeZone: string
 }
 
 export function SettingsForm() {
@@ -56,6 +58,7 @@ export function SettingsForm() {
   const [storeEmail, setStoreEmail] = useState("")
   const [storePhone, setStorePhone] = useState("")
   const [storeUrl, setStoreUrl] = useState("")
+  const [timeZone, setTimeZone] = useState("America/Argentina/Buenos_Aires")
   const [logo, setLogo] = useState<string | null>(null)
   const [favicon, setFavicon] = useState<string | null>(null)
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
@@ -94,6 +97,7 @@ export function SettingsForm() {
       setStoreEmail(data.storeEmail || "")
       setStorePhone(data.storePhone || "")
       setStoreUrl(data.storeUrl || "")
+      setTimeZone(data.timeZone || "America/Argentina/Buenos_Aires")
       setLogo(data.logo)
       setFavicon(data.favicon)
       setAutoConfirmOrders(data.autoConfirmOrders ?? true)
@@ -155,6 +159,7 @@ export function SettingsForm() {
           themeColors,
           paymentMethods,
           storeUrl: storeUrl || null,
+          timeZone,
         }),
       })
 
@@ -345,6 +350,18 @@ export function SettingsForm() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Dominio de tu tienda. Se usa para generar enlaces en emails.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="timeZone">Zona horaria de la tienda</Label>
+                <Input
+                  id="timeZone"
+                  value={timeZone}
+                  onChange={(e) => setTimeZone(e.target.value)}
+                  placeholder="America/Argentina/Buenos_Aires"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se usa para mostrar fechas y calcular cortes diarios o mensuales. Ejemplo: <code>America/Argentina/Buenos_Aires</code>.
                 </p>
               </div>
             </CardContent>

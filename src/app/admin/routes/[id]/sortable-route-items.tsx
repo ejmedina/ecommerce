@@ -26,12 +26,13 @@ interface SortableRouteItemsProps {
   items: RouteSheetOrderCardItem[]
   whatsappMessage: string
   storeName: string
+  timeZone?: string | null
   depots: LogisticsOption[]
   vehicles: LogisticsOption[]
   routeSheet: RouteSheetLogisticsState
 }
 
-export function SortableRouteItems({ items, whatsappMessage, storeName, depots, vehicles, routeSheet }: SortableRouteItemsProps) {
+export function SortableRouteItems({ items, whatsappMessage, storeName, timeZone, depots, vehicles, routeSheet }: SortableRouteItemsProps) {
   const [activeItems, setActiveItems] = useState(items)
   const [isPending, startTransition] = useTransition()
   const [isOptimizing, setIsOptimizing] = useState(false)
@@ -157,6 +158,7 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
             title="Stock de la hoja de ruta"
             selectionLabel={`Pedidos en la hoja: ${activeItems.length}`}
             items={stockItems}
+            timeZone={timeZone}
           />
           <Button
             onClick={handleOptimization}
@@ -190,6 +192,7 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
                 totalItems={activeItems.length}
                 whatsappMessage={whatsappMessage}
                 storeName={storeName}
+                timeZone={timeZone}
               />
             ))}
           </div>

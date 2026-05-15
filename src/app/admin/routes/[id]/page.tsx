@@ -54,6 +54,7 @@ export default async function RouteSheetDetailPage({ params }: RouteSheetDetailP
       routeSheet={{ ...serializedRouteSheet, items: routeItems }}
       whatsappMessage={whatsappMessage}
       storeName={settings?.storeName || "Mi Tienda"}
+      timeZone={settings?.timeZone ?? null}
       depots={depots}
       vehicles={vehicles}
     />
