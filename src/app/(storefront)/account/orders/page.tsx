@@ -2,6 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { getCommercialOrderUnitCount } from "@/lib/order-commercial"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -74,7 +75,10 @@ export default async function OrdersPage({ searchParams }: Props) {
       <h2 className="text-xl font-semibold">Mis pedidos</h2>
       
       <div className="space-y-4">
-        {orders.map((order) => (
+        {orders.map((order) => {
+          const commercialUnits = getCommercialOrderUnitCount(order.items)
+
+          return (
           <Card key={order.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -91,7 +95,7 @@ export default async function OrdersPage({ searchParams }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    {order.items.length} producto{order.items.length !== 1 ? "s" : ""}
+                    {commercialUnits} item{commercialUnits !== 1 ? "s" : ""}
                   </p>
                   <p className="font-semibold">{formatCurrency(Number(order.total))}</p>
                 </div>
@@ -101,7 +105,8 @@ export default async function OrdersPage({ searchParams }: Props) {
               </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       <Pagination 
@@ -112,4 +117,3 @@ export default async function OrdersPage({ searchParams }: Props) {
     </div>
   )
 }
-

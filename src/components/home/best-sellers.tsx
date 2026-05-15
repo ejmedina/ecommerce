@@ -19,6 +19,7 @@ interface Product {
   discountType?: string | null
   discountConfig?: unknown
   hasVariants?: boolean
+  isCombo?: boolean
   images?: { url: string }[]
 }
 
@@ -84,7 +85,7 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                     Sin imagen
                   </div>
                 )}
-                {visiblePromotions.length > 0 && (
+                {(visiblePromotions.length > 0 || product.isCombo) && (
                   <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1">
                     {visiblePromotions.map((promotion) => (
                       <span
@@ -94,6 +95,11 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                         {promotion.label}
                       </span>
                     ))}
+                    {product.isCombo && (
+                      <span className="w-fit rounded border border-white/70 bg-white/90 px-2 py-1 text-[10px] font-semibold leading-none text-foreground shadow-sm">
+                        Combo
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -114,6 +120,11 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                 {promotions.some((promotion) => promotion.type === "variant_combo") && (
                   <p className="mt-1 text-[11px] font-medium text-primary">
                     Combinalas
+                  </p>
+                )}
+                {product.isCombo && (
+                  <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                    Elegi las variantes al comprar
                   </p>
                 )}
               </div>

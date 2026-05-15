@@ -90,6 +90,7 @@ export default async function HomePage() {
           discountType: p.discountType,
           discountConfig: p.discountConfig,
           hasVariants: p.hasVariants,
+          isCombo: p.isCombo,
           images: p.images,
         }))}
         enabled={settings.bestSellersEnabled ?? false}

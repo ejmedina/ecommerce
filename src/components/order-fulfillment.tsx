@@ -117,7 +117,7 @@ export function OrderFulfillment({ orderId, items }: OrderFulfillmentProps) {
               Gestión de Preparación / Stock
             </CardTitle>
             <CardDescription>
-              Indicá la cantidad real que estás enviando de cada producto.
+              Indicá la cantidad real que estás enviando. Los combos se desglosan en sus productos reales para preparación y faltantes.
             </CardDescription>
           </div>
           <Button onClick={saveFulfillment} disabled={fusing} size="sm">

@@ -139,7 +139,7 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
                     Sin imagen
                   </div>
                 )}
-                {visiblePromotions.length > 0 && (
+                {(visiblePromotions.length > 0 || product.isCombo) && (
                   <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1">
                     {visiblePromotions.map((promotion) => (
                       <span
@@ -149,6 +149,11 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
                         {promotion.label}
                       </span>
                     ))}
+                    {product.isCombo && (
+                      <span className="w-fit rounded border border-white/70 bg-white/90 px-2 py-1 text-[11px] font-semibold leading-none text-foreground shadow-sm">
+                        Combo
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -168,6 +173,11 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
               {promotions.some((promotion) => promotion.type === "variant_combo") && (
                 <p className="mt-1 text-xs font-medium text-primary">
                   Promo combinando variantes
+                </p>
+              )}
+              {product.isCombo && (
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                  Elegi opciones al agregar
                 </p>
               )}
             </Link>

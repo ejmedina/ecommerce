@@ -43,7 +43,7 @@ export type OperationalRow = {
   summaryKey: string
 }
 
-function resolveOperationalQuantities(input: {
+export function resolveOperationalQuantities(input: {
   quantityOrdered: number
   quantityFulfilled?: number | null
   quantityMissing?: number | null

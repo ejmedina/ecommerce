@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getEffectiveDeliveryOutcome } from "../delivery-status"
 import { flattenOrderItemsForOperations } from "@/lib/order-operations"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 import { 
   reorderRouteSheetItem, 
   removeOrderFromRouteSheet,
@@ -153,6 +154,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [isRemoving, setIsRemoving] = useState(false)
   const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
   const [, startTransition] = useTransition()
+  const commercialItems = getCommercialOrderItems(item.order.items)
   const operationalItems = flattenOrderItemsForOperations(item.order.items)
   const [fulfillmentData, setFulfillmentData] = useState(() =>
     operationalItems.map((orderItem) => ({
@@ -408,16 +410,32 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           {/* Items summary */}
           <div className="space-y-1">
             <p className="text-sm font-medium">Productos:</p>
-            {operationalItems.map((orderItem) => {
-              const qty = orderItem.quantityOrdered
-              const missing = orderItem.quantityMissing ?? 0
-              const hasFaltante = missing > 0
+            {commercialItems.map((orderItem) => {
+              const hasFaltante = orderItem.quantityMissing > 0
               return (
-                <div key={`${orderItem.targetType}-${orderItem.targetId}`} className="flex justify-between text-sm">
-                  <span>
-                    {qty}x {orderItem.name}
-                    {hasFaltante && <span className="text-red-500 ml-1">(Faltante: {missing})</span>}
-                  </span>
+                <div key={orderItem.id} className="space-y-1 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {orderItem.quantityOrdered}x {orderItem.name}
+                    </span>
+                    {orderItem.itemType === "COMBO" && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Combo
+                      </Badge>
+                    )}
+                    {hasFaltante && (
+                      <span className="text-red-500">(Faltante: {orderItem.quantityMissing})</span>
+                    )}
+                  </div>
+                  {orderItem.components.length > 0 && (
+                    <div className="pl-3 text-xs text-muted-foreground">
+                      {orderItem.components.map((component) => (
+                        <div key={component.id}>
+                          {component.quantityOrdered}x {component.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -699,9 +717,42 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           )}
         </div>
 
-        {/* Items */}
+        {/* Commercial summary */}
         <div>
-          <p className="text-sm font-medium mb-2">Productos:</p>
+          <p className="text-sm font-medium mb-2">Resumen del pedido:</p>
+          <div className="space-y-2">
+            {commercialItems.map((orderItem) => (
+              <div key={orderItem.id} className="rounded border bg-muted/30 p-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">
+                    {orderItem.quantityOrdered}x {orderItem.name}
+                  </span>
+                  {orderItem.itemType === "COMBO" && <Badge variant="outline">Combo</Badge>}
+                  {orderItem.quantityMissing > 0 && <Badge variant="warning">Faltante</Badge>}
+                </div>
+                {orderItem.components.length > 0 && (
+                  <div className="mt-2 space-y-1 pl-3 text-xs text-muted-foreground">
+                    {orderItem.components.map((component) => (
+                      <div key={component.id}>
+                        {component.quantityOrdered}x {component.name}
+                        {component.quantityMissing > 0 && (
+                          <span className="text-orange-600">
+                            {" "}
+                            ({component.quantityFulfilled}/{component.quantityOrdered} preparados)
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Operational preparation */}
+        <div>
+          <p className="text-sm font-medium mb-2">Preparación real:</p>
           <div className="space-y-2">
             {operationalItems.map((orderItem, orderItemIndex) => {
               const qty = orderItem.quantityOrdered

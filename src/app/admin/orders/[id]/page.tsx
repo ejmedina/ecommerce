@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { OrderStatusManager } from "@/components/order-status-manager"
 import { OrderFulfillment } from "@/components/order-fulfillment"
 import { flattenOrderItemsForOperations } from "@/lib/order-operations"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 
 import { Button } from "@/components/ui/button"
 import { UpdateCoordinatesDialog } from "@/components/logistics/update-coordinates-dialog"
@@ -132,11 +133,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     ? fulfilledSubtotal + shippingCost + taxAmount - discountAmount
     : null
   const operationalItems = flattenOrderItemsForOperations(order.items)
+  const commercialItems = getCommercialOrderItems(order.items)
 
   // Check for partial fulfillment (faltantes)
-  const hasFaltantes = order.items.some(
-    item => item.fulfilledAt && (item.quantityFulfilled ?? item.quantityOrdered) !== item.quantityOrdered
-  )
+  const hasFaltantes = commercialItems.some((item) => item.quantityMissing > 0)
 
   return (
     <div className="space-y-6">
@@ -305,24 +305,30 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {order.items.map((item) => {
-              const quantityOrdered = item.quantityOrdered
-              const quantityFulfilled = item.fulfilledAt ? item.quantityFulfilled ?? quantityOrdered : quantityOrdered
-              const hasFaltante = quantityFulfilled < quantityOrdered
+            {commercialItems.map((item) => {
+              const hasFaltante = item.quantityMissing > 0
               
               return (
                 <div key={item.id} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
                   <div>
-                    <p className="font-medium">{item.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{item.quantityOrdered}x {item.name}</p>
+                      {item.itemType === "COMBO" && <Badge variant="outline">Combo</Badge>}
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                      {item.sku && `SKU: ${item.sku}`}
+                      {item.sku ? `SKU: ${item.sku}` : "Producto comercial"}
                     </p>
-                    {item.itemType === "COMBO" && item.components.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                    {item.components.length > 0 && (
+                      <div className="mt-2 space-y-1 rounded-md bg-muted/40 p-2">
                         {item.components.map((component) => (
-                          <p key={component.id} className="text-xs text-muted-foreground">
-                            {component.quantityOrdered}x {component.name}
-                          </p>
+                          <div key={component.id} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>{component.quantityOrdered}x {component.name}</span>
+                            {component.quantityMissing > 0 && (
+                              <span className="text-orange-600">
+                                ({component.quantityFulfilled}/{component.quantityOrdered} preparados)
+                              </span>
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}
@@ -330,8 +336,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     {hasFaltante && (
                       <div className="mt-1 flex items-center gap-2">
                         <span className="text-sm">
-                          <span className="text-orange-600 font-medium">{quantityFulfilled}</span>
-                          <span className="text-muted-foreground"> / {quantityOrdered}</span>
+                          <span className="text-orange-600 font-medium">{item.quantityFulfilled}</span>
+                          <span className="text-muted-foreground"> / {item.quantityOrdered}</span>
                         </span>
                         <Badge variant="warning" className="text-xs">Faltante</Badge>
                         {item.missingReason && (
@@ -341,7 +347,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
+                    {item.unitTotal !== null && (
+                      <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
+                    )}
                   </div>
                 </div>
               )

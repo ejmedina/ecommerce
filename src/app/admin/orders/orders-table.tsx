@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useNavigationFeedback } from "@/components/navigation-feedback"
 import { getDateInputValueInTimeZone, getDateRangeForDateInput } from "@/lib/time-zone"
 import { flattenOrderItemsForOperations } from "@/lib/order-operations"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 import { AlertCircle, Printer } from "lucide-react"
 import { createRouteSheet } from "@/lib/actions/route-sheet-actions"
 import { updateOrdersStatus } from "@/lib/actions/order-actions"
@@ -457,13 +458,20 @@ export function OrdersTable({
     if (!printWindow) return
 
     const address = formatShippingAddress(order.shippingAddress)
-    const itemsList = order.items
+    const itemsList = getCommercialOrderItems(order.items)
       .map(
         (item) =>
           `<tr>
-            <td>${item.quantity}x ${escapeHtml(item.name)}</td>
-            <td class="num">${formatOrderCurrency(item.price)}</td>
-            <td class="num"><strong>${formatOrderCurrency(item.unitTotal)}</strong></td>
+            <td>
+              <div>${item.quantityOrdered}x ${escapeHtml(item.name)}${item.itemType === "COMBO" ? ' <span class="badge">Combo</span>' : ""}</div>
+              ${item.components.length > 0 ? `
+                <ul class="components">
+                  ${item.components.map((component) => `<li>${component.quantityOrdered}x ${escapeHtml(component.name)}</li>`).join("")}
+                </ul>
+              ` : ""}
+            </td>
+            <td class="num">${item.price !== null ? formatOrderCurrency(item.price) : "-"}</td>
+            <td class="num"><strong>${item.unitTotal !== null ? formatOrderCurrency(item.unitTotal) : "-"}</strong></td>
           </tr>`
       )
       .join("")
@@ -530,6 +538,8 @@ export function OrdersTable({
             th:first-child, td:first-child { padding-right: 12px; }
             th { font-size: 12px; color: #555; }
             .num { text-align: right; white-space: nowrap; }
+            .badge { display: inline-block; margin-left: 8px; border: 1px solid #bbb; border-radius: 999px; font-size: 11px; padding: 1px 8px; color: #555; }
+            .components { margin: 6px 0 0; padding-left: 16px; color: #555; font-size: 12px; }
             .item-col { width: auto; }
             .price-col { width: 110px; }
             p { margin: 0 0 8px; }
@@ -873,18 +883,30 @@ export function OrdersTable({
                       <p className="font-medium">Items del pedido</p>
                       <div className="rounded-md border bg-muted/30 p-3">
                         <ul className="divide-y">
-                          {order.items.map((item) => (
+                          {getCommercialOrderItems(order.items).map((item) => (
                             <li key={item.id} className="grid gap-1 py-2 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                               <div className="min-w-0">
-                                <p className="break-words text-muted-foreground">
-                                  {item.quantity}x {item.name}
-                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="break-words text-muted-foreground">
+                                    {item.quantityOrdered}x {item.name}
+                                  </p>
+                                  {item.itemType === "COMBO" && <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Combo</span>}
+                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                  Unitario: {formatOrderCurrency(item.price)}
+                                  Unitario: {item.price !== null ? formatOrderCurrency(item.price) : "-"}
                                 </p>
+                                {item.components.length > 0 && (
+                                  <div className="mt-1 space-y-1 rounded-md bg-background/80 p-2">
+                                    {item.components.map((component) => (
+                                      <p key={component.id} className="text-xs text-muted-foreground">
+                                        {component.quantityOrdered}x {component.name}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <p className="font-medium sm:text-right">
-                                {formatOrderCurrency(item.unitTotal)}
+                                {item.unitTotal !== null ? formatOrderCurrency(item.unitTotal) : "-"}
                               </p>
                             </li>
                           ))}
