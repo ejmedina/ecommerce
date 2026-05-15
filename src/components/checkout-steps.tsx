@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
+import { type CartComboConfiguration, summarizeComboConfiguration } from "@/lib/combos"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,6 +47,7 @@ interface CheckoutStepsProps {
     items: {
       id: string
       quantity: number
+      comboConfiguration?: CartComboConfiguration | null
       product: {
         id: string
         name: string
@@ -847,6 +849,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                       <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
                       {item.variant?.title && (
                         <p className="text-xs text-muted-foreground">{item.variant.title}</p>
+                      )}
+                      {item.comboConfiguration && item.comboConfiguration.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          {summarizeComboConfiguration(item.comboConfiguration, item.quantity).map((line, index) => (
+                            <p key={`${item.id}-${index}`} className="text-xs text-muted-foreground">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
                       <p className="text-sm font-semibold">{formatCurrency(itemPrice * item.quantity)}</p>

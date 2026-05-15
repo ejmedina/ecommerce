@@ -41,7 +41,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         user: true,
         items: {
           include: {
-            product: true
+            product: true,
+            components: {
+              orderBy: { position: "asc" },
+            },
           }
         },
       },
@@ -312,6 +315,15 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     <p className="text-sm text-muted-foreground">
                       {item.sku && `SKU: ${item.sku}`}
                     </p>
+                    {item.itemType === "COMBO" && item.components.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {item.components.map((component) => (
+                          <p key={component.id} className="text-xs text-muted-foreground">
+                            {component.quantityOrdered}x {component.name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     {/* Faltante info */}
                     {hasFaltante && (
                       <div className="mt-1 flex items-center gap-2">

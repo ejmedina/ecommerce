@@ -6,8 +6,35 @@ import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { OrderStatus, PaymentStatus } from "@prisma/client"
-import { calculateCartPricing } from "@/lib/pricing"
+import { OrderItemType, OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client"
+import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
+import { validateComboCartSelection } from "@/lib/cart-combos"
+import { buildOrderItemComponentSnapshots } from "@/lib/order-combos"
+
+type CartWithComboData = Prisma.CartGetPayload<{
+  include: {
+    items: {
+      include: {
+        product: {
+          include: {
+            comboComponents: {
+              include: {
+                product: {
+                  include: {
+                    variants: true
+                  }
+                }
+              }
+            }
+          }
+        }
+        variant: true
+      }
+    }
+  }
+}>
+
+type CartItemWithComboData = CartWithComboData["items"][number]
 
 // ============================================
 // UPDATE ORDERS STATUS (MASIVO)
@@ -26,7 +53,7 @@ export async function updateOrdersStatus(
     }
     
     // Verificar rol de admin
-    const userRole = (session.user as any).role
+    const userRole = (session.user as { role?: string }).role
     if (!userRole || !["ADMIN", "OWNER", "SUPERADMIN"].includes(userRole)) {
       return { error: "UNAUTHORIZED", message: "No tienes permisos" }
     }
@@ -36,7 +63,11 @@ export async function updateOrdersStatus(
     }
 
     // Actualizar pedidos
-    const updateData: any = {}
+    const updateData: {
+      orderStatus?: OrderStatus
+      cancelledAt?: Date
+      paymentStatus?: PaymentStatus
+    } = {}
     if (orderStatus) {
       updateData.orderStatus = orderStatus
       // Si se cancela, guardar fecha de cancelación
@@ -90,7 +121,22 @@ export async function createOrder(formData: FormData) {
       include: {
         items: {
           include: { 
-            product: true,
+            product: {
+              include: {
+                comboComponents: {
+                  orderBy: { position: "asc" },
+                  include: {
+                    product: {
+                      include: {
+                        variants: {
+                          where: { isActive: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
             variant: true
           }
         }
@@ -102,9 +148,80 @@ export async function createOrder(formData: FormData) {
     }
 
     // Calculate totals securely via pricing engine
-    const pricingResult = calculateCartPricing(cart.items as any)
+    const pricingItems: CartPricingItem[] = cart.items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      productId: item.productId,
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        price: Number(item.product.price),
+        discountType: item.product.discountType,
+        discountConfig: item.product.discountConfig,
+      },
+      variant: item.variant ? {
+        price: item.variant.price ? Number(item.variant.price) : null,
+      } : null,
+    }))
+
+    const pricingResult = calculateCartPricing(pricingItems)
     const subtotal = pricingResult.rawSubtotal
     const discountAmount = pricingResult.discountAmount
+
+    const orderItemsToCreate = cart.items.map((item: CartItemWithComboData) => {
+      const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+
+      if (item.product.isCombo) {
+        const validatedSelection = validateComboCartSelection({
+          product: item.product,
+          rawConfiguration: item.comboConfiguration,
+          quantity: item.quantity,
+        })
+
+        return {
+          productId: item.productId,
+          variantId: null,
+          itemType: OrderItemType.COMBO,
+          name: item.product.name,
+          sku: item.product.sku,
+          price: itemPrice,
+          quantityOrdered: item.quantity,
+          unitTotal: itemPrice * item.quantity,
+          components: {
+            create: buildOrderItemComponentSnapshots({
+              configuration: validatedSelection.configuration,
+              comboComponents: item.product.comboComponents,
+              comboQuantity: item.quantity,
+            }),
+          },
+        }
+      }
+
+      if (item.variantId) {
+        if (!item.variant) {
+          throw new Error("La variante de un producto del carrito ya no existe.")
+        }
+
+        if (!item.product.hasPermanentStock && item.variant.stock < item.quantity) {
+          throw new Error(`No hay suficiente stock de ${item.variant.title || item.product.name}.`)
+        }
+      } else if (!item.product.hasPermanentStock && item.product.stock < item.quantity) {
+        throw new Error(`No hay suficiente stock de ${item.product.name}.`)
+      }
+
+      const itemName = item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name
+
+      return {
+        productId: item.productId,
+        variantId: item.variantId,
+        itemType: OrderItemType.PRODUCT,
+        name: itemName,
+        sku: item.variant?.sku || item.product.sku,
+        price: itemPrice,
+        quantityOrdered: item.quantity,
+        unitTotal: itemPrice * item.quantity,
+      }
+    })
 
     // Get settings for shipping
     const settings = await db.storeSettings.findFirst()
@@ -215,57 +332,51 @@ export async function createOrder(formData: FormData) {
     const initialStatus: OrderStatus = settings?.autoConfirmOrders ? "CONFIRMED" : "RECEIVED"
 
     // Create order
-    const order = await db.order.create({
-      data: {
-        orderNumber,
-        userId: userId!,
-        orderStatus: initialStatus,
-        subtotal,
-        shippingCost,
-        taxAmount: 0,
-        discountAmount: discountAmount,
-        total,
-        shippingMethod,
-        shippingAddress: {
-          name,
-          phone,
-          street,
-          number,
-          floor: floor || null,
-          apartment: apartment || null,
-          city,
-          state,
-          postalCode,
-          instructions: instructions || null,
+    const order = await db.$transaction(async (tx) => {
+      const createdOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: userId!,
+          orderStatus: initialStatus,
+          subtotal,
+          shippingCost,
+          taxAmount: 0,
+          discountAmount: discountAmount,
+          total,
+          shippingMethod,
+          shippingAddress: {
+            name,
+            phone,
+            street,
+            number,
+            floor: floor || null,
+            apartment: apartment || null,
+            city,
+            state,
+            postalCode,
+            instructions: instructions || null,
+          },
+          paymentMethod: finalPaymentMethod as PaymentMethod,
+          paymentStatus: "PENDING",
+          items: {
+            create: orderItemsToCreate,
+          },
         },
-        paymentMethod: finalPaymentMethod as any,
-        paymentStatus: "PENDING",
-        items: {
-          create: cart.items.map((item: any) => {
-            const itemPrice = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
-            const itemName = item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name
-            
-            return {
-              productId: item.productId,
-              variantId: item.variantId,
-              name: itemName,
-              sku: item.variant?.sku || item.product.sku,
-              price: itemPrice,
-              quantityOrdered: item.quantity,
-              unitTotal: itemPrice * item.quantity,
-            }
-          })
-        }
-      },
-      include: {
-        items: true,
-        user: true
-      }
-    })
+        include: {
+          items: {
+            include: {
+              components: true,
+            },
+          },
+          user: true,
+        },
+      })
 
-    // Clear cart
-    await db.cartItem.deleteMany({
-      where: { cartId }
+      await tx.cartItem.deleteMany({
+        where: { cartId },
+      })
+
+      return createdOrder
     })
 
     // Send confirmation email
@@ -279,7 +390,11 @@ export async function createOrder(formData: FormData) {
     return { orderId: order.id, paymentUrl: undefined }
   } catch (error) {
     console.error("Order creation error:", error)
-    return { error: "Error al procesar el pedido. Intentalo de nuevo." }
+    return {
+      error: error instanceof Error
+        ? error.message
+        : "Error al procesar el pedido. Intentalo de nuevo.",
+    }
   }
 }
 
@@ -290,7 +405,7 @@ export async function createOrder(formData: FormData) {
 export async function updateOrderCoordinates(orderId: string, lat: number, lng: number) {
   try {
     const session = await auth()
-    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as any).role)) {
+    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as { role?: string }).role || "")) {
       return { error: "AUTH_REQUIRED", message: "No autorizado" }
     }
 
@@ -302,7 +417,7 @@ export async function updateOrderCoordinates(orderId: string, lat: number, lng: 
     if (!order) return { error: "ORDER_NOT_FOUND", message: "Pedido no encontrado" }
 
     const shippingAddress = {
-      ...(order.shippingAddress as any),
+      ...((order.shippingAddress as Record<string, unknown> | null) ?? {}),
       lat,
       lng
     }
@@ -316,9 +431,12 @@ export async function updateOrderCoordinates(orderId: string, lat: number, lng: 
     revalidatePath("/admin/routes")
     
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update coordinates error:", error)
-    return { error: "SERVER_ERROR", message: error.message }
+    return {
+      error: "SERVER_ERROR",
+      message: error instanceof Error ? error.message : "Error al actualizar coordenadas",
+    }
   }
 }
 
@@ -341,7 +459,7 @@ interface OrderShippingAddressInput {
 export async function updateOrderShippingAddress(orderId: string, addressData: OrderShippingAddressInput) {
   try {
     const session = await auth()
-    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as any).role)) {
+    if (!session?.user || !["ADMIN", "OWNER", "SUPERADMIN"].includes((session.user as { role?: string }).role || "")) {
       return { error: "AUTH_REQUIRED", message: "No autorizado" }
     }
 
@@ -410,8 +528,11 @@ export async function updateOrderShippingAddress(orderId: string, addressData: O
     }
 
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update shipping address error:", error)
-    return { error: "SERVER_ERROR", message: error.message }
+    return {
+      error: "SERVER_ERROR",
+      message: error instanceof Error ? error.message : "Error al actualizar domicilio",
+    }
   }
 }

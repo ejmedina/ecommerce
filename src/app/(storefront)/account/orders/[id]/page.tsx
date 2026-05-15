@@ -12,6 +12,17 @@ interface OrderDetailPageProps {
   params: Promise<{ id: string }>
 }
 
+type ShippingAddress = {
+  street?: string
+  number?: string
+  floor?: string | null
+  apartment?: string | null
+  city?: string
+  state?: string
+  postalCode?: string
+  instructions?: string | null
+}
+
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = await params
   const session = await auth()
@@ -23,7 +34,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const order = await db.order.findUnique({
     where: { id },
     include: {
-      items: true,
+      items: {
+        include: {
+          components: {
+            orderBy: { position: "asc" },
+          },
+        },
+      },
     },
   })
 
@@ -96,7 +113,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     return labels[method] || method
   }
 
-  const shippingAddress = order.shippingAddress as any
+  const shippingAddress = order.shippingAddress as ShippingAddress | null
 
   return (
     <div className="space-y-6">
@@ -167,6 +184,15 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     <p className="text-sm text-muted-foreground">
                       Cantidad: {quantityOrdered} {item.sku && `• SKU: ${item.sku}`}
                     </p>
+                    {item.itemType === "COMBO" && item.components.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {item.components.map((component) => (
+                          <p key={component.id} className="text-xs text-muted-foreground">
+                            {component.quantityOrdered} x {component.name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
                 </div>
