@@ -40,6 +40,21 @@ interface ProductVariant {
   isActive: boolean
 }
 
+interface ComboComponent {
+  id?: string
+  productId: string
+  quantity: number
+  position: number
+}
+
+interface AvailableProduct {
+  id: string
+  name: string
+  sku: string | null
+  hasVariants: boolean
+  isActive: boolean
+}
+
 interface Product {
   id: string
   name: string
@@ -59,17 +74,20 @@ interface Product {
   images: { id: string; url: string; alt: string | null }[]
   hasPermanentStock: boolean
   hasVariants: boolean
+  isCombo: boolean
   options: ProductOption[]
   variants: ProductVariant[]
+  comboComponents: ComboComponent[]
 }
 
 interface ProductFormProps {
   product?: Product
   categories: Category[]
+  availableProducts: AvailableProduct[]
   onCategoriesChange?: (categories: Category[]) => void
 }
 
-export function ProductForm({ product, categories, onCategoriesChange }: ProductFormProps) {
+export function ProductForm({ product, categories, availableProducts, onCategoriesChange }: ProductFormProps) {
   const router = useRouter()
   const isEditing = !!product
   const [saving, setSaving] = useState(false)
@@ -96,6 +114,7 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
   const [isActive, setIsActive] = useState(product?.isActive || false)
   const [isFeatured, setIsFeatured] = useState(product?.isFeatured || false)
   const [hasPermanentStock, setHasPermanentStock] = useState(product?.hasPermanentStock || false)
+  const [isCombo, setIsCombo] = useState(product?.isCombo || false)
   const [images, setImages] = useState<{ url: string; alt: string }[]>(
     product?.images?.map(img => ({ url: img.url, alt: img.alt || "" })) || []
   )
@@ -129,10 +148,25 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
       options: typeof v.options === 'string' ? JSON.parse(v.options) : (v.options as Record<string, string>)
     })) || []
   )
+  const [comboComponents, setComboComponents] = useState<ComboComponent[]>(
+    product?.comboComponents?.map((component, index) => ({
+      ...component,
+      position: component.position ?? index,
+    })) || []
+  )
 
   const handleSave = async () => {
     setSaving(true)
     try {
+      if (isCombo && comboComponents.some((component) => !component.productId)) {
+        toast({
+          variant: "destructive",
+          title: "Faltan productos",
+          description: "Elegí un producto para cada componente del combo.",
+        })
+        return
+      }
+
       const formData = new FormData()
       formData.set("name", name)
       formData.set("sku", sku)
@@ -145,8 +179,9 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
       if (metaDescription) formData.set("metaDescription", metaDescription)
       formData.set("isActive", isActive ? "1" : "0")
       formData.set("isFeatured", isFeatured ? "1" : "0")
-      formData.set("hasPermanentStock", hasPermanentStock ? "1" : "0")
-      formData.set("hasVariants", hasVariants ? "1" : "0")
+      formData.set("hasPermanentStock", hasPermanentStock && !isCombo ? "1" : "0")
+      formData.set("hasVariants", hasVariants && !isCombo ? "1" : "0")
+      formData.set("isCombo", isCombo ? "1" : "0")
 
       // Descuentos
       formData.set("discountType", discountType)
@@ -159,9 +194,20 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
         formData.set("discountConfig", JSON.stringify(null))
       }
       
-      if (hasVariants) {
+      if (hasVariants && !isCombo) {
         formData.set("options", JSON.stringify(options))
         formData.set("variants", JSON.stringify(variants))
+      }
+
+      if (isCombo) {
+        formData.set("comboComponents", JSON.stringify(
+          comboComponents.map((component, index) => ({
+            id: component.id,
+            productId: component.productId,
+            quantity: component.quantity,
+            position: index,
+          }))
+        ))
       }
 
       if (images.length > 0) {
@@ -333,6 +379,65 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
     return buildFlatTree(null)
   }, [localCategories])
 
+  const productType = isCombo ? "combo" : hasVariants ? "variants" : "simple"
+  const stockManagedAutomatically = hasPermanentStock || isCombo
+
+  const comboProductMap = useMemo(
+    () => new Map(availableProducts.map((availableProduct) => [availableProduct.id, availableProduct])),
+    [availableProducts]
+  )
+
+  const setProductType = (value: string) => {
+    if (value === "combo") {
+      setIsCombo(true)
+      setHasVariants(false)
+      setHasPermanentStock(false)
+      return
+    }
+
+    setIsCombo(false)
+    setHasVariants(value === "variants")
+  }
+
+  const addComboComponent = () => {
+    setComboComponents((current) => [
+      ...current,
+      {
+        productId: "",
+        quantity: 1,
+        position: current.length,
+      },
+    ])
+  }
+
+  const updateComboComponent = (
+    index: number,
+    updates: Partial<ComboComponent>
+  ) => {
+    setComboComponents((current) =>
+      current.map((component, componentIndex) =>
+        componentIndex === index
+          ? {
+              ...component,
+              ...updates,
+              position: componentIndex,
+            }
+          : component
+      )
+    )
+  }
+
+  const removeComboComponent = (index: number) => {
+    setComboComponents((current) =>
+      current
+        .filter((_, componentIndex) => componentIndex !== index)
+        .map((component, componentIndex) => ({
+          ...component,
+          position: componentIndex,
+        }))
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -423,12 +528,16 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                     onChange={(e) => setStock(e.target.value)}
                     min={0}
                     required
-                    disabled={hasPermanentStock}
-                    className={hasPermanentStock ? "bg-muted opacity-50 cursor-not-allowed" : ""}
+                    disabled={stockManagedAutomatically}
+                    className={stockManagedAutomatically ? "bg-muted opacity-50 cursor-not-allowed" : ""}
                   />
-                  {hasPermanentStock && (
+                  {isCombo ? (
+                    <p className="text-[10px] font-medium text-blue-600">
+                      El stock del combo se calcula desde sus componentes.
+                    </p>
+                  ) : hasPermanentStock ? (
                     <p className="text-[10px] text-blue-600 font-medium">Stock gestionado automáticamente (Permanente)</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="space-y-2">
@@ -559,16 +668,16 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                 <div>
                   <CardTitle>Tipo de producto</CardTitle>
                   <CardDescription>
-                    Elegí si este producto se vende como una unidad simple o con variantes.
+                    Elegí si este producto se vende como una unidad simple, con variantes o como combo.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <RadioGroup
-                value={hasVariants ? "variants" : "simple"}
-                onValueChange={(value) => setHasVariants(value === "variants")}
-                className="grid gap-3 md:grid-cols-2"
+                value={productType}
+                onValueChange={setProductType}
+                className="grid gap-3 md:grid-cols-3"
               >
                 <Label
                   htmlFor="product-simple"
@@ -594,9 +703,116 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
                     </div>
                   </div>
                 </Label>
+                <Label
+                  htmlFor="product-combo"
+                  className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50"
+                >
+                  <RadioGroupItem value="combo" id="product-combo" />
+                  <div className="space-y-1">
+                    <div className="font-medium">Combo</div>
+                    <div className="text-sm text-muted-foreground">
+                      Precio propio y stock operativo tomado desde otros productos.
+                    </div>
+                  </div>
+                </Label>
               </RadioGroup>
 
-              {hasVariants && (
+              {isCombo && (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-medium">Productos del combo</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Podés repetir productos si necesitás más de una selección independiente.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={addComboComponent}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Agregar producto
+                      </Button>
+                    </div>
+
+                    {comboComponents.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                        Este combo todavía no tiene productos. Agregá al menos uno para poder guardarlo.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {comboComponents.map((component, index) => {
+                          const selectedProduct = component.productId
+                            ? comboProductMap.get(component.productId)
+                            : null
+
+                          return (
+                            <div
+                              key={component.id ?? `combo-component-${index}`}
+                              className="rounded-lg border p-4"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="grid flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+                                  <div className="space-y-2">
+                                    <Label>Producto</Label>
+                                    <select
+                                      value={component.productId}
+                                      onChange={(e) =>
+                                        updateComboComponent(index, { productId: e.target.value })
+                                      }
+                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    >
+                                      <option value="">Seleccionar producto</option>
+                                      {availableProducts.map((availableProduct) => (
+                                        <option key={availableProduct.id} value={availableProduct.id}>
+                                          {availableProduct.name}
+                                          {availableProduct.sku ? ` (${availableProduct.sku})` : ""}
+                                          {!availableProduct.isActive ? " - inactivo" : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    {selectedProduct?.hasVariants && (
+                                      <p className="text-xs text-muted-foreground">
+                                        El cliente elegirá la variante de este producto al comprar el combo.
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Cantidad</Label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      value={component.quantity}
+                                      onChange={(e) =>
+                                        updateComboComponent(index, {
+                                          quantity: Math.max(1, Number(e.target.value) || 1),
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeComboComponent(index)}
+                                  aria-label={`Quitar producto ${index + 1} del combo`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {hasVariants && !isCombo && (
                 <>
                 {/* Editor de Opciones */}
                 <div className="space-y-4">
@@ -905,15 +1121,21 @@ export function ProductForm({ product, categories, onCategoriesChange }: Product
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="hasPermanentStock"
-                  checked={hasPermanentStock}
+                  checked={isCombo ? false : hasPermanentStock}
+                  disabled={isCombo}
                   onCheckedChange={(checked) => setHasPermanentStock(!!checked)}
                 />
-                <Label htmlFor="hasPermanentStock" className="cursor-pointer font-medium">
+                <Label
+                  htmlFor="hasPermanentStock"
+                  className={`font-medium ${isCombo ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                >
                   Stock permanente
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Se muestra siempre con stock, ideal para productos dropshipping
+                {isCombo
+                  ? "Los combos no manejan stock propio: dependen de los productos que incluyen."
+                  : "Se muestra siempre con stock, ideal para productos dropshipping"}
               </p>
               <Separator />
               <div className="flex items-center space-x-2">

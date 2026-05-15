@@ -20,8 +20,33 @@ interface ParsedProductVariant {
   isActive?: boolean
 }
 
+interface ParsedComboComponent {
+  id?: string
+  productId: string
+  quantity: number
+  position: number
+}
+
 function parseNumericValue(value: string | number | null | undefined, fallback: number) {
   return value ? Number(value) : fallback
+}
+
+function parseComboComponents(
+  value: FormDataEntryValue | null
+): ParsedComboComponent[] {
+  if (typeof value !== "string" || !value.trim()) {
+    return []
+  }
+
+  const parsed = JSON.parse(value) as ParsedComboComponent[]
+  return parsed
+    .map((component, index) => ({
+      id: component.id,
+      productId: component.productId,
+      quantity: Math.max(1, Number(component.quantity) || 1),
+      position: Number.isFinite(component.position) ? Number(component.position) : index,
+    }))
+    .filter((component) => Boolean(component.productId))
 }
 
 export async function createProduct(formData: FormData) {
@@ -46,8 +71,10 @@ export async function createProduct(formData: FormData) {
     
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
+    const isCombo = formData.get("isCombo") === "1"
     const optionsJson = formData.get("options") as string // JSON string
     const variantsJson = formData.get("variants") as string // JSON string
+    const comboComponents = parseComboComponents(formData.get("comboComponents"))
 
     const slug = slugify(name)
 
@@ -55,12 +82,34 @@ export async function createProduct(formData: FormData) {
     const existing = await db.product.findUnique({ where: { slug } })
     const finalSlug = existing ? `${slug}-${Date.now()}` : slug
 
+    if (isCombo && hasVariants) {
+      return { error: "Un combo no puede tener variantes propias." }
+    }
+
+    if (isCombo && comboComponents.length === 0) {
+      return { error: "Agregá al menos un producto al combo." }
+    }
+
+    if (isCombo) {
+      const nestedCombo = await db.product.findFirst({
+        where: {
+          id: { in: comboComponents.map((component) => component.productId) },
+          isCombo: true,
+        },
+        select: { id: true },
+      })
+
+      if (nestedCombo) {
+        return { error: "Los combos no pueden incluir otros combos." }
+      }
+    }
+
     const product = await db.product.create({
       data: {
         name,
         slug: finalSlug,
         sku: hasVariants ? null : sku, // Reset product SKU if it has variants
-        stock: hasVariants ? 0 : stock, // Product stock is sum of variants or 0
+        stock: hasVariants || isCombo ? 0 : stock, // Product stock is sum of variants or 0
         price,
         comparePrice,
         description,
@@ -69,8 +118,9 @@ export async function createProduct(formData: FormData) {
         metaDescription,
         isActive,
         isFeatured,
-        hasPermanentStock,
+        hasPermanentStock: isCombo ? false : hasPermanentStock,
         hasVariants,
+        isCombo,
         discountType,
         discountConfig,
         publishedAt: isActive ? new Date() : null,
@@ -85,6 +135,15 @@ export async function createProduct(formData: FormData) {
             create: (JSON.parse(optionsJson) as ParsedProductOption[]).map((opt, index) => ({
               name: opt.name,
               values: opt.values,
+              position: index,
+            })),
+          },
+        }),
+        ...(isCombo && comboComponents.length > 0 && {
+          comboComponents: {
+            create: comboComponents.map((component, index) => ({
+              productId: component.productId,
+              quantity: component.quantity,
               position: index,
             })),
           },
@@ -143,15 +202,43 @@ export async function updateProduct(formData: FormData) {
 
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
+    const isCombo = formData.get("isCombo") === "1"
     const optionsJson = formData.get("options") as string
     const variantsJson = formData.get("variants") as string
+    const comboComponents = parseComboComponents(formData.get("comboComponents"))
+
+    if (isCombo && hasVariants) {
+      return { error: "Un combo no puede tener variantes propias." }
+    }
+
+    if (isCombo && comboComponents.length === 0) {
+      return { error: "Agregá al menos un producto al combo." }
+    }
+
+    if (isCombo && comboComponents.some((component) => component.productId === id)) {
+      return { error: "Un combo no puede incluirse a sí mismo." }
+    }
+
+    if (isCombo) {
+      const nestedCombo = await db.product.findFirst({
+        where: {
+          id: { in: comboComponents.map((component) => component.productId) },
+          isCombo: true,
+        },
+        select: { id: true },
+      })
+
+      if (nestedCombo) {
+        return { error: "Los combos no pueden incluir otros combos." }
+      }
+    }
 
     const product = await db.product.update({
       where: { id },
       data: {
         name,
         sku: hasVariants ? null : sku,
-        stock: hasVariants ? 0 : stock,
+        stock: hasVariants || isCombo ? 0 : stock,
         price,
         comparePrice,
         description,
@@ -160,8 +247,9 @@ export async function updateProduct(formData: FormData) {
         metaDescription,
         isActive,
         isFeatured,
-        hasPermanentStock,
+        hasPermanentStock: isCombo ? false : hasPermanentStock,
         hasVariants,
+        isCombo,
         discountType,
         discountConfig,
         publishedAt: isActive ? new Date() : null,
@@ -229,6 +317,20 @@ export async function updateProduct(formData: FormData) {
       }
     } else {
       await db.productVariant.deleteMany({ where: { productId: id } })
+    }
+
+    if (isCombo) {
+      await db.comboComponent.deleteMany({ where: { comboProductId: id } })
+      await db.comboComponent.createMany({
+        data: comboComponents.map((component, index) => ({
+          comboProductId: id,
+          productId: component.productId,
+          quantity: component.quantity,
+          position: index,
+        })),
+      })
+    } else {
+      await db.comboComponent.deleteMany({ where: { comboProductId: id } })
     }
 
     // Update image if provided
