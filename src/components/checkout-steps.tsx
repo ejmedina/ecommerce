@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { type CartComboConfiguration, summarizeComboConfiguration } from "@/lib/combos"
@@ -116,13 +116,6 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   
   // New: Province selector for shipping calculation
   const [selectedProvince, setSelectedProvince] = useState<ProvinceId | "">("")
-  const [shippingCalculation, setShippingCalculation] = useState<{
-    cost: number
-    isFree: boolean
-    freeFrom: number | null
-    zoneName: string
-  } | null>(null)
-  
   // Auth state
   type AuthMode = "login" | "register" | "guest"
   const [authMode, setAuthMode] = useState<AuthMode>("guest")
@@ -150,35 +143,38 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   })
 
   // Get shipping config
-  const shippingConfig = (settings.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig()
+  const shippingConfig = useMemo(
+    () => (settings.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig(),
+    [settings.shippingConfig]
+  )
 
   // Get allowed provinces from shipping config
   const allowedProvinceIds = new Set(shippingConfig.zones.flatMap((zone: ShippingZone) => zone.provinces))
   const availableProvinces = ARGENTINE_PROVINCES.filter(p => allowedProvinceIds.has(p.id))
   
-  // Calculate shipping when province or city changes
-  useEffect(() => {
-    if (shippingMethod === "shipping" && selectedProvince && formData.city) {
-      const calc = calculateShipping(
-        selectedProvince as ProvinceId,
-        formData.city,
-        pricingResult.totalToPay, // Use total to pay (after discounts) for free shipping threshold
-        shippingConfig
-      )
-      if (calc) {
-        setShippingCalculation({
-          cost: calc.cost,
-          isFree: calc.isFree,
-          freeFrom: calc.freeFrom,
-          zoneName: calc.zone.name,
-        })
-      } else {
-        setShippingCalculation(null)
-      }
-    } else {
-      setShippingCalculation(null)
+  const shippingCalculation = useMemo(() => {
+    if (shippingMethod !== "shipping" || !selectedProvince || !formData.city) {
+      return null
     }
-  }, [selectedProvince, formData.city, pricingResult.totalToPay, shippingConfig, shippingMethod])
+
+    const calc = calculateShipping(
+      selectedProvince as ProvinceId,
+      formData.city,
+      pricingResult.totalToPay,
+      shippingConfig
+    )
+
+    if (!calc) {
+      return null
+    }
+
+    return {
+      cost: calc.cost,
+      isFree: calc.isFree,
+      freeFrom: calc.freeFrom,
+      zoneName: calc.zone.name,
+    }
+  }, [formData.city, pricingResult.totalToPay, selectedProvince, shippingConfig, shippingMethod])
 
   const shippingCost = shippingMethod === "shipping" 
     ? (shippingCalculation?.cost ?? 0)
