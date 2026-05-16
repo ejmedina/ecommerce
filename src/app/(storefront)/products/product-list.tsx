@@ -365,7 +365,11 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {variants.map((variant) => {
+            {variants.length === 0 ? (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+                Este producto todavía no tiene variantes activas configuradas.
+              </div>
+            ) : variants.map((variant) => {
               const cartItem = variantCartItems.get(variant.id)
               const draftQuantity = draftQuantities[variant.id] || 1
               const variantPrice = Number(variant.price ?? product.price)

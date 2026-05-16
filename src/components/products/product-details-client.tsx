@@ -490,7 +490,11 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           </div>
 
           <div className="space-y-3">
-            {processedVariants.map((variant) => {
+            {processedVariants.length === 0 ? (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+                Este producto todavía no tiene variantes activas configuradas.
+              </div>
+            ) : processedVariants.map((variant) => {
               const variantCartItem = variantCartItems.get(variant.id)
               const draftQuantity = variantDraftQuantities[variant.id] || 1
               const variantPrice = Number(variant.price ?? product.price)

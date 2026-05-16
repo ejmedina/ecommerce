@@ -71,6 +71,53 @@ function findDuplicateVariantSkus(variants: Array<{ sku: string | null }>) {
   return [...duplicates]
 }
 
+function generateVariantCombinations(
+  options: ParsedProductOption[],
+  baseSku: string | null,
+  basePrice: number,
+  baseComparePrice: number | null
+) {
+  if (options.length === 0) {
+    return []
+  }
+
+  const combinations: Record<string, string>[] = []
+
+  const walk = (index: number, current: Record<string, string>) => {
+    if (index === options.length) {
+      combinations.push({ ...current })
+      return
+    }
+
+    const option = options[index]
+    const cleanValues = option.values.map((value) => value.trim()).filter(Boolean)
+
+    if (cleanValues.length === 0) {
+      return
+    }
+
+    for (const value of cleanValues) {
+      current[option.name] = value
+      walk(index + 1, current)
+    }
+  }
+
+  walk(0, {})
+
+  return combinations.map((combination) => {
+    const title = Object.values(combination).join(" / ")
+    return {
+      sku: baseSku ? `${baseSku}-${title.replace(/\s+/g, "-").toUpperCase()}` : null,
+      price: basePrice,
+      comparePrice: baseComparePrice,
+      stock: 0,
+      options: combination,
+      title,
+      isActive: true,
+    }
+  })
+}
+
 function parseComboComponents(
   value: FormDataEntryValue | null
 ): ParsedComboComponent[] {
@@ -130,9 +177,24 @@ export async function createProduct(formData: FormData) {
       return { error: "Agregá al menos un producto al combo." }
     }
 
-    const normalizedVariants = hasVariants && variantsJson
-      ? normalizeParsedVariants(JSON.parse(variantsJson) as ParsedProductVariant[], price)
+    const parsedOptions = hasVariants && optionsJson
+      ? (JSON.parse(optionsJson) as ParsedProductOption[])
       : []
+    const parsedVariants = hasVariants && variantsJson
+      ? (JSON.parse(variantsJson) as ParsedProductVariant[])
+      : []
+    const normalizedVariants = hasVariants
+      ? normalizeParsedVariants(
+          parsedVariants.length > 0
+            ? parsedVariants
+            : generateVariantCombinations(parsedOptions, sku, price, comparePrice),
+          price
+        )
+      : []
+
+    if (hasVariants && parsedOptions.length > 0 && normalizedVariants.length === 0) {
+      return { error: "Configurá al menos una variante válida antes de guardar el producto." }
+    }
 
     const duplicateVariantSkus = findDuplicateVariantSkus(normalizedVariants)
     if (duplicateVariantSkus.length > 0) {
@@ -181,9 +243,9 @@ export async function createProduct(formData: FormData) {
               create: { url: imageUrl, alt: imageAlt },
             },
           }),
-          ...(hasVariants && optionsJson && {
+          ...(hasVariants && parsedOptions.length > 0 && {
             options: {
-              create: (JSON.parse(optionsJson) as ParsedProductOption[]).map((opt, index) => ({
+              create: parsedOptions.map((opt, index) => ({
                 name: opt.name,
                 values: opt.values,
                 position: index,
@@ -272,9 +334,24 @@ export async function updateProduct(formData: FormData) {
       return { error: "Agregá al menos un producto al combo." }
     }
 
-    const normalizedVariants = hasVariants && variantsJson
-      ? normalizeParsedVariants(JSON.parse(variantsJson) as ParsedProductVariant[], price)
+    const parsedOptions = hasVariants && optionsJson
+      ? (JSON.parse(optionsJson) as ParsedProductOption[])
       : []
+    const parsedVariants = hasVariants && variantsJson
+      ? (JSON.parse(variantsJson) as ParsedProductVariant[])
+      : []
+    const normalizedVariants = hasVariants
+      ? normalizeParsedVariants(
+          parsedVariants.length > 0
+            ? parsedVariants
+            : generateVariantCombinations(parsedOptions, sku, price, comparePrice),
+          price
+        )
+      : []
+
+    if (hasVariants && parsedOptions.length > 0 && normalizedVariants.length === 0) {
+      return { error: "Configurá al menos una variante válida antes de guardar el producto." }
+    }
 
     const duplicateVariantSkus = findDuplicateVariantSkus(normalizedVariants)
     if (duplicateVariantSkus.length > 0) {
@@ -325,11 +402,10 @@ export async function updateProduct(formData: FormData) {
     })
 
     // Sincronizar Opciones (Borrar y Volver a crear es más simple para este caso)
-    if (hasVariants && optionsJson) {
+    if (hasVariants && parsedOptions.length > 0) {
       await db.productOption.deleteMany({ where: { productId: id } })
-      const optionsData = JSON.parse(optionsJson) as ParsedProductOption[]
       await db.productOption.createMany({
-        data: optionsData.map((opt, index) => ({
+        data: parsedOptions.map((opt, index) => ({
           productId: id,
           name: opt.name,
           values: opt.values,
