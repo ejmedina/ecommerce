@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { formatCurrency } from "@/lib/utils"
 import { AddToCartButton } from "@/components/add-to-cart-button"
+import { Button } from "@/components/ui/button"
 import { getProductsAction } from "./actions"
 import { Loader2 } from "lucide-react"
 import { getProductPromotions } from "@/lib/product-promotions"
@@ -183,14 +184,22 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
               )}
             </Link>
             <div className="mt-auto pt-3">
-              <AddToCartButton
-                productId={product.id}
-                productName={product.name}
-                productSlug={product.slug}
-                requiresConfiguration={Boolean(product.hasVariants || product.comboRequiresConfiguration)}
-                className="w-full"
-                size="sm"
-              />
+              {product.hasVariants ? (
+                <Button asChild className="w-full" size="sm">
+                  <Link href={`/products/${product.slug}`}>
+                    Agregar al carrito
+                  </Link>
+                </Button>
+              ) : (
+                <AddToCartButton
+                  productId={product.id}
+                  productName={product.name}
+                  productSlug={product.slug}
+                  requiresConfiguration={Boolean(product.comboRequiresConfiguration)}
+                  className="w-full"
+                  size="sm"
+                />
+              )}
             </div>
           </div>
           )
