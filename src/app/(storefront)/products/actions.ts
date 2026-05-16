@@ -88,6 +88,17 @@ export async function getProductsAction({
     include: {
       images: { take: 1, orderBy: { order: "asc" } },
       category: true,
+      variants: {
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          title: true,
+          sku: true,
+          stock: true,
+          price: true,
+        },
+      },
       comboComponents: {
         include: {
           product: {
@@ -125,6 +136,10 @@ export async function getProductsAction({
       comboRequiresConfiguration: p.isCombo
         ? p.comboComponents.some((component) => component.product.hasVariants)
         : false,
+      variants: p.variants.map((variant) => ({
+        ...variant,
+        price: variant.price?.toString() || null,
+      })),
       price: p.price.toString(),
       comparePrice: p.comparePrice?.toString() || null,
     })),
