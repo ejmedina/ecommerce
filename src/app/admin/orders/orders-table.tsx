@@ -43,6 +43,7 @@ import {
 interface OrderItem {
   id: string
   productId: string
+  variantId?: string | null
   itemType?: "PRODUCT" | "COMBO"
   name: string
   quantity: number
@@ -436,7 +437,7 @@ export function OrdersTable({
           id: item.id,
           itemType: item.itemType,
           productId: item.productId,
-          variantId: null,
+          variantId: item.variantId ?? null,
           name: item.name,
           quantityOrdered: item.quantity,
           quantityFulfilled: item.quantityFulfilled,

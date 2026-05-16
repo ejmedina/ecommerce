@@ -113,6 +113,7 @@ export default async function OrdersPage({ searchParams }: Props) {
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
+      variantId: item.variantId,
       itemType: item.itemType,
       name: item.name,
       quantity: item.quantityOrdered,
