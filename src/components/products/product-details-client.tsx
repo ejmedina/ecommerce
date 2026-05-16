@@ -65,7 +65,7 @@ interface ProductDetailsClientProps {
 }
 
 export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
-  const [selectedComboOptions, setSelectedComboOptions] = useState<Record<string, Record<string, string>>>({})
+  const [comboVariantQuantities, setComboVariantQuantities] = useState<Record<string, Record<string, number>>>({})
   const [adding, setAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -97,23 +97,27 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const comboSelections = useMemo(() => {
     return processedComboComponents.map((component) => {
       const componentProduct = component.product
-      const componentOptions = selectedComboOptions[component.id] ?? {}
-      const selectedVariantForComponent = componentProduct.hasVariants
-        && Object.keys(componentOptions).length === componentProduct.options.length
-        ? componentProduct.variants.find((variant) =>
-            Object.entries(componentOptions).every(
-              ([optionName, optionValue]) => variant.options[optionName] === optionValue
-            )
-          ) ?? null
-        : null
+      const selectedQuantities = comboVariantQuantities[component.id] ?? {}
+      const variantSelections = componentProduct.hasVariants
+        ? componentProduct.variants
+            .map((variant) => ({
+              ...variant,
+              selectedQuantity: selectedQuantities[variant.id] ?? 0,
+            }))
+            .filter((variant) => variant.selectedQuantity > 0)
+        : []
+      const totalSelectedQuantity = variantSelections.reduce(
+        (sum, variant) => sum + variant.selectedQuantity,
+        0
+      )
 
       return {
         ...component,
-        selectedOptions: componentOptions,
-        selectedVariant: selectedVariantForComponent,
+        variantSelections,
+        totalSelectedQuantity,
       }
     })
-  }, [processedComboComponents, selectedComboOptions])
+  }, [comboVariantQuantities, processedComboComponents])
 
   const currentPrice = Number(product.price)
   const currentComparePrice = product.comparePrice ? Number(product.comparePrice) : null
@@ -122,16 +126,31 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
     const configuration: CartComboConfigurationItem[] = []
     for (const component of comboSelections) {
-      if (component.product.hasVariants && !component.selectedVariant) {
-        return null
+      if (component.product.hasVariants) {
+        if (component.totalSelectedQuantity !== component.quantity) {
+          return null
+        }
+
+        for (const variant of component.variantSelections) {
+          configuration.push({
+            comboComponentId: component.id,
+            productId: component.product.id,
+            productName: component.product.name,
+            variantId: variant.id,
+            variantTitle: variant.title ?? null,
+            quantityPerCombo: variant.selectedQuantity,
+          })
+        }
+
+        continue
       }
 
       configuration.push({
         comboComponentId: component.id,
         productId: component.product.id,
         productName: component.product.name,
-        variantId: component.selectedVariant?.id ?? null,
-        variantTitle: component.selectedVariant?.title ?? null,
+        variantId: null,
+        variantTitle: null,
         quantityPerCombo: component.quantity,
       })
     }
@@ -152,16 +171,17 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
     for (const component of comboSelections) {
       if (component.product.hasVariants) {
-        const selectedComponentVariant = component.selectedVariant
-        if (!selectedComponentVariant) {
+        if (component.totalSelectedQuantity !== component.quantity) {
           return null
         }
 
-        if (!component.product.hasPermanentStock) {
-          const componentAvailability = Math.floor(selectedComponentVariant.stock / component.quantity)
-          availableStock = availableStock === null
-            ? componentAvailability
-            : Math.min(availableStock, componentAvailability)
+        for (const selectedVariant of component.variantSelections) {
+          if (!component.product.hasPermanentStock) {
+            const componentAvailability = Math.floor(selectedVariant.stock / selectedVariant.selectedQuantity)
+            availableStock = availableStock === null
+              ? componentAvailability
+              : Math.min(availableStock, componentAvailability)
+          }
         }
         continue
       }
@@ -235,16 +255,16 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
     )
   }, [product.categoryName, product.id, product.name, product.price])
 
-  const updateComboOption = (
+  const updateComboVariantQuantity = (
     componentId: string,
-    optionName: string,
-    optionValue: string
+    variantId: string,
+    nextQuantity: number
   ) => {
-    setSelectedComboOptions((current) => ({
+    setComboVariantQuantities((current) => ({
       ...current,
       [componentId]: {
         ...(current[componentId] ?? {}),
-        [optionName]: optionValue,
+        [variantId]: nextQuantity,
       },
     }))
     setQuantity(1)
@@ -373,7 +393,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       toast({
         variant: "destructive",
         title: "Selección incompleta",
-        description: "Elegí las variantes de cada producto del combo antes de agregarlo."
+        description: "Completá la distribución de variantes del combo antes de agregarlo."
       })
       return
     }
@@ -444,7 +464,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           </span>
         ) : product.isCombo && isComboSelectionPending ? (
           <span className="text-sm font-medium text-muted-foreground">
-            Completá las opciones del combo para ver disponibilidad.
+            Completá la distribución del combo para ver disponibilidad.
           </span>
         ) : product.isCombo && currentStock === null ? (
           <span className="text-sm text-green-600 font-medium">En stock</span>
@@ -538,7 +558,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           <div className="space-y-1">
             <h3 className="text-base font-semibold">Incluye</h3>
             <p className="text-sm text-muted-foreground">
-              Elegí las variantes en los productos que lo necesiten.
+              Distribuí las cantidades en las variantes de los productos que lo necesiten.
             </p>
           </div>
 
@@ -555,36 +575,59 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
               {component.product.hasVariants ? (
                 <div className="space-y-4">
-                  {component.product.options.map((option) => (
-                    <div key={`${component.id}-${option.id}`} className="space-y-2">
-                      <Label>{option.name}</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {option.values.map((value) => {
-                          const isSelected = component.selectedOptions[option.name] === value
+                  <div className="space-y-3">
+                    {component.product.variants.map((variant) => {
+                      const otherSelectedQuantity = component.variantSelections
+                        .filter((selection) => selection.id !== variant.id)
+                        .reduce((sum, selection) => sum + selection.selectedQuantity, 0)
+                      const variantStock = component.product.hasPermanentStock ? undefined : variant.stock
+                      const maxSelectable = component.product.hasPermanentStock
+                        ? Math.max(component.quantity - otherSelectedQuantity, 0)
+                        : Math.max(Math.min(component.quantity - otherSelectedQuantity, variant.stock), 0)
+                      const selectedQuantity =
+                        component.variantSelections.find((selection) => selection.id === variant.id)?.selectedQuantity ?? 0
 
-                          return (
-                            <Button
-                              key={`${component.id}-${option.name}-${value}`}
-                              type="button"
-                              variant={isSelected ? "default" : "outline"}
-                              className="rounded-full"
-                              onClick={() => updateComboOption(component.id, option.name, value)}
-                            >
-                              {value}
-                            </Button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                      return (
+                        <div
+                          key={`${component.id}-${variant.id}`}
+                          className="flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
+                        >
+                          <div className="space-y-1">
+                            <p className="font-medium">{variant.title || component.product.name}</p>
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                              {variant.sku && <span>SKU: {variant.sku}</span>}
+                              {component.product.hasPermanentStock ? (
+                                <span className="text-green-600 font-medium">En stock</span>
+                              ) : variant.stock > 0 ? (
+                                <span className="text-green-600 font-medium">
+                                  {variant.stock} disponibles
+                                </span>
+                              ) : (
+                                <span className="text-red-600 font-medium">Sin stock</span>
+                              )}
+                            </div>
+                          </div>
+                          <QuantitySelector
+                            value={selectedQuantity}
+                            onChange={(nextQuantity) =>
+                              updateComboVariantQuantity(component.id, variant.id, nextQuantity)
+                            }
+                            min={0}
+                            max={variantStock === 0 ? 0 : maxSelectable}
+                            disabled={variantStock === 0}
+                            size="default"
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
 
-                  {component.selectedVariant ? (
-                    <p className="text-sm text-muted-foreground">
-                      Selección: {component.selectedVariant.title || component.product.name}
-                    </p>
-                  ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Seleccionado: {component.totalSelectedQuantity} / {component.quantity}
+                  </p>
+                  {component.totalSelectedQuantity !== component.quantity && (
                     <p className="text-sm text-amber-700">
-                      Faltan opciones por elegir para este producto.
+                      Asigná exactamente {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre las variantes.
                     </p>
                   )}
                 </div>
@@ -643,8 +686,4 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       )}
     </div>
   )
-}
-
-function Label({ children, className }: { children: React.ReactNode, className?: string }) {
-  return <p className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`}>{children}</p>
 }

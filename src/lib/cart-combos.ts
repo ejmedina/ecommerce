@@ -74,6 +74,10 @@ function ensureCartComboConfiguration(
   })
 }
 
+function sumQuantityPerCombo(configuration: CartComboConfiguration) {
+  return configuration.reduce((sum, item) => sum + item.quantityPerCombo, 0)
+}
+
 export function parseCartComboConfiguration(
   value: FormDataEntryValue | string | null | undefined
 ): CartComboConfiguration {
@@ -105,62 +109,88 @@ export function validateComboCartSelection(input: {
   const requestedConfiguration = Array.isArray(rawConfiguration) && rawConfiguration.length === 0
     ? buildDefaultComboConfiguration(product)
     : ensureCartComboConfiguration(rawConfiguration)
-  const selectedByComponentId = new Map(
-    requestedConfiguration.map((item) => [item.comboComponentId, item])
-  )
-
-  if (selectedByComponentId.size !== requestedConfiguration.length) {
-    throw new Error("La configuracion del combo tiene productos repetidos.")
+  const selectedByComponentId = new Map<string, CartComboConfiguration>()
+  for (const item of requestedConfiguration) {
+    const existing = selectedByComponentId.get(item.comboComponentId) ?? []
+    existing.push(item)
+    selectedByComponentId.set(item.comboComponentId, existing)
   }
 
   const normalizedConfiguration: CartComboConfiguration = []
   let availableStock: number | null = null
 
   for (const component of product.comboComponents) {
-    const selectedItem = selectedByComponentId.get(component.id)
+    const selectedItems = selectedByComponentId.get(component.id) ?? []
 
-    if (!selectedItem) {
+    if (selectedItems.length === 0) {
       throw new Error("Faltan opciones por elegir en el combo.")
     }
 
-    if (selectedItem.productId !== component.productId) {
+    if (selectedItems.some((selectedItem) => selectedItem.productId !== component.productId)) {
       throw new Error("La configuracion del combo no coincide con sus productos.")
     }
 
     const componentProduct = component.product
     if (componentProduct.hasVariants) {
-      if (!selectedItem.variantId) {
-        throw new Error(`Elegi una variante para ${componentProduct.name}.`)
+      const requestedComponentQuantity = sumQuantityPerCombo(selectedItems)
+      if (requestedComponentQuantity !== component.quantity) {
+        throw new Error(`Asigná exactamente ${component.quantity} unidad${component.quantity === 1 ? "" : "es"} para ${componentProduct.name}.`)
       }
 
-      const selectedVariant = componentProduct.variants.find(
-        (variant) => variant.id === selectedItem.variantId
-      )
+      const selectedVariantIds = new Set<string>()
+      for (const selectedItem of selectedItems) {
+        if (!selectedItem.variantId) {
+          throw new Error(`Elegi una variante para ${componentProduct.name}.`)
+        }
 
-      if (!selectedVariant) {
-        throw new Error(`La variante elegida para ${componentProduct.name} ya no existe.`)
+        if (selectedItem.quantityPerCombo <= 0) {
+          throw new Error(`La cantidad elegida para ${componentProduct.name} no es valida.`)
+        }
+
+        if (selectedVariantIds.has(selectedItem.variantId)) {
+          throw new Error(`No repitas la misma variante en ${componentProduct.name}; ajustá la cantidad directamente.`)
+        }
+        selectedVariantIds.add(selectedItem.variantId)
+
+        const selectedVariant = componentProduct.variants.find(
+          (variant) => variant.id === selectedItem.variantId
+        )
+
+        if (!selectedVariant) {
+          throw new Error(`La variante elegida para ${componentProduct.name} ya no existe.`)
+        }
+
+        if (!componentProduct.hasPermanentStock) {
+          const componentStock = Math.floor(selectedVariant.stock / selectedItem.quantityPerCombo)
+          availableStock = availableStock === null
+            ? componentStock
+            : Math.min(availableStock, componentStock)
+        }
+
+        normalizedConfiguration.push({
+          comboComponentId: component.id,
+          productId: component.productId,
+          productName: componentProduct.name,
+          variantId: selectedVariant.id,
+          variantTitle: selectedVariant.title,
+          quantityPerCombo: selectedItem.quantityPerCombo,
+        })
       }
-
-      if (!componentProduct.hasPermanentStock) {
-        const componentStock = Math.floor(selectedVariant.stock / component.quantity)
-        availableStock = availableStock === null
-          ? componentStock
-          : Math.min(availableStock, componentStock)
-      }
-
-      normalizedConfiguration.push({
-        comboComponentId: component.id,
-        productId: component.productId,
-        productName: componentProduct.name,
-        variantId: selectedVariant.id,
-        variantTitle: selectedVariant.title,
-        quantityPerCombo: component.quantity,
-      })
       continue
+    }
+
+    const selectedItem = selectedItems[0]
+
+    if (selectedItems.length > 1) {
+      throw new Error(`${componentProduct.name} no requiere multiples selecciones.`)
     }
 
     if (selectedItem.variantId) {
       throw new Error(`${componentProduct.name} no requiere elegir variante.`)
+    }
+
+    if (selectedItem.quantityPerCombo !== component.quantity) {
+      throw new Error(`La cantidad de ${componentProduct.name} debe ser ${component.quantity}.`)
     }
 
     if (!componentProduct.hasPermanentStock) {

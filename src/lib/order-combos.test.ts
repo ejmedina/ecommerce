@@ -68,4 +68,65 @@ describe("order combo snapshots", () => {
       }),
     ])
   })
+
+  it("keeps separate operational rows when a combo component is split across variants", () => {
+    const snapshots = buildOrderItemComponentSnapshots({
+      comboQuantity: 1,
+      configuration: [
+        {
+          comboComponentId: "component-a",
+          productId: "product-alfajor",
+          productName: "Alfajor",
+          variantId: "variant-choco",
+          variantTitle: "Chocolate",
+          quantityPerCombo: 2,
+        },
+        {
+          comboComponentId: "component-a",
+          productId: "product-alfajor",
+          productName: "Alfajor",
+          variantId: "variant-maicena",
+          variantTitle: "Maicena",
+          quantityPerCombo: 1,
+        },
+      ],
+      comboComponents: [
+        {
+          id: "component-a",
+          productId: "product-alfajor",
+          quantity: 3,
+          product: {
+            id: "product-alfajor",
+            name: "Alfajor",
+            sku: "ALF-BASE",
+            variants: [
+              {
+                id: "variant-choco",
+                sku: "ALF-CHOCO",
+                title: "Chocolate",
+              },
+              {
+                id: "variant-maicena",
+                sku: "ALF-MAICENA",
+                title: "Maicena",
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    expect(snapshots).toEqual([
+      expect.objectContaining({
+        name: "Alfajor - Chocolate",
+        sku: "ALF-CHOCO",
+        quantityOrdered: 2,
+      }),
+      expect.objectContaining({
+        name: "Alfajor - Maicena",
+        sku: "ALF-MAICENA",
+        quantityOrdered: 1,
+      }),
+    ])
+  })
 })

@@ -13,7 +13,11 @@ export function buildComboSelectionSignature(
   configuration: CartComboConfiguration
 ) {
   return [...configuration]
-    .sort((left, right) => left.comboComponentId.localeCompare(right.comboComponentId))
+    .sort((left, right) => {
+      const byComponent = left.comboComponentId.localeCompare(right.comboComponentId)
+      if (byComponent !== 0) return byComponent
+      return (left.variantId ?? "base").localeCompare(right.variantId ?? "base")
+    })
     .map((item) =>
       [
         item.comboComponentId,
@@ -38,10 +42,24 @@ export function summarizeComboConfiguration(
   configuration: CartComboConfiguration,
   comboQuantity = 1
 ) {
-  return configuration.map((item) => {
+  const grouped = new Map<string, { label: string; quantity: number }>()
+
+  for (const item of configuration) {
     const totalQuantity = item.quantityPerCombo * comboQuantity
     const variantLabel = item.variantTitle ? ` - ${item.variantTitle}` : ""
+    const label = `${item.productName}${variantLabel}`
+    const existing = grouped.get(label)
 
-    return `${totalQuantity} x ${item.productName}${variantLabel}`
-  })
+    if (existing) {
+      existing.quantity += totalQuantity
+      continue
+    }
+
+    grouped.set(label, {
+      label,
+      quantity: totalQuantity,
+    })
+  }
+
+  return [...grouped.values()].map((item) => `${item.quantity} x ${item.label}`)
 }

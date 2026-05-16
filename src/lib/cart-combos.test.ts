@@ -69,7 +69,7 @@ describe("cart combo validation", () => {
           productName: "Cafe viejo",
           variantId: "variant-250",
           variantTitle: "otra cosa",
-          quantityPerCombo: 999,
+          quantityPerCombo: 1,
         },
         {
           comboComponentId: "component-simple",
@@ -77,7 +77,7 @@ describe("cart combo validation", () => {
           productName: "Medialuna vieja",
           variantId: null,
           variantTitle: null,
-          quantityPerCombo: 999,
+          quantityPerCombo: 6,
         },
       ],
       quantity: 2,
@@ -156,5 +156,58 @@ describe("cart combo validation", () => {
         quantityPerCombo: 2,
       },
     ])
+  })
+
+  it("allows splitting a combo component across multiple variants", () => {
+    const comboWithMixedVariants = {
+      isCombo: true,
+      comboComponents: [
+        {
+          id: "component-alfajor",
+          productId: "product-alfajor",
+          quantity: 3,
+          product: {
+            id: "product-alfajor",
+            name: "Alfajor",
+            hasVariants: true,
+            hasPermanentStock: false,
+            stock: 0,
+            variants: [
+              { id: "variant-choco", title: "Chocolate", stock: 8 },
+              { id: "variant-maicena", title: "Maicena", stock: 4 },
+            ],
+          },
+        },
+      ],
+    }
+
+    const result = validateComboCartSelection({
+      product: comboWithMixedVariants,
+      rawConfiguration: [
+        {
+          comboComponentId: "component-alfajor",
+          productId: "product-alfajor",
+          productName: "Alfajor",
+          variantId: "variant-choco",
+          variantTitle: "Chocolate",
+          quantityPerCombo: 2,
+        },
+        {
+          comboComponentId: "component-alfajor",
+          productId: "product-alfajor",
+          productName: "Alfajor",
+          variantId: "variant-maicena",
+          variantTitle: "Maicena",
+          quantityPerCombo: 1,
+        },
+      ],
+      quantity: 2,
+    })
+
+    expect(result.availableStock).toBe(4)
+    expect(result.selectionSignature).toBe(
+      "component-alfajor:product-alfajor:variant-choco:2|component-alfajor:product-alfajor:variant-maicena:1"
+    )
+    expect(result.configuration).toHaveLength(2)
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   buildComboSelectionSignature,
   getOperationalDemandKey,
+  summarizeComboConfiguration,
   type CartComboConfiguration,
 } from "./combos"
 
@@ -47,5 +48,31 @@ describe("combo helpers", () => {
         variantId: null,
       })
     ).toBe("product:product-1")
+  })
+
+  it("summarizes repeated component variants with their own quantities", () => {
+    const configuration: CartComboConfiguration = [
+      {
+        comboComponentId: "component-a",
+        productId: "product-1",
+        productName: "Alfajor",
+        variantId: "variant-choco",
+        variantTitle: "Chocolate",
+        quantityPerCombo: 2,
+      },
+      {
+        comboComponentId: "component-a",
+        productId: "product-1",
+        productName: "Alfajor",
+        variantId: "variant-maicena",
+        variantTitle: "Maicena",
+        quantityPerCombo: 1,
+      },
+    ]
+
+    expect(summarizeComboConfiguration(configuration, 2)).toEqual([
+      "4 x Alfajor - Chocolate",
+      "2 x Alfajor - Maicena",
+    ])
   })
 })
