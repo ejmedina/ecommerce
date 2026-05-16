@@ -25,6 +25,7 @@ import {
   trackAddToCart,
   trackSelectItem,
 } from "@/lib/analytics"
+import { buildComboSelectionSignature, type CartComboConfiguration, type CartComboConfigurationItem } from "@/lib/combos"
 
 interface Product {
   id: string
@@ -47,6 +48,25 @@ interface Product {
     sku: string | null
     stock: number
     price: string | null
+  }[]
+  comboComponents?: {
+    id: string
+    quantity: number
+    product: {
+      id: string
+      name: string
+      sku: string | null
+      stock: number
+      hasPermanentStock: boolean
+      hasVariants: boolean
+      variants: {
+        id: string
+        title: string | null
+        sku: string | null
+        stock: number
+        price: string | null
+      }[]
+    }
   }[]
 }
 
@@ -204,6 +224,8 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
             <div className="mt-auto pt-3">
               {product.hasVariants ? (
                 <VariantQuickAddDialog product={product} />
+              ) : product.isCombo && product.comboRequiresConfiguration ? (
+                <ComboQuickAddDialog product={product} />
               ) : (
                 <AddToCartButton
                   productId={product.id}
@@ -230,6 +252,251 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
         )}
       </div>
     </div>
+  )
+}
+
+function ComboQuickAddDialog({ product }: { product: Product }) {
+  const { refreshCart, setIsOpen } = useCart()
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [comboVariantQuantities, setComboVariantQuantities] = useState<Record<string, Record<string, number>>>({})
+
+  const comboComponents = useMemo(() => product.comboComponents || [], [product.comboComponents])
+  const comboSelections = useMemo(() => {
+    return comboComponents.map((component) => {
+      const selectedQuantities = comboVariantQuantities[component.id] ?? {}
+      const variantSelections = component.product.hasVariants
+        ? component.product.variants
+            .map((variant) => ({
+              ...variant,
+              selectedQuantity: selectedQuantities[variant.id] ?? 0,
+            }))
+            .filter((variant) => variant.selectedQuantity > 0)
+        : []
+
+      return {
+        ...component,
+        variantSelections,
+        totalSelectedQuantity: variantSelections.reduce((sum, variant) => sum + variant.selectedQuantity, 0),
+      }
+    })
+  }, [comboComponents, comboVariantQuantities])
+
+  const comboConfiguration = useMemo<CartComboConfiguration | null>(() => {
+    const configuration: CartComboConfigurationItem[] = []
+
+    for (const component of comboSelections) {
+      if (component.product.hasVariants) {
+        if (component.totalSelectedQuantity !== component.quantity) {
+          return null
+        }
+
+        for (const variant of component.variantSelections) {
+          configuration.push({
+            comboComponentId: component.id,
+            productId: component.product.id,
+            productName: component.product.name,
+            variantId: variant.id,
+            variantTitle: variant.title ?? null,
+            quantityPerCombo: variant.selectedQuantity,
+          })
+        }
+
+        continue
+      }
+
+      configuration.push({
+        comboComponentId: component.id,
+        productId: component.product.id,
+        productName: component.product.name,
+        variantId: null,
+        variantTitle: null,
+        quantityPerCombo: component.quantity,
+      })
+    }
+
+    return configuration
+  }, [comboSelections])
+
+  const updateComboVariantQuantity = (
+    componentId: string,
+    variantId: string,
+    nextQuantity: number
+  ) => {
+    setComboVariantQuantities((current) => ({
+      ...current,
+      [componentId]: {
+        ...(current[componentId] ?? {}),
+        [variantId]: nextQuantity,
+      },
+    }))
+  }
+
+  const handleAddCombo = async () => {
+    if (!comboConfiguration) {
+      toast({
+        variant: "destructive",
+        title: "Selección incompleta",
+        description: "Completá las variantes del combo antes de agregarlo.",
+      })
+      return
+    }
+
+    setAdding(true)
+    try {
+      const formData = new FormData()
+      formData.set("productId", product.id)
+      formData.set("quantity", "1")
+      formData.set("comboConfiguration", JSON.stringify(comboConfiguration))
+
+      const response = await fetch("/api/cart/add", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result?.error || "No se pudo agregar el combo al carrito",
+        })
+        return
+      }
+
+      trackAddToCart(
+        createEcommercePayload([
+          createAnalyticsItem({
+            itemId: buildComboSelectionSignature(comboConfiguration) || product.id,
+            itemName: product.name,
+            price: Number(product.price),
+            quantity: 1,
+            itemCategory: product.category?.name || null,
+          }),
+        ], {
+          value: Number(product.price),
+        })
+      )
+
+      toast({
+        title: "Agregado al carrito",
+        description: product.name,
+        variant: "success",
+        duration: 3000,
+      })
+
+      setComboVariantQuantities({})
+      setOpen(false)
+      await refreshCart()
+      setIsOpen(true)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  return (
+    <>
+      <Button className="w-full" size="sm" onClick={() => setOpen(true)}>
+        Agregar al carrito
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{product.name}</DialogTitle>
+            <DialogDescription>
+              Configurá 1 combo por vez. Para sumar otro, elegí nuevamente sus variantes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {comboSelections.map((component) => (
+              <div key={component.id} className="space-y-3 rounded-lg border p-4">
+                <div>
+                  <p className="font-medium">
+                    {component.quantity} x {component.product.name}
+                  </p>
+                  {component.product.sku && (
+                    <p className="text-xs text-muted-foreground">SKU: {component.product.sku}</p>
+                  )}
+                </div>
+
+                {component.product.hasVariants ? (
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      {component.product.variants.map((variant) => {
+                        const otherSelectedQuantity = component.variantSelections
+                          .filter((selection) => selection.id !== variant.id)
+                          .reduce((sum, selection) => sum + selection.selectedQuantity, 0)
+                        const variantStock = component.product.hasPermanentStock ? undefined : variant.stock
+                        const maxSelectable = component.product.hasPermanentStock
+                          ? Math.max(component.quantity - otherSelectedQuantity, 0)
+                          : Math.max(Math.min(component.quantity - otherSelectedQuantity, variant.stock), 0)
+                        const selectedQuantity =
+                          component.variantSelections.find((selection) => selection.id === variant.id)?.selectedQuantity ?? 0
+
+                        return (
+                          <div
+                            key={`${component.id}-${variant.id}`}
+                            className="flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
+                          >
+                            <div className="space-y-1">
+                              <p className="font-medium">{variant.title || component.product.name}</p>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                {variant.sku && <span>SKU: {variant.sku}</span>}
+                                {component.product.hasPermanentStock ? (
+                                  <span className="text-green-600 font-medium">En stock</span>
+                                ) : variant.stock > 0 ? (
+                                  <span className="text-green-600 font-medium">
+                                    {variant.stock} disponibles
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">Sin stock</span>
+                                )}
+                              </div>
+                            </div>
+                            <QuantitySelector
+                              value={selectedQuantity}
+                              onChange={(nextQuantity) =>
+                                updateComboVariantQuantity(component.id, variant.id, nextQuantity)
+                              }
+                              min={0}
+                              max={variantStock === 0 ? 0 : maxSelectable}
+                              disabled={adding || variantStock === 0}
+                              size="default"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Seleccionado: {component.totalSelectedQuantity} / {component.quantity}
+                    </p>
+                    {component.totalSelectedQuantity !== component.quantity && (
+                      <p className="text-sm text-amber-700">
+                        Asigná exactamente {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre las variantes.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No requiere selección adicional.</p>
+                )}
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleAddCombo}
+              disabled={adding || comboConfiguration === null}
+            >
+              {adding ? "Agregando..." : "Agregar al carrito"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

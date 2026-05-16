@@ -103,7 +103,23 @@ export async function getProductsAction({
         include: {
           product: {
             select: {
+              id: true,
+              name: true,
+              sku: true,
               hasVariants: true,
+              stock: true,
+              hasPermanentStock: true,
+              variants: {
+                where: { isActive: true },
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  title: true,
+                  sku: true,
+                  stock: true,
+                  price: true,
+                },
+              },
             },
           },
         },
@@ -136,6 +152,17 @@ export async function getProductsAction({
       comboRequiresConfiguration: p.isCombo
         ? p.comboComponents.some((component) => component.product.hasVariants)
         : false,
+      comboComponents: p.comboComponents.map((component) => ({
+        id: component.id,
+        quantity: component.quantity,
+        product: {
+          ...component.product,
+          variants: component.product.variants.map((variant) => ({
+            ...variant,
+            price: variant.price?.toString() || null,
+          })),
+        },
+      })),
       variants: p.variants.map((variant) => ({
         ...variant,
         price: variant.price?.toString() || null,

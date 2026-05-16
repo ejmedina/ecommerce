@@ -74,6 +74,7 @@ interface ProductDetailsClientProps {
 export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const [comboVariantQuantities, setComboVariantQuantities] = useState<Record<string, Record<string, number>>>({})
   const [adding, setAdding] = useState(false)
+  const [comboDialogOpen, setComboDialogOpen] = useState(false)
   const [variantDialogOpen, setVariantDialogOpen] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -126,6 +127,10 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       }
     })
   }, [comboVariantQuantities, processedComboComponents])
+  const comboRequiresConfiguration = useMemo(
+    () => product.isCombo && processedComboComponents.some((component) => component.product.hasVariants),
+    [processedComboComponents, product.isCombo]
+  )
 
   const currentPrice = Number(product.price)
   const currentComparePrice = product.comparePrice ? Number(product.comparePrice) : null
@@ -208,9 +213,11 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const currentStock = product.isCombo
     ? comboStock
     : product.stock
-  const isComboSelectionPending = product.isCombo && comboConfiguration === null
+  const isComboSelectionPending = comboRequiresConfiguration && comboConfiguration === null
   const isAvailable = product.isCombo
-    ? Boolean(comboConfiguration) && (comboStock === null || comboStock > 0)
+    ? (comboRequiresConfiguration
+        ? Boolean(comboConfiguration) && (comboStock === null || comboStock > 0)
+        : (comboStock === null || comboStock > 0))
     : (product.hasPermanentStock || currentStock > 0 || product.hasVariants)
   const displayPrice = product.isCombo ? Number(product.price) : currentPrice
 
@@ -474,6 +481,10 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           })
         )
         await refreshCart()
+        if (comboRequiresConfiguration) {
+          setComboVariantQuantities({})
+          setComboDialogOpen(false)
+        }
         setIsOpen(true)
       }
     } catch (error) {
@@ -504,7 +515,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           </span>
         ) : product.isCombo && isComboSelectionPending ? (
           <span className="text-sm font-medium text-muted-foreground">
-            Completá la distribución del combo para ver disponibilidad.
+            Elegí sus variantes al agregar el combo.
           </span>
         ) : product.isCombo && currentStock === null ? (
           <span className="text-sm text-green-600 font-medium">En stock</span>
@@ -654,7 +665,9 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           <div className="space-y-1">
             <h3 className="text-base font-semibold">Incluye</h3>
             <p className="text-sm text-muted-foreground">
-              Distribuí las cantidades en las variantes de los productos que lo necesiten.
+              {comboRequiresConfiguration
+                ? "Al agregarlo vas a elegir las variantes de los productos que lo necesiten."
+                : "Configuración lista para agregar al carrito."}
             </p>
           </div>
 
@@ -671,60 +684,68 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
 
               {component.product.hasVariants ? (
                 <div className="space-y-4">
-                  <div className="space-y-3">
-                    {component.product.variants.map((variant) => {
-                      const otherSelectedQuantity = component.variantSelections
-                        .filter((selection) => selection.id !== variant.id)
-                        .reduce((sum, selection) => sum + selection.selectedQuantity, 0)
-                      const variantStock = component.product.hasPermanentStock ? undefined : variant.stock
-                      const maxSelectable = component.product.hasPermanentStock
-                        ? Math.max(component.quantity - otherSelectedQuantity, 0)
-                        : Math.max(Math.min(component.quantity - otherSelectedQuantity, variant.stock), 0)
-                      const selectedQuantity =
-                        component.variantSelections.find((selection) => selection.id === variant.id)?.selectedQuantity ?? 0
-
-                      return (
-                        <div
-                          key={`${component.id}-${variant.id}`}
-                          className="flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
-                        >
-                          <div className="space-y-1">
-                            <p className="font-medium">{variant.title || component.product.name}</p>
-                            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                              {variant.sku && <span>SKU: {variant.sku}</span>}
-                              {component.product.hasPermanentStock ? (
-                                <span className="text-green-600 font-medium">En stock</span>
-                              ) : variant.stock > 0 ? (
-                                <span className="text-green-600 font-medium">
-                                  {variant.stock} disponibles
-                                </span>
-                              ) : (
-                                <span className="text-red-600 font-medium">Sin stock</span>
-                              )}
-                            </div>
-                          </div>
-                          <QuantitySelector
-                            value={selectedQuantity}
-                            onChange={(nextQuantity) =>
-                              updateComboVariantQuantity(component.id, variant.id, nextQuantity)
-                            }
-                            min={0}
-                            max={variantStock === 0 ? 0 : maxSelectable}
-                            disabled={variantStock === 0}
-                            size="default"
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    Seleccionado: {component.totalSelectedQuantity} / {component.quantity}
-                  </p>
-                  {component.totalSelectedQuantity !== component.quantity && (
-                    <p className="text-sm text-amber-700">
-                      Asigná exactamente {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre las variantes.
+                  {comboRequiresConfiguration ? (
+                    <p className="text-sm text-muted-foreground">
+                      Elegí {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre sus variantes al agregar este combo.
                     </p>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {component.product.variants.map((variant) => {
+                          const otherSelectedQuantity = component.variantSelections
+                            .filter((selection) => selection.id !== variant.id)
+                            .reduce((sum, selection) => sum + selection.selectedQuantity, 0)
+                          const variantStock = component.product.hasPermanentStock ? undefined : variant.stock
+                          const maxSelectable = component.product.hasPermanentStock
+                            ? Math.max(component.quantity - otherSelectedQuantity, 0)
+                            : Math.max(Math.min(component.quantity - otherSelectedQuantity, variant.stock), 0)
+                          const selectedQuantity =
+                            component.variantSelections.find((selection) => selection.id === variant.id)?.selectedQuantity ?? 0
+
+                          return (
+                            <div
+                              key={`${component.id}-${variant.id}`}
+                              className="flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
+                            >
+                              <div className="space-y-1">
+                                <p className="font-medium">{variant.title || component.product.name}</p>
+                                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                  {variant.sku && <span>SKU: {variant.sku}</span>}
+                                  {component.product.hasPermanentStock ? (
+                                    <span className="text-green-600 font-medium">En stock</span>
+                                  ) : variant.stock > 0 ? (
+                                    <span className="text-green-600 font-medium">
+                                      {variant.stock} disponibles
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-600 font-medium">Sin stock</span>
+                                  )}
+                                </div>
+                              </div>
+                              <QuantitySelector
+                                value={selectedQuantity}
+                                onChange={(nextQuantity) =>
+                                  updateComboVariantQuantity(component.id, variant.id, nextQuantity)
+                                }
+                                min={0}
+                                max={variantStock === 0 ? 0 : maxSelectable}
+                                disabled={variantStock === 0}
+                                size="default"
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">
+                        Seleccionado: {component.totalSelectedQuantity} / {component.quantity}
+                      </p>
+                      {component.totalSelectedQuantity !== component.quantity && (
+                        <p className="text-sm text-amber-700">
+                          Asigná exactamente {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre las variantes.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
@@ -732,11 +753,17 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
               )}
             </div>
           ))}
+
+          {comboRequiresConfiguration && (
+            <Button type="button" size="lg" className="w-full" onClick={() => setComboDialogOpen(true)}>
+              Agregar al carrito
+            </Button>
+          )}
         </div>
       )}
 
       {/* Add to Cart Form / Cart Quantity Updater */}
-      {!product.hasVariants && (isAvailable || isComboSelectionPending) && (
+      {!product.hasVariants && (!comboRequiresConfiguration || !product.isCombo) && (isAvailable || isComboSelectionPending) && (
         <div className="space-y-4 border-t pt-4">
           {cartItem ? (
             <QuantitySelector
@@ -779,6 +806,105 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
             </div>
           )}
         </div>
+      )}
+
+      {comboRequiresConfiguration && (
+        <Dialog open={comboDialogOpen} onOpenChange={setComboDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{product.name}</DialogTitle>
+              <DialogDescription>
+                Configurá 1 combo por vez. Para sumar otro, elegí nuevamente sus variantes.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {comboSelections.map((component) => (
+                <div key={component.id} className="space-y-3 rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">
+                      {component.quantity} x {component.product.name}
+                    </p>
+                    {component.product.sku && (
+                      <p className="text-xs text-muted-foreground">SKU: {component.product.sku}</p>
+                    )}
+                  </div>
+
+                  {component.product.hasVariants ? (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        {component.product.variants.map((variant) => {
+                          const otherSelectedQuantity = component.variantSelections
+                            .filter((selection) => selection.id !== variant.id)
+                            .reduce((sum, selection) => sum + selection.selectedQuantity, 0)
+                          const variantStock = component.product.hasPermanentStock ? undefined : variant.stock
+                          const maxSelectable = component.product.hasPermanentStock
+                            ? Math.max(component.quantity - otherSelectedQuantity, 0)
+                            : Math.max(Math.min(component.quantity - otherSelectedQuantity, variant.stock), 0)
+                          const selectedQuantity =
+                            component.variantSelections.find((selection) => selection.id === variant.id)?.selectedQuantity ?? 0
+
+                          return (
+                            <div
+                              key={`${component.id}-${variant.id}`}
+                              className="flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
+                            >
+                              <div className="space-y-1">
+                                <p className="font-medium">{variant.title || component.product.name}</p>
+                                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                  {variant.sku && <span>SKU: {variant.sku}</span>}
+                                  {component.product.hasPermanentStock ? (
+                                    <span className="text-green-600 font-medium">En stock</span>
+                                  ) : variant.stock > 0 ? (
+                                    <span className="text-green-600 font-medium">
+                                      {variant.stock} disponibles
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-600 font-medium">Sin stock</span>
+                                  )}
+                                </div>
+                              </div>
+                              <QuantitySelector
+                                value={selectedQuantity}
+                                onChange={(nextQuantity) =>
+                                  updateComboVariantQuantity(component.id, variant.id, nextQuantity)
+                                }
+                                min={0}
+                                max={variantStock === 0 ? 0 : maxSelectable}
+                                disabled={adding || variantStock === 0}
+                                size="default"
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">
+                        Seleccionado: {component.totalSelectedQuantity} / {component.quantity}
+                      </p>
+                      {component.totalSelectedQuantity !== component.quantity && (
+                        <p className="text-sm text-amber-700">
+                          Asigná exactamente {component.quantity} unidad{component.quantity === 1 ? "" : "es"} entre las variantes.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No requiere selección adicional.</p>
+                  )}
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                className="w-full"
+                onClick={handleAddToCart}
+                disabled={adding || comboConfiguration === null}
+              >
+                {adding ? "Agregando..." : "Agregar al carrito"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
