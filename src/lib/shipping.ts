@@ -206,6 +206,24 @@ export function getShippingOptions(
   )
 }
 
+export function getAvailableCitiesForProvince(
+  provinceId: ProvinceId,
+  shippingConfig: ShippingConfig | null
+): string[] {
+  const options = getShippingOptions(provinceId, shippingConfig)
+  const cities = new Set<string>()
+
+  for (const zone of options) {
+    for (const city of zone.cities || []) {
+      const normalized = city.trim()
+      if (!normalized) continue
+      cities.add(normalized)
+    }
+  }
+
+  return [...cities].sort((left, right) => left.localeCompare(right, "es"))
+}
+
 /**
  * Get all available provinces based on configured zones
  */
