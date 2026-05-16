@@ -237,6 +237,7 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
   const { cart, refreshCart, setIsOpen, updateItemQuantityOptimistic } = useCart()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [variantBusyId, setVariantBusyId] = useState<string | null>(null)
   const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({})
 
@@ -255,8 +256,8 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
     setDraftQuantities((current) => {
       const next = { ...current }
       for (const variant of variants) {
-        if (!next[variant.id]) {
-          next[variant.id] = 1
+        if (next[variant.id] === undefined) {
+          next[variant.id] = 0
         }
       }
       return next
@@ -270,61 +271,85 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
     }))
   }
 
-  const handleAddVariant = async (variantId: string) => {
-    const variant = variants.find((item) => item.id === variantId)
-    if (!variant) return
+  const handleAddSelectedVariants = async () => {
+    const selectedVariants = variants
+      .map((variant) => ({
+        variant,
+        quantity: draftQuantities[variant.id] || 0,
+      }))
+      .filter((entry) => entry.quantity > 0)
 
-    const draftQuantity = draftQuantities[variantId] || 1
-    setVariantBusyId(variantId)
+    if (selectedVariants.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Elegí variantes",
+        description: "Seleccioná al menos una cantidad para agregar al carrito.",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
 
     try {
-      const formData = new FormData()
-      formData.set("productId", product.id)
-      formData.set("variantId", variantId)
-      formData.set("quantity", draftQuantity.toString())
+      const trackedItems = []
 
-      const response = await fetch("/api/cart/add", {
-        method: "POST",
-        body: formData,
-      })
+      for (const { variant, quantity } of selectedVariants) {
+        const formData = new FormData()
+        formData.set("productId", product.id)
+        formData.set("variantId", variant.id)
+        formData.set("quantity", quantity.toString())
 
-      if (!response.ok) {
-        const result = await response.json().catch(() => null)
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result?.error || "No se pudo agregar la variante al carrito",
+        const response = await fetch("/api/cart/add", {
+          method: "POST",
+          body: formData,
         })
-        return
-      }
 
-      const variantPrice = Number(variant.price ?? product.price)
-      trackAddToCart(
-        createEcommercePayload([
+        if (!response.ok) {
+          const result = await response.json().catch(() => null)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: result?.error || "No se pudieron agregar las variantes al carrito",
+          })
+          return
+        }
+
+        const variantPrice = Number(variant.price ?? product.price)
+        trackedItems.push(
           createAnalyticsItem({
             itemId: variant.id,
             itemName: variant.title ? `${product.name} - ${variant.title}` : product.name,
             price: variantPrice,
-            quantity: draftQuantity,
+            quantity,
             itemCategory: product.category?.name || null,
             itemVariant: variant.title || null,
-          }),
-        ], {
-          value: variantPrice * draftQuantity,
+          })
+        )
+      }
+
+      trackAddToCart(
+        createEcommercePayload(trackedItems, {
+          value: trackedItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
         })
       )
 
       toast({
         title: "Agregado al carrito",
-        description: variant.title ? `${product.name} - ${variant.title}` : product.name,
+        description: product.name,
         variant: "success",
         duration: 3000,
       })
 
       await refreshCart()
+      setDraftQuantities(
+        Object.fromEntries(variants.map((variant) => [variant.id, 0]))
+      )
+      setOpen(false)
       setIsOpen(true)
+    } catch (error) {
+      console.error("Cart error:", error)
     } finally {
-      setVariantBusyId(null)
+      setIsSubmitting(false)
     }
   }
 
@@ -371,7 +396,7 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
               </div>
             ) : variants.map((variant) => {
               const cartItem = variantCartItems.get(variant.id)
-              const draftQuantity = draftQuantities[variant.id] || 1
+              const draftQuantity = draftQuantities[variant.id] || 0
               const variantPrice = Number(variant.price ?? product.price)
               const variantInStock = product.hasPermanentStock || variant.stock > 0
               const maxQuantity = product.hasPermanentStock ? undefined : variant.stock
@@ -394,38 +419,49 @@ function VariantQuickAddDialog({ product }: { product: Product }) {
                       </div>
                     </div>
 
-                    {cartItem ? (
-                      <QuantitySelector
-                        value={cartItem.quantity}
-                        onChange={(nextQuantity) => handleUpdateVariantQuantity(variant.id, nextQuantity)}
-                        min={0}
-                        max={maxQuantity}
-                        disabled={variantBusyId === variant.id}
-                        size="default"
-                      />
-                    ) : (
-                      <div className="flex gap-3">
+                    <div className="flex flex-col items-start gap-2 md:items-end">
+                      {cartItem && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">En carrito</p>
+                          <QuantitySelector
+                            value={cartItem.quantity}
+                            onChange={(nextQuantity) => handleUpdateVariantQuantity(variant.id, nextQuantity)}
+                            min={0}
+                            max={maxQuantity}
+                            disabled={variantBusyId === variant.id || isSubmitting}
+                            size="default"
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          {cartItem ? "Agregar más" : "Cantidad a agregar"}
+                        </p>
                         <QuantitySelector
                           value={draftQuantity}
                           onChange={(nextQuantity) => updateDraftQuantity(variant.id, nextQuantity)}
-                          min={1}
+                          min={0}
                           max={maxQuantity}
-                          disabled={variantBusyId === variant.id || !variantInStock}
+                          disabled={isSubmitting || !variantInStock}
                           size="default"
                         />
-                        <Button
-                          type="button"
-                          onClick={() => handleAddVariant(variant.id)}
-                          disabled={variantBusyId === variant.id || !variantInStock}
-                        >
-                          {variantBusyId === variant.id ? "Agregando..." : "Agregar"}
-                        </Button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               )
             })}
+            {variants.length > 0 && (
+              <Button
+                type="button"
+                className="w-full"
+                onClick={handleAddSelectedVariants}
+                disabled={isSubmitting || !variants.some((variant) => (draftQuantities[variant.id] || 0) > 0)}
+              >
+                {isSubmitting ? "Agregando..." : "Agregar al carrito"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

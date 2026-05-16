@@ -8,6 +8,13 @@ import {
 } from "@/lib/combos"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
 import { useCart } from "@/components/cart-context"
@@ -67,6 +74,7 @@ interface ProductDetailsClientProps {
 export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
   const [comboVariantQuantities, setComboVariantQuantities] = useState<Record<string, Record<string, number>>>({})
   const [adding, setAdding] = useState(false)
+  const [variantDialogOpen, setVariantDialogOpen] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [isUpdating, setIsUpdating] = useState(false)
   const [variantBusyId, setVariantBusyId] = useState<string | null>(null)
@@ -231,8 +239,8 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
     setVariantDraftQuantities((current) => {
       const next = { ...current }
       for (const variant of processedVariants) {
-        if (!next[variant.id]) {
-          next[variant.id] = 1
+        if (next[variant.id] === undefined) {
+          next[variant.id] = 0
         }
       }
       return next
@@ -277,53 +285,85 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
     }))
   }
 
-  const handleAddVariantToCart = async (variant: ProductVariant) => {
-    const draftQuantity = variantDraftQuantities[variant.id] || 1
-    setVariantBusyId(variant.id)
+  const handleAddSelectedVariantsToCart = async () => {
+    const selectedVariants = processedVariants
+      .map((variant) => ({
+        variant,
+        quantity: variantDraftQuantities[variant.id] || 0,
+      }))
+      .filter((entry) => entry.quantity > 0)
+
+    if (selectedVariants.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Elegí variantes",
+        description: "Seleccioná al menos una cantidad para agregar al carrito.",
+      })
+      return
+    }
+
+    setAdding(true)
 
     try {
-      const formData = new FormData()
-      formData.set("productId", product.id)
-      formData.set("variantId", variant.id)
-      formData.set("quantity", draftQuantity.toString())
+      const trackedItems = []
 
-      const response = await fetch("/api/cart/add", {
-        method: "POST",
-        body: formData,
-      })
+      for (const { variant, quantity } of selectedVariants) {
+        const formData = new FormData()
+        formData.set("productId", product.id)
+        formData.set("variantId", variant.id)
+        formData.set("quantity", quantity.toString())
 
-      if (!response.ok) {
-        const result = await response.json().catch(() => null)
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result?.error || "No se pudo agregar la variante al carrito",
+        const response = await fetch("/api/cart/add", {
+          method: "POST",
+          body: formData,
         })
-        return
+
+        if (!response.ok) {
+          const result = await response.json().catch(() => null)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: result?.error || "No se pudieron agregar las variantes al carrito",
+          })
+          return
+        }
+
+        const variantPrice = Number(variant.price ?? product.price)
+        trackedItems.push(
+          createAnalyticsItem({
+            itemId: variant.id,
+            itemName: variant.title ? `${product.name} - ${variant.title}` : product.name,
+            price: variantPrice,
+            quantity,
+            itemCategory: product.categoryName || null,
+            itemVariant: variant.title || null,
+          })
+        )
       }
 
-      const variantPrice = Number(variant.price ?? product.price)
-      const trackedItem = createAnalyticsItem({
-        itemId: variant.id,
-        itemName: variant.title ? `${product.name} - ${variant.title}` : product.name,
-        price: variantPrice,
-        quantity: draftQuantity,
-        itemCategory: product.categoryName || null,
-        itemVariant: variant.title || null,
-      })
-
       trackAddToCart(
-        createEcommercePayload([trackedItem], {
-          value: variantPrice * draftQuantity,
+        createEcommercePayload(trackedItems, {
+          value: trackedItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
         })
       )
 
+      toast({
+        title: "Agregado al carrito",
+        description: product.name,
+        variant: "success",
+        duration: 3000,
+      })
+
+      setVariantDraftQuantities(
+        Object.fromEntries(processedVariants.map((variant) => [variant.id, 0]))
+      )
       await refreshCart()
+      setVariantDialogOpen(false)
       setIsOpen(true)
     } catch (error) {
       console.error("Variant cart error:", error)
     } finally {
-      setVariantBusyId(null)
+      setAdding(false)
     }
   }
 
@@ -460,7 +500,7 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
       <div className="flex items-center gap-2">
         {product.hasVariants && !product.isCombo ? (
           <span className="text-sm font-medium text-muted-foreground">
-            Elegí cantidades por variante.
+            Elegí cantidades por variante al agregarlo al carrito.
           </span>
         ) : product.isCombo && isComboSelectionPending ? (
           <span className="text-sm font-medium text-muted-foreground">
@@ -485,75 +525,127 @@ export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
           <div className="space-y-1">
             <h3 className="text-base font-semibold">Variantes</h3>
             <p className="text-sm text-muted-foreground">
-              Podés agregar cantidades distintas de cada variante.
+              Podés combinar distintas cantidades por variante antes de agregar.
             </p>
           </div>
 
-          <div className="space-y-3">
-            {processedVariants.length === 0 ? (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
-                Este producto todavía no tiene variantes activas configuradas.
-              </div>
-            ) : processedVariants.map((variant) => {
-              const variantCartItem = variantCartItems.get(variant.id)
-              const draftQuantity = variantDraftQuantities[variant.id] || 1
-              const variantPrice = Number(variant.price ?? product.price)
-              const variantInStock = product.hasPermanentStock || variant.stock > 0
-              const maxQuantity = product.hasPermanentStock ? undefined : variant.stock
+          {processedVariants.length === 0 ? (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+              Este producto todavía no tiene variantes activas configuradas.
+            </div>
+          ) : variantCartItems.size > 0 ? (
+            <div className="space-y-3">
+              {processedVariants
+                .filter((variant) => variantCartItems.has(variant.id))
+                .map((variant) => {
+                  const variantCartItem = variantCartItems.get(variant.id)
+                  if (!variantCartItem) return null
 
-              return (
-                <div key={variant.id} className="rounded-lg border p-4">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">{variant.title || product.name}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                        <span>{formatCurrency(variantPrice)}</span>
-                        {variant.sku && <span>SKU: {variant.sku}</span>}
-                        {product.hasPermanentStock ? (
-                          <span className="text-green-600 font-medium">En stock</span>
-                        ) : variant.stock > 0 ? (
-                          <span className="text-green-600 font-medium">
-                            {variant.stock} disponibles
-                          </span>
-                        ) : (
-                          <span className="text-red-600 font-medium">Sin stock</span>
-                        )}
-                      </div>
-                    </div>
+                  const variantPrice = Number(variant.price ?? product.price)
+                  const maxQuantity = product.hasPermanentStock ? undefined : variant.stock
 
-                    {variantCartItem ? (
-                      <QuantitySelector
-                        value={variantCartItem.quantity}
-                        onChange={(nextQuantity) => handleUpdateVariantCartQuantity(variant.id, nextQuantity)}
-                        min={0}
-                        max={maxQuantity}
-                        disabled={variantBusyId === variant.id || isUpdating}
-                        size="default"
-                      />
-                    ) : (
-                      <div className="flex gap-3">
+                  return (
+                    <div key={variant.id} className="rounded-lg border p-4">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <p className="font-medium">{variant.title || product.name}</p>
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                            <span>{formatCurrency(variantPrice)}</span>
+                            {variant.sku && <span>SKU: {variant.sku}</span>}
+                          </div>
+                        </div>
+
                         <QuantitySelector
-                          value={draftQuantity}
-                          onChange={(nextQuantity) => updateVariantDraftQuantity(variant.id, nextQuantity)}
-                          min={1}
+                          value={variantCartItem.quantity}
+                          onChange={(nextQuantity) => handleUpdateVariantCartQuantity(variant.id, nextQuantity)}
+                          min={0}
                           max={maxQuantity}
-                          disabled={variantBusyId === variant.id || !variantInStock}
+                          disabled={variantBusyId === variant.id || isUpdating || adding}
                           size="default"
                         />
-                        <Button
-                          type="button"
-                          onClick={() => handleAddVariantToCart(variant)}
-                          disabled={variantBusyId === variant.id || !variantInStock}
-                        >
-                          {variantBusyId === variant.id ? "Agregando..." : "Agregar"}
-                        </Button>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                    </div>
+                  )
+                })}
+
+              <Button type="button" variant="outline" className="w-full" onClick={() => setVariantDialogOpen(true)}>
+                Agregar más variantes
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" size="lg" className="w-full" onClick={() => setVariantDialogOpen(true)}>
+              Agregar al carrito
+            </Button>
+          )}
+
+          <Dialog open={variantDialogOpen} onOpenChange={setVariantDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{product.name}</DialogTitle>
+                <DialogDescription>
+                  Elegí cantidad por variante y agregá todo junto al carrito.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                {processedVariants.map((variant) => {
+                  const variantCartItem = variantCartItems.get(variant.id)
+                  const draftQuantity = variantDraftQuantities[variant.id] || 0
+                  const variantPrice = Number(variant.price ?? product.price)
+                  const variantInStock = product.hasPermanentStock || variant.stock > 0
+                  const maxQuantity = product.hasPermanentStock ? undefined : variant.stock
+
+                  return (
+                    <div key={variant.id} className="rounded-lg border p-4">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <p className="font-medium">{variant.title || product.name}</p>
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                            <span>{formatCurrency(variantPrice)}</span>
+                            {variant.sku && <span>SKU: {variant.sku}</span>}
+                            {product.hasPermanentStock ? (
+                              <span className="text-green-600 font-medium">En stock</span>
+                            ) : variant.stock > 0 ? (
+                              <span className="text-green-600 font-medium">
+                                {variant.stock} disponibles
+                              </span>
+                            ) : (
+                              <span className="text-red-600 font-medium">Sin stock</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-start gap-2 md:items-end">
+                          {variantCartItem && (
+                            <p className="text-sm text-muted-foreground">
+                              En carrito: {variantCartItem.quantity}
+                            </p>
+                          )}
+                          <QuantitySelector
+                            value={draftQuantity}
+                            onChange={(nextQuantity) => updateVariantDraftQuantity(variant.id, nextQuantity)}
+                            min={0}
+                            max={maxQuantity}
+                            disabled={adding || !variantInStock}
+                            size="default"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={handleAddSelectedVariantsToCart}
+                  disabled={adding || !processedVariants.some((variant) => (variantDraftQuantities[variant.id] || 0) > 0)}
+                >
+                  {adding ? "Agregando..." : "Agregar al carrito"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
