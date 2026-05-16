@@ -57,6 +57,15 @@ export default async function HomePage() {
         orderBy: { order: "asc" },
         take: 1,
       },
+      comboComponents: {
+        include: {
+          product: {
+            select: {
+              hasVariants: true,
+            },
+          },
+        },
+      },
     },
   })
   const bestSellersById = new Map(bestSellers.map((product) => [product.id, product]))
@@ -91,6 +100,9 @@ export default async function HomePage() {
           discountConfig: p.discountConfig,
           hasVariants: p.hasVariants,
           isCombo: p.isCombo,
+          comboRequiresConfiguration: p.isCombo
+            ? p.comboComponents.some((component) => component.product.hasVariants)
+            : false,
           images: p.images,
         }))}
         enabled={settings.bestSellersEnabled ?? false}

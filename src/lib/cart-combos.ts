@@ -30,6 +30,25 @@ type ComboValidationProduct = {
   comboComponents: ComboValidationComponent[]
 }
 
+function buildDefaultComboConfiguration(
+  product: ComboValidationProduct
+): CartComboConfiguration {
+  return product.comboComponents.map((component) => {
+    if (component.product.hasVariants) {
+      throw new Error(`Elegi una variante para ${component.product.name}.`)
+    }
+
+    return {
+      comboComponentId: component.id,
+      productId: component.productId,
+      productName: component.product.name,
+      variantId: null,
+      variantTitle: null,
+      quantityPerCombo: component.quantity,
+    }
+  })
+}
+
 function ensureCartComboConfiguration(
   value: unknown
 ): CartComboConfiguration {
@@ -59,7 +78,7 @@ export function parseCartComboConfiguration(
   value: FormDataEntryValue | string | null | undefined
 ): CartComboConfiguration {
   if (!value || typeof value !== "string") {
-    throw new Error("Falta la configuracion del combo.")
+    return []
   }
 
   let parsed: unknown
@@ -83,7 +102,9 @@ export function validateComboCartSelection(input: {
     throw new Error("El producto no es un combo.")
   }
 
-  const requestedConfiguration = ensureCartComboConfiguration(rawConfiguration)
+  const requestedConfiguration = Array.isArray(rawConfiguration) && rawConfiguration.length === 0
+    ? buildDefaultComboConfiguration(product)
+    : ensureCartComboConfiguration(rawConfiguration)
   const selectedByComponentId = new Map(
     requestedConfiguration.map((item) => [item.comboComponentId, item])
   )

@@ -88,6 +88,15 @@ export async function getProductsAction({
     include: {
       images: { take: 1, orderBy: { order: "asc" } },
       category: true,
+      comboComponents: {
+        include: {
+          product: {
+            select: {
+              hasVariants: true,
+            },
+          },
+        },
+      },
     },
     orderBy,
     skip,
@@ -113,6 +122,9 @@ export async function getProductsAction({
     products: sortedProducts.map(p => ({
       ...p,
       isCombo: p.isCombo,
+      comboRequiresConfiguration: p.isCombo
+        ? p.comboComponents.some((component) => component.product.hasVariants)
+        : false,
       price: p.price.toString(),
       comparePrice: p.comparePrice?.toString() || null,
     })),

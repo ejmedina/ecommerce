@@ -116,4 +116,45 @@ describe("cart combo validation", () => {
       })
     ).toThrow("Elegi una variante para Cafe.")
   })
+
+  it("allows direct add for combos that only contain simple products", () => {
+    const simpleComboOnly = {
+      isCombo: true,
+      comboComponents: [
+        {
+          id: "component-simple",
+          productId: "product-medialuna",
+          quantity: 2,
+          product: {
+            id: "product-medialuna",
+            name: "Medialuna",
+            hasVariants: false,
+            hasPermanentStock: false,
+            stock: 20,
+            variants: [],
+          },
+        },
+      ],
+    }
+
+    const parsedConfiguration = parseCartComboConfiguration(null)
+    const result = validateComboCartSelection({
+      product: simpleComboOnly,
+      rawConfiguration: parsedConfiguration,
+      quantity: 3,
+    })
+
+    expect(result.availableStock).toBe(10)
+    expect(result.selectionSignature).toBe("component-simple:product-medialuna:base:2")
+    expect(result.configuration).toEqual([
+      {
+        comboComponentId: "component-simple",
+        productId: "product-medialuna",
+        productName: "Medialuna",
+        variantId: null,
+        variantTitle: null,
+        quantityPerCombo: 2,
+      },
+    ])
+  })
 })

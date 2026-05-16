@@ -154,6 +154,14 @@ export function ProductForm({ product, categories, availableProducts, onCategori
       position: component.position ?? index,
     })) || []
   )
+  const [comboComponentSearchValues, setComboComponentSearchValues] = useState<string[]>(
+    product?.comboComponents?.map((component) => {
+      const selectedProduct = availableProducts.find((availableProduct) => availableProduct.id === component.productId)
+      return selectedProduct
+        ? `${selectedProduct.name}${selectedProduct.sku ? ` (${selectedProduct.sku})` : ""}${!selectedProduct.isActive ? " - inactivo" : ""}`
+        : ""
+    }) || []
+  )
 
   const handleSave = async () => {
     setSaving(true)
@@ -408,6 +416,7 @@ export function ProductForm({ product, categories, availableProducts, onCategori
         position: current.length,
       },
     ])
+    setComboComponentSearchValues((current) => [...current, ""])
   }
 
   const updateComboComponent = (
@@ -436,6 +445,29 @@ export function ProductForm({ product, categories, availableProducts, onCategori
           position: componentIndex,
         }))
     )
+    setComboComponentSearchValues((current) =>
+      current.filter((_, componentIndex) => componentIndex !== index)
+    )
+  }
+
+  const availableProductSearchOptions = useMemo(
+    () =>
+      availableProducts.map((availableProduct) => ({
+        id: availableProduct.id,
+        label: `${availableProduct.name}${availableProduct.sku ? ` (${availableProduct.sku})` : ""}${!availableProduct.isActive ? " - inactivo" : ""}`,
+      })),
+    [availableProducts]
+  )
+
+  const updateComboComponentSearch = (index: number, value: string) => {
+    setComboComponentSearchValues((current) => {
+      const next = [...current]
+      next[index] = value
+      return next
+    })
+
+    const matchedProduct = availableProductSearchOptions.find((option) => option.label === value)
+    updateComboComponent(index, { productId: matchedProduct?.id || "" })
   }
 
   return (
@@ -757,22 +789,22 @@ export function ProductForm({ product, categories, availableProducts, onCategori
                                 <div className="grid flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
                                   <div className="space-y-2">
                                     <Label>Producto</Label>
-                                    <select
-                                      value={component.productId}
-                                      onChange={(e) =>
-                                        updateComboComponent(index, { productId: e.target.value })
-                                      }
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    >
-                                      <option value="">Seleccionar producto</option>
-                                      {availableProducts.map((availableProduct) => (
-                                        <option key={availableProduct.id} value={availableProduct.id}>
-                                          {availableProduct.name}
-                                          {availableProduct.sku ? ` (${availableProduct.sku})` : ""}
-                                          {!availableProduct.isActive ? " - inactivo" : ""}
-                                        </option>
+                                    <Input
+                                      list={`combo-products-${index}`}
+                                      value={comboComponentSearchValues[index] || ""}
+                                      onChange={(e) => updateComboComponentSearch(index, e.target.value)}
+                                      placeholder="Buscar por nombre o SKU"
+                                    />
+                                    <datalist id={`combo-products-${index}`}>
+                                      {availableProductSearchOptions.map((availableProduct) => (
+                                        <option key={availableProduct.id} value={availableProduct.label} />
                                       ))}
-                                    </select>
+                                    </datalist>
+                                    {!component.productId && comboComponentSearchValues[index]?.trim() ? (
+                                      <p className="text-xs text-orange-600">
+                                        Elegí una opción exacta de la lista para asignar el producto.
+                                      </p>
+                                    ) : null}
                                     {selectedProduct?.hasVariants && (
                                       <p className="text-xs text-muted-foreground">
                                         El cliente elegirá la variante de este producto al comprar el combo.

@@ -24,6 +24,7 @@ interface Product {
   discountConfig?: unknown
   hasVariants?: boolean
   isCombo?: boolean
+  comboRequiresConfiguration?: boolean
   category: { name: string } | null
   images: { url: string; alt: string | null }[]
   stock: number
@@ -175,7 +176,7 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
                   Promo combinando variantes
                 </p>
               )}
-              {product.isCombo && (
+              {product.comboRequiresConfiguration && (
                 <p className="mt-1 text-xs font-medium text-muted-foreground">
                   Elegi opciones al agregar
                 </p>
@@ -186,7 +187,7 @@ export function ProductList({ initialProducts, initialHasMore, category, s, sort
                 productId={product.id}
                 productName={product.name}
                 productSlug={product.slug}
-                requiresConfiguration={Boolean(product.hasVariants || product.isCombo)}
+                requiresConfiguration={Boolean(product.hasVariants || product.comboRequiresConfiguration)}
                 className="w-full"
                 size="sm"
               />

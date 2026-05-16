@@ -20,6 +20,7 @@ interface Product {
   discountConfig?: unknown
   hasVariants?: boolean
   isCombo?: boolean
+  comboRequiresConfiguration?: boolean
   images?: { url: string }[]
 }
 
@@ -122,7 +123,7 @@ export function BestSellers({ products, enabled }: BestSellersProps) {
                     Combinalas
                   </p>
                 )}
-                {product.isCombo && (
+                {product.comboRequiresConfiguration && (
                   <p className="mt-1 text-[11px] font-medium text-muted-foreground">
                     Elegi las variantes al comprar
                   </p>
