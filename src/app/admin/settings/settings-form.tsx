@@ -14,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ShippingZone, ShippingConfig, getDefaultShippingConfig } from "@/lib/shipping"
 import { ColorPicker, ThemePreview } from "@/components/admin/color-picker"
-import { ThemeColors, defaultColors } from "@/components/theme-provider"
+import { defaultColors } from "@/components/theme-provider"
+import { mergeThemeColors, type ThemeColors } from "@/lib/theme-colors"
 
 interface StoreSettings {
   id: string
@@ -120,7 +121,7 @@ export function SettingsForm() {
 
       // Load theme colors
       if (data.themeColors) {
-        setThemeColors(data.themeColors)
+        setThemeColors(mergeThemeColors(data.themeColors))
       }
 
       // Load payment methods

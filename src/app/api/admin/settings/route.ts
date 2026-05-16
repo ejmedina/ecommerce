@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { getDefaultShippingConfig } from "@/lib/shipping"
 import { requireAuth } from "@/lib/admin-auth"
 import { normalizeTimeZone } from "@/lib/time-zone"
+import { mergeThemeColors } from "@/lib/theme-colors"
 
 export async function GET() {
   const authError = await requireAuth()
@@ -143,7 +144,9 @@ export async function PUT(req: NextRequest) {
     if (infoCards !== undefined) updateData.infoCards = infoCards
 
     // Update theme colors if provided
-    if (themeColors !== undefined) updateData.themeColors = themeColors
+    if (themeColors !== undefined) {
+      updateData.themeColors = mergeThemeColors(themeColors)
+    }
 
     // Update payment methods if provided
     if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods
