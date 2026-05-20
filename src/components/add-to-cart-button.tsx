@@ -1,6 +1,7 @@
 "use client"
 
 import { useTransition, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { useCart } from "@/components/cart-context"
@@ -9,6 +10,8 @@ import { QuantitySelector } from "@/components/ui/quantity-selector"
 interface AddToCartButtonProps {
   productId: string
   productName: string
+  productSlug?: string | null
+  requiresConfiguration?: boolean
   className?: string
   size?: "default" | "sm" | "lg" | "icon"
 }
@@ -16,6 +19,8 @@ interface AddToCartButtonProps {
 export function AddToCartButton({
   productId,
   productName,
+  productSlug,
+  requiresConfiguration = false,
   className = "",
   size = "default",
 }: AddToCartButtonProps) {
@@ -80,6 +85,14 @@ export function AddToCartButton({
     }
 
     updateItemQuantityOptimistic(cartItem.id, newQuantity)
+  }
+
+  if (requiresConfiguration) {
+    return (
+      <Button asChild size={size} className={className} variant="outline">
+        <Link href={`/products/${productSlug || productId}`}>Ver opciones</Link>
+      </Button>
+    )
   }
 
   if (cartItem) {

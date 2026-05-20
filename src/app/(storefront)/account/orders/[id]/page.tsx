@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +11,17 @@ import { Separator } from "@/components/ui/separator"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
+}
+
+type ShippingAddress = {
+  street?: string
+  number?: string
+  floor?: string | null
+  apartment?: string | null
+  city?: string
+  state?: string
+  postalCode?: string
+  instructions?: string | null
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
@@ -23,7 +35,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const order = await db.order.findUnique({
     where: { id },
     include: {
-      items: true,
+      items: {
+        include: {
+          components: {
+            orderBy: { position: "asc" },
+          },
+        },
+      },
     },
   })
 
@@ -96,7 +114,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     return labels[method] || method
   }
 
-  const shippingAddress = order.shippingAddress as any
+  const shippingAddress = order.shippingAddress as ShippingAddress | null
+  const commercialItems = getCommercialOrderItems(order.items)
 
   return (
     <div className="space-y-6">
@@ -158,17 +177,30 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {order.items.map((item) => {
-              const quantityOrdered = item.quantityOrdered
+            {commercialItems.map((item) => {
               return (
                 <div key={item.id} className="flex justify-between items-center">
                   <div>
-                    <p className="font-medium">{item.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{item.quantityOrdered}x {item.name}</p>
+                      {item.itemType === "COMBO" && <Badge variant="outline">Combo</Badge>}
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                      Cantidad: {quantityOrdered} {item.sku && `• SKU: ${item.sku}`}
+                      {item.sku ? `SKU: ${item.sku}` : "Producto comercial"}
                     </p>
+                    {item.components.length > 0 && (
+                      <div className="mt-2 space-y-1 rounded-md bg-muted/40 p-2">
+                        {item.components.map((component) => (
+                          <p key={component.id} className="text-xs text-muted-foreground">
+                            {component.quantityOrdered} x {component.name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
+                  {item.unitTotal !== null && (
+                    <p className="font-medium">{formatCurrency(Number(item.unitTotal))}</p>
+                  )}
                 </div>
               )
             })}

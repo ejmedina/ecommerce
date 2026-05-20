@@ -6,6 +6,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { OrderCard, type RouteSheetOrderCardItem } from "./order-card"
 import { reorderRouteSheetItemsBatch, optimizeRouteOrder } from "@/lib/actions/route-sheet-actions"
 import { StockSummaryDialog } from "@/components/admin/stock-summary-dialog"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Wand2 } from "lucide-react"
@@ -26,12 +27,13 @@ interface SortableRouteItemsProps {
   items: RouteSheetOrderCardItem[]
   whatsappMessage: string
   storeName: string
+  timeZone?: string | null
   depots: LogisticsOption[]
   vehicles: LogisticsOption[]
   routeSheet: RouteSheetLogisticsState
 }
 
-export function SortableRouteItems({ items, whatsappMessage, storeName, depots, vehicles, routeSheet }: SortableRouteItemsProps) {
+export function SortableRouteItems({ items, whatsappMessage, storeName, timeZone, depots, vehicles, routeSheet }: SortableRouteItemsProps) {
   const [activeItems, setActiveItems] = useState(items)
   const [isPending, startTransition] = useTransition()
   const [isOptimizing, setIsOptimizing] = useState(false)
@@ -41,10 +43,11 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
   const [endDepotId, setEndDepotId] = useState(routeSheet.endDepotId || "none")
   const [vehicleId, setVehicleId] = useState(routeSheet.vehicleId || "none")
   const stockItems = activeItems.flatMap((item) =>
-    item.order.items.map((orderItem) => ({
-      productId: orderItem.product.id,
+    flattenOrderItemsForOperations(item.order.items).map((orderItem) => ({
+      summaryKey: orderItem.summaryKey,
+      productId: orderItem.productId,
       name: orderItem.name,
-      quantityOrdered: orderItem.quantityOrdered ?? orderItem.quantity ?? 0,
+      quantityOrdered: orderItem.quantityOrdered,
       quantityFulfilled: orderItem.quantityFulfilled,
       quantityMissing: orderItem.quantityMissing,
     }))
@@ -157,6 +160,7 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
             title="Stock de la hoja de ruta"
             selectionLabel={`Pedidos en la hoja: ${activeItems.length}`}
             items={stockItems}
+            timeZone={timeZone}
           />
           <Button
             onClick={handleOptimization}
@@ -190,6 +194,7 @@ export function SortableRouteItems({ items, whatsappMessage, storeName, depots, 
                 totalItems={activeItems.length}
                 whatsappMessage={whatsappMessage}
                 storeName={storeName}
+                timeZone={timeZone}
               />
             ))}
           </div>

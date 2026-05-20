@@ -77,7 +77,9 @@ export async function getProductsAction({
   if (!s) {
     where.OR = [
       { stock: { gt: 0 } },
-      { hasPermanentStock: true }
+      { hasPermanentStock: true },
+      { hasVariants: true },
+      { isCombo: true },
     ]
   }
 
@@ -86,6 +88,42 @@ export async function getProductsAction({
     include: {
       images: { take: 1, orderBy: { order: "asc" } },
       category: true,
+      variants: {
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          title: true,
+          sku: true,
+          stock: true,
+          price: true,
+        },
+      },
+      comboComponents: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              hasVariants: true,
+              stock: true,
+              hasPermanentStock: true,
+              variants: {
+                where: { isActive: true },
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  title: true,
+                  sku: true,
+                  stock: true,
+                  price: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy,
     skip,
@@ -110,6 +148,25 @@ export async function getProductsAction({
   return {
     products: sortedProducts.map(p => ({
       ...p,
+      isCombo: p.isCombo,
+      comboRequiresConfiguration: p.isCombo
+        ? p.comboComponents.some((component) => component.product.hasVariants)
+        : false,
+      comboComponents: p.comboComponents.map((component) => ({
+        id: component.id,
+        quantity: component.quantity,
+        product: {
+          ...component.product,
+          variants: component.product.variants.map((variant) => ({
+            ...variant,
+            price: variant.price?.toString() || null,
+          })),
+        },
+      })),
+      variants: p.variants.map((variant) => ({
+        ...variant,
+        price: variant.price?.toString() || null,
+      })),
       price: p.price.toString(),
       comparePrice: p.comparePrice?.toString() || null,
     })),

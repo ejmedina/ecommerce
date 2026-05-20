@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { db } from "@/lib/db"
+import { getDateRangeForDateInput } from "@/lib/time-zone"
 import { Card, CardContent } from "@/components/ui/card"
 import { OrdersTable } from "./orders-table"
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client"
@@ -23,6 +24,12 @@ export default async function OrdersPage({ searchParams }: Props) {
 
   // Construir filtros
   const where: Prisma.OrderWhereInput = {}
+  const settings = await db.storeSettings.findFirst({
+    select: {
+      requiresPaymentToFulfill: true,
+      timeZone: true,
+    },
+  })
 
   if (params.userId) {
     where.userId = params.userId
@@ -45,17 +52,19 @@ export default async function OrdersPage({ searchParams }: Props) {
   
   // Filtro por fecha (desde)
   if (params.fromDate) {
+    const { start } = getDateRangeForDateInput(params.fromDate, settings?.timeZone)
     where.createdAt = {
       ...where.createdAt,
-      gte: new Date(params.fromDate),
+      gte: start,
     }
   }
   
   // Filtro por fecha (hasta)
   if (params.toDate) {
+    const { endExclusive } = getDateRangeForDateInput(params.toDate, settings?.timeZone)
     where.createdAt = {
       ...where.createdAt,
-      lte: new Date(params.toDate + "T23:59:59"),
+      lt: endExclusive,
     }
   }
 
@@ -65,12 +74,6 @@ export default async function OrdersPage({ searchParams }: Props) {
   // Calcular paginado
   const page = parseInt(params.page || "1")
   const skip = (page - 1) * ORDERS_PER_PAGE
-  const settings = await db.storeSettings.findFirst({
-    select: {
-      requiresPaymentToFulfill: true,
-    },
-  })
-  
   // Obtener pedidos con filtros y paginado
   const orders = await db.order.findMany({
     where,
@@ -79,6 +82,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       items: {
         include: {
           product: { select: { name: true } },
+          components: true,
         },
       },
     },
@@ -109,12 +113,27 @@ export default async function OrdersPage({ searchParams }: Props) {
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
+      variantId: item.variantId,
+      itemType: item.itemType,
       name: item.name,
       quantity: item.quantityOrdered,
       price: Number(item.price),
       unitTotal: Number(item.unitTotal),
       quantityFulfilled: item.quantityFulfilled,
       quantityMissing: item.quantityMissing,
+      components: item.components.map((component) => ({
+        id: component.id,
+        orderItemId: component.orderItemId,
+        productId: component.productId,
+        variantId: component.variantId,
+        name: component.name,
+        quantityOrdered: component.quantityOrdered,
+        quantityFulfilled: component.quantityFulfilled,
+        quantityMissing: component.quantityMissing,
+        missingReason: component.missingReason,
+        fulfilledAt: component.fulfilledAt?.toISOString() || null,
+        quantityPerCombo: component.quantityPerCombo,
+      })),
     })),
   }))
 
@@ -134,6 +153,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       <OrdersTable 
         orders={ordersData} 
         requiresPaymentToFulfill={settings?.requiresPaymentToFulfill ?? false}
+        timeZone={settings?.timeZone ?? null}
         currentPage={page}
         totalPages={totalPages}
         totalOrders={totalOrders}

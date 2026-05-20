@@ -1,9 +1,15 @@
-import { redirect } from "next/navigation"
+import Link from "next/link"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
 import { CheckoutSteps } from "@/components/checkout-steps"
-import { calculateCartPricing } from "@/lib/pricing"
+import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
+
+type PaymentMethodsConfig = Record<string, {
+  isActive: boolean
+  label: string
+  description: string
+}>
 
 export const dynamic = "force-dynamic"
 
@@ -21,6 +27,7 @@ async function getCart() {
         items: {
           include: {
             product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
+            variant: true,
           },
         },
       },
@@ -32,6 +39,7 @@ async function getCart() {
         items: {
           include: {
             product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
+            variant: true,
           },
         },
       },
@@ -44,10 +52,15 @@ async function getCart() {
       ...cart,
       items: cart.items.map(item => ({
         ...item,
+        comboConfiguration: item.comboConfiguration,
         product: {
           ...item.product,
           price: Number(item.product.price),
-        }
+        },
+        variant: item.variant ? {
+          ...item.variant,
+          price: item.variant.price ? Number(item.variant.price) : null,
+        } : null,
       }))
     }
   }
@@ -72,7 +85,7 @@ async function getSettings() {
     fixedShippingCost: Number(settings.fixedShippingCost),
     bankAccount: settings.bankAccount,
     shippingConfig: settings.shippingConfig,
-    paymentMethods: settings.paymentMethods as any,
+    paymentMethods: settings.paymentMethods as PaymentMethodsConfig | null,
     minShippingOrderAmount: Number(settings.minShippingOrderAmount) || 0,
     storePickupEnabled: settings.storePickupEnabled,
   }
@@ -97,7 +110,24 @@ export default async function CheckoutPage() {
   }
 
   const hasCart = cart && cart.items.length > 0
-  const pricingResult = hasCart ? calculateCartPricing(cart.items) : null
+  const pricingItems: CartPricingItem[] = hasCart
+    ? cart.items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        productId: item.product.id,
+        product: {
+          id: item.product.id,
+          name: item.product.name,
+          price: Number(item.product.price),
+          discountType: item.product.discountType,
+          discountConfig: item.product.discountConfig,
+        },
+        variant: item.variant ? {
+          price: item.variant.price,
+        } : null,
+      }))
+    : []
+  const pricingResult = hasCart ? calculateCartPricing(pricingItems) : null
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -114,9 +144,9 @@ export default async function CheckoutPage() {
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">Tu carrito está vacío</p>
-          <a href="/products" className="text-primary hover:underline">
+          <Link href="/products" className="text-primary hover:underline">
             Ver productos
-          </a>
+          </Link>
         </div>
       )}
     </div>

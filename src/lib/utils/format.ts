@@ -1,3 +1,5 @@
+import { normalizeTimeZone } from "@/lib/time-zone"
+
 export function formatCurrency(amount: number | string, currency = "ARS"): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount
   return new Intl.NumberFormat("es-AR", {
@@ -6,23 +8,33 @@ export function formatCurrency(amount: number | string, currency = "ARS"): strin
   }).format(num)
 }
 
-export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(
+  date: Date | string,
+  options?: Intl.DateTimeFormatOptions,
+  timeZone?: string | null
+): string {
   const d = typeof date === "string" ? new Date(date) : date
-  return new Intl.DateTimeFormat("es-AR", options ?? {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d)
+  const safeTimeZone = normalizeTimeZone(timeZone)
+  const resolvedOptions = options
+    ? { ...options, timeZone: options.timeZone ?? safeTimeZone }
+    : {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: safeTimeZone,
+      }
+  return new Intl.DateTimeFormat("es-AR", resolvedOptions).format(d)
 }
 
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string, timeZone?: string | null): string {
   return formatDate(date, {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  })
+    timeZone: normalizeTimeZone(timeZone),
+  }, timeZone)
 }
 
 export function slugify(text: string): string {

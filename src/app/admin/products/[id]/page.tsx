@@ -21,6 +21,7 @@ type ProductFormProduct = {
   images: { id: string; url: string; alt: string | null }[]
   hasPermanentStock: boolean
   hasVariants: boolean
+  isCombo: boolean
   options: { id: string; name: string; values: string[]; position: number }[]
   variants: {
     id: string
@@ -32,6 +33,12 @@ type ProductFormProduct = {
     title: string | null
     isActive: boolean
   }[]
+  comboComponents: {
+    id: string
+    productId: string
+    quantity: number
+    position: number
+  }[]
 }
 
 interface PageProps {
@@ -41,7 +48,8 @@ interface PageProps {
 export default async function EditProductPage({ params }: PageProps) {
   const { id } = await params
   
-  const product = await db.product.findUnique({
+  const [product, categories, availableProducts] = await Promise.all([
+    db.product.findUnique({
     where: { id },
     include: {
       images: {
@@ -52,36 +60,56 @@ export default async function EditProductPage({ params }: PageProps) {
       },
       variants: {
         orderBy: { createdAt: "asc" }
+      },
+      comboComponents: {
+        orderBy: { position: "asc" },
       }
     },
-  })
+  }),
+    db.category.findMany({
+      where: { isActive: true },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true, parentId: true, order: true },
+    }),
+    db.product.findMany({
+      where: {
+        isCombo: false,
+        id: { not: id },
+      },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        hasVariants: true,
+        isActive: true,
+      },
+    }),
+  ])
 
   if (!product) {
     notFound()
   }
-
-  const categories = await db.category.findMany({
-    where: { isActive: true },
-    orderBy: [{ order: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, slug: true, parentId: true, order: true },
-  })
 
   // Convert Decimal to plain numbers and handle variant data
   const productData = {
     ...product,
     price: Number(product.price),
     comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+    isCombo: product.isCombo,
+    comboComponents: product.comboComponents,
     variants: product.variants.map(v => ({
       ...v,
       price: v.price ? Number(v.price) : null,
       comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-    }))
+    })),
   } as ProductFormProduct
 
   return (
     <ProductForm
       product={productData}
       categories={categories}
+      availableProducts={availableProducts}
     />
   )
 }

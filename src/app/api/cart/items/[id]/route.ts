@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getCartState } from "@/lib/cart"
+import { validateComboCartSelection } from "@/lib/cart-combos"
 
 export async function PATCH(
   request: Request,
@@ -42,7 +43,19 @@ export async function PATCH(
     const product = await db.product.findUnique({
       where: { id: item.productId },
       include: {
-        variants: item.variantId ? { where: { id: item.variantId } } : false
+        variants: item.variantId ? { where: { id: item.variantId } } : false,
+        comboComponents: {
+          orderBy: { position: "asc" },
+          include: {
+            product: {
+              include: {
+                variants: {
+                  where: { isActive: true },
+                },
+              },
+            },
+          },
+        },
       }
     })
 
@@ -50,7 +63,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 })
     }
 
-    if (item.variantId) {
+    if (product.isCombo) {
+      try {
+        validateComboCartSelection({
+          product,
+          rawConfiguration: item.comboConfiguration,
+          quantity,
+        })
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "No hay suficiente stock" },
+          { status: 400 }
+        )
+      }
+    } else if (item.variantId) {
       const variant = product.variants[0]
       if (!variant) {
         return NextResponse.json({ error: "Variante no encontrada" }, { status: 404 })

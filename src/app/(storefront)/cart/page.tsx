@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { type CartComboConfiguration, summarizeComboConfiguration } from "@/lib/combos"
 import { formatCurrency } from "@/lib/utils"
 import { useCart } from "@/components/cart-context"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
@@ -18,6 +19,7 @@ import {
 interface CartPageItem {
   id: string
   quantity: number
+  comboConfiguration?: CartComboConfiguration | null
   variant?: {
     id: string
     title?: string | null
@@ -144,6 +146,15 @@ export default function CartPage() {
                         <p className="text-sm text-muted-foreground">
                           {item.variant.title}
                         </p>
+                      )}
+                      {item.comboConfiguration && item.comboConfiguration.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {summarizeComboConfiguration(item.comboConfiguration, item.quantity).map((line, index) => (
+                            <p key={`${item.id}-${index}`} className="text-xs text-muted-foreground">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       )}
                       {item.product.sku && !item.variant && (
                         <p className="text-xs text-muted-foreground">

@@ -2,6 +2,8 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Edit, PackageSearch } from "lucide-react"
 import { db } from "@/lib/db"
+import { getStoreTimeZone } from "@/lib/store-settings"
+import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +29,7 @@ function formatAddress(address: {
 
 export default async function UserAddressesPage({ params }: Props) {
   const { id } = await params
+  const timeZone = await getStoreTimeZone()
   const user = await db.user.findUnique({
     where: { id },
     select: {
@@ -125,7 +128,7 @@ export default async function UserAddressesPage({ params }: Props) {
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-medium">#{order.orderNumber}</h3>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString("es-AR")}
+                        {formatDate(order.createdAt, undefined, timeZone)}
                       </span>
                     </div>
                     <pre className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { requireAuth } from "@/lib/admin-auth"
+import { getComboOrderFulfillmentFromComponents } from "@/lib/order-operations"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -21,18 +22,53 @@ export async function POST(request: Request, { params }: RouteParams) {
     // Update submitted items, then recalculate the whole order from persisted data.
     await db.$transaction(async (tx) => {
       for (const item of items) {
-        const { itemId, quantityFulfilled, missingReason } = item
+        const { targetId, targetType, quantityFulfilled, missingReason } = item
         const fulfilled = Math.max(0, Number(quantityFulfilled) || 0)
         const ordered = Math.max(0, Number(item.ordered) || 0)
-        
+        const data = {
+          quantityFulfilled: Math.min(fulfilled, ordered),
+          quantityMissing: Math.max(0, ordered - fulfilled),
+          missingReason: missingReason || null,
+          fulfilledAt: new Date(),
+        }
+
+        if (targetType === "ORDER_ITEM_COMPONENT") {
+          await tx.orderItemComponent.update({
+            where: { id: targetId },
+            data,
+          })
+        } else {
+          await tx.orderItem.update({
+            where: { id: targetId },
+            data,
+          })
+        }
+      }
+
+      const comboOrderItems = await tx.orderItem.findMany({
+        where: {
+          orderId,
+          itemType: "COMBO",
+        },
+        include: {
+          components: true,
+        },
+      })
+
+      for (const comboOrderItem of comboOrderItems) {
+        const comboFulfillment = getComboOrderFulfillmentFromComponents({
+          quantityOrdered: comboOrderItem.quantityOrdered,
+          components: comboOrderItem.components,
+        })
+
         await tx.orderItem.update({
-          where: { id: itemId },
+          where: { id: comboOrderItem.id },
           data: {
-            quantityFulfilled: Math.min(fulfilled, ordered),
-            quantityMissing: Math.max(0, ordered - fulfilled),
-            missingReason: missingReason || null,
+            quantityFulfilled: comboFulfillment.quantityFulfilled,
+            quantityMissing: comboFulfillment.quantityMissing,
+            missingReason: comboFulfillment.missingReason,
             fulfilledAt: new Date(),
-          }
+          },
         })
       }
 

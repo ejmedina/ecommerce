@@ -1,50 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-
-export interface ThemeColors {
-  primary: string
-  primaryForeground: string
-  secondary: string
-  secondaryForeground: string
-  accent: string
-  accentForeground: string
-  background: string
-  foreground: string
-  muted: string
-  mutedForeground: string
-  border: string
-  input: string
-  ring: string
-  destructive: string
-  destructiveForeground: string
-  card: string
-  cardForeground: string
-  popover: string
-  popoverForeground: string
-}
-
-const defaultColors: ThemeColors = {
-  primary: "#0a0a0a",
-  primaryForeground: "#ffffff",
-  secondary: "#f5f5f5",
-  secondaryForeground: "#0a0a0a",
-  accent: "#f5f5f5",
-  accentForeground: "#0a0a0a",
-  background: "#ffffff",
-  foreground: "#0a0a0a",
-  muted: "#f5f5f5",
-  mutedForeground: "#737373",
-  border: "#e5e5e5",
-  input: "#e5e5e5",
-  ring: "#0a0a0a",
-  destructive: "#dc2626",
-  destructiveForeground: "#ffffff",
-  card: "#ffffff",
-  cardForeground: "#0a0a0a",
-  popover: "#ffffff",
-  popoverForeground: "#0a0a0a",
-}
+import { useEffect } from "react"
+import { defaultThemeColors, mergeThemeColors, type ThemeColors } from "@/lib/theme-colors"
 
 function hexToRgb(hex: string | undefined | null): string {
   // Default to black if hex is invalid
@@ -65,16 +22,8 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ colors, children }: ThemeProviderProps) {
-  const [mounted, setMounted] = useState(false)
-
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-
-    const themeColors = colors || defaultColors
+    const themeColors = mergeThemeColors(colors)
 
     // Set CSS custom properties on root element
     const root = document.documentElement
@@ -98,14 +47,9 @@ export function ThemeProvider({ colors, children }: ThemeProviderProps) {
     root.style.setProperty("--color-card-foreground", hexToRgb(themeColors.cardForeground))
     root.style.setProperty("--color-popover", hexToRgb(themeColors.popover))
     root.style.setProperty("--color-popover-foreground", hexToRgb(themeColors.popoverForeground))
-  }, [colors, mounted])
-
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return null
-  }
+  }, [colors])
 
   return <>{children}</>
 }
 
-export { defaultColors }
+export { defaultThemeColors as defaultColors }

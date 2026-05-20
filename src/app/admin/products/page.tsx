@@ -228,7 +228,14 @@ export default async function ProductsPage(props: {
                       </td>
                       <td className="px-6 py-3 max-w-[300px]">
                         <div className="flex flex-col">
-                          <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
+                            {product.isCombo ? (
+                              <Badge variant="outline">Combo</Badge>
+                            ) : product.hasVariants ? (
+                              <Badge variant="outline">Variantes</Badge>
+                            ) : null}
+                          </div>
                           <span className="text-xs text-muted-foreground font-mono uppercase tracking-tighter">SKU: {product.sku || "N/A"}</span>
                         </div>
                       </td>
@@ -239,10 +246,17 @@ export default async function ProductsPage(props: {
                       </td>
                       <td className="px-6 py-3">
                         <div className="flex flex-col">
-                          <span className={`font-medium ${product.stock <= 5 && !product.hasPermanentStock ? "text-red-600 font-bold" : ""}`}>
-                            {product.stock} unidades
-                          </span>
-                          {product.hasPermanentStock && (
+                          {product.isCombo ? (
+                            <>
+                              <span className="font-medium">Segun componentes</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground">Stock operativo</span>
+                            </>
+                          ) : (
+                            <span className={`font-medium ${product.stock <= 5 && !product.hasPermanentStock ? "text-red-600 font-bold" : ""}`}>
+                              {product.stock} unidades
+                            </span>
+                          )}
+                          {product.hasPermanentStock && !product.isCombo && (
                             <span className="text-[10px] uppercase font-bold text-blue-600">Permanente</span>
                           )}
                         </div>

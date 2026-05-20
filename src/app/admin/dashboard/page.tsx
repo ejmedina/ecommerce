@@ -1,6 +1,9 @@
 import Link from "next/link"
 import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
+import { getStoreTimeZone } from "@/lib/store-settings"
+import { getDatePartsInTimeZone, getMonthRangeForTimeZone } from "@/lib/time-zone"
+import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronRight, DollarSign } from "lucide-react"
@@ -100,20 +103,25 @@ function getSalesEligibleWhere(salesView: SalesView): Prisma.OrderWhereInput {
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams
+  const timeZone = await getStoreTimeZone()
   const now = new Date()
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const currentMonthRange = getMonthRangeForTimeZone(now, timeZone)
+  const lastMonthRange = getMonthRangeForTimeZone(
+    new Date(currentMonthRange.start.getTime() - 1),
+    timeZone
+  )
   const salesView = getSalesView(params.salesView)
+  const nowParts = getDatePartsInTimeZone(now, timeZone)
   
   const monthNames = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ]
-  const currentMonthName = monthNames[now.getMonth()]
-  const lastMonthName = monthNames[(now.getMonth() + 11) % 12]
+  const currentMonthName = monthNames[nowParts.month - 1]
+  const lastMonthName = monthNames[(nowParts.month + 10) % 12]
 
   // Day of month (1-31)
-  const currentDay = now.getDate()
+  const currentDay = nowParts.day
 
   const salesEligibleWhere = getSalesEligibleWhere(salesView)
 
@@ -130,14 +138,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       _sum: { total: true },
       where: {
         ...salesEligibleWhere,
-        createdAt: { gte: currentMonthStart },
+        createdAt: { gte: currentMonthRange.start, lt: currentMonthRange.endExclusive },
       },
     }),
     db.order.aggregate({
       _sum: { total: true },
       where: {
         ...salesEligibleWhere,
-        createdAt: { gte: lastMonthStart, lt: currentMonthStart },
+        createdAt: { gte: lastMonthRange.start, lt: lastMonthRange.endExclusive },
       },
     }),
   ])
@@ -146,7 +154,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const currentOrders = await db.order.findMany({
     where: { 
       ...salesEligibleWhere,
-      createdAt: { gte: currentMonthStart },
+      createdAt: { gte: currentMonthRange.start, lt: currentMonthRange.endExclusive },
     },
     select: { createdAt: true, total: true }
   })
@@ -154,23 +162,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const lastOrders = await db.order.findMany({
     where: { 
       ...salesEligibleWhere,
-      createdAt: { gte: lastMonthStart, lt: currentMonthStart },
+      createdAt: { gte: lastMonthRange.start, lt: lastMonthRange.endExclusive },
     },
     select: { createdAt: true, total: true }
   })
 
   // Process cumulative data
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const daysInMonth = new Date(nowParts.year, nowParts.month, 0).getDate()
   const currentMonthDaily = new Array(daysInMonth).fill(0)
   const lastMonthDaily = new Array(daysInMonth).fill(0)
 
   currentOrders.forEach(o => {
-    const day = o.createdAt.getDate() - 1
+    const day = getDatePartsInTimeZone(o.createdAt, timeZone).day - 1
     if (day < daysInMonth) currentMonthDaily[day] += Number(o.total)
   })
 
   lastOrders.forEach(o => {
-    const day = o.createdAt.getDate() - 1
+    const day = getDatePartsInTimeZone(o.createdAt, timeZone).day - 1
     if (day < daysInMonth) lastMonthDaily[day] += Number(o.total)
   })
 
@@ -375,7 +383,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <div>
                         <p className="font-bold text-sm tracking-tight">{order.orderNumber}</p>
                         <p className="text-xs text-muted-foreground">
-                          {order.user.name || order.user.email} - {new Date(order.createdAt).toLocaleDateString("es-AR")}
+                          {order.user.name || order.user.email} - {formatDate(order.createdAt, undefined, timeZone)}
                         </p>
                       </div>
                     </div>

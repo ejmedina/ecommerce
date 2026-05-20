@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
+import { type CartComboConfiguration, summarizeComboConfiguration } from "@/lib/combos"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,7 @@ import {
   ShippingConfig,
   ShippingZone,
   calculateShipping,
+  getAvailableCitiesForProvince,
   getDefaultShippingConfig 
 } from "@/lib/shipping"
 import { type PricingResult } from "@/lib/pricing"
@@ -46,6 +48,7 @@ interface CheckoutStepsProps {
     items: {
       id: string
       quantity: number
+      comboConfiguration?: CartComboConfiguration | null
       product: {
         id: string
         name: string
@@ -114,13 +117,6 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   
   // New: Province selector for shipping calculation
   const [selectedProvince, setSelectedProvince] = useState<ProvinceId | "">("")
-  const [shippingCalculation, setShippingCalculation] = useState<{
-    cost: number
-    isFree: boolean
-    freeFrom: number | null
-    zoneName: string
-  } | null>(null)
-  
   // Auth state
   type AuthMode = "login" | "register" | "guest"
   const [authMode, setAuthMode] = useState<AuthMode>("guest")
@@ -148,35 +144,58 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   })
 
   // Get shipping config
-  const shippingConfig = (settings.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig()
+  const shippingConfig = useMemo(
+    () => (settings.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig(),
+    [settings.shippingConfig]
+  )
 
   // Get allowed provinces from shipping config
-  const allowedProvinceIds = new Set(shippingConfig.zones.flatMap((zone: ShippingZone) => zone.provinces))
+  const allowedProvinceIds = useMemo(
+    () => new Set(shippingConfig.zones.flatMap((zone: ShippingZone) => zone.provinces)),
+    [shippingConfig]
+  )
   const availableProvinces = ARGENTINE_PROVINCES.filter(p => allowedProvinceIds.has(p.id))
+  const availableShippingCities = useMemo(
+    () => (selectedProvince ? getAvailableCitiesForProvince(selectedProvince as ProvinceId, shippingConfig) : []),
+    [selectedProvince, shippingConfig]
+  )
+  const availableAddressCities = useMemo(
+    () => (
+      formData.state && allowedProvinceIds.has(formData.state as ProvinceId)
+        ? getAvailableCitiesForProvince(formData.state as ProvinceId, shippingConfig)
+        : []
+    ),
+    [allowedProvinceIds, formData.state, shippingConfig]
+  )
+  const shippingNeedsCitySelection = availableShippingCities.length > 0
   
-  // Calculate shipping when province or city changes
-  useEffect(() => {
-    if (shippingMethod === "shipping" && selectedProvince && formData.city) {
-      const calc = calculateShipping(
-        selectedProvince as ProvinceId,
-        formData.city,
-        pricingResult.totalToPay, // Use total to pay (after discounts) for free shipping threshold
-        shippingConfig
-      )
-      if (calc) {
-        setShippingCalculation({
-          cost: calc.cost,
-          isFree: calc.isFree,
-          freeFrom: calc.freeFrom,
-          zoneName: calc.zone.name,
-        })
-      } else {
-        setShippingCalculation(null)
-      }
-    } else {
-      setShippingCalculation(null)
+  const shippingCalculation = useMemo(() => {
+    if (
+      shippingMethod !== "shipping"
+      || !selectedProvince
+      || (shippingNeedsCitySelection && !formData.city)
+    ) {
+      return null
     }
-  }, [selectedProvince, formData.city, pricingResult.totalToPay, shippingConfig, shippingMethod])
+
+    const calc = calculateShipping(
+      selectedProvince as ProvinceId,
+      shippingNeedsCitySelection ? formData.city : "",
+      pricingResult.totalToPay,
+      shippingConfig
+    )
+
+    if (!calc) {
+      return null
+    }
+
+    return {
+      cost: calc.cost,
+      isFree: calc.isFree,
+      freeFrom: calc.freeFrom,
+      zoneName: calc.zone.name,
+    }
+  }, [formData.city, pricingResult.totalToPay, selectedProvince, shippingConfig, shippingMethod, shippingNeedsCitySelection])
 
   const shippingCost = shippingMethod === "shipping" 
     ? (shippingCalculation?.cost ?? 0)
@@ -208,6 +227,16 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
     // Also sync with formData for consistency
     setFormData(prev => ({
       ...prev,
+      city: "",
+      state: provinceId,
+    }))
+  }
+
+  function handleAddressProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const provinceId = e.target.value as ProvinceId
+    setFormData(prev => ({
+      ...prev,
+      city: "",
       state: provinceId,
     }))
   }
@@ -557,22 +586,37 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                       </select>
                     </div>
 
-                    {selectedProvince && (
+                    {selectedProvince && shippingNeedsCitySelection && (
                       <div className="space-y-2">
                         <Label htmlFor="checkout-city">
                           {selectedProvince === "CABA" ? "Tu barrio" : "Tu ciudad"}
                         </Label>
-                        <Input 
-                          id="checkout-city" 
+                        <select
+                          id="checkout-city"
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          placeholder={selectedProvince === "CABA" ? "Escribí tu barrio" : "Escribí tu ciudad"}
-                        />
+                          className="w-full h-10 px-3 border rounded-md bg-background"
+                        >
+                          <option value="">
+                            {selectedProvince === "CABA" ? "Seleccionar barrio..." : "Seleccionar ciudad..."}
+                          </option>
+                          {availableShippingCities.map((city) => (
+                            <option key={city} value={city}>
+                              {city}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     )}
 
-                    {shippingCalculation && selectedProvince && formData.city && (
+                    {selectedProvince && !shippingNeedsCitySelection && (
+                      <p className="text-sm text-muted-foreground">
+                        El costo de envío para esta provincia no requiere elegir una ciudad en este paso.
+                      </p>
+                    )}
+
+                    {shippingCalculation && selectedProvince && (!shippingNeedsCitySelection || formData.city) && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-green-800">Zona: {shippingCalculation.zoneName}</span>
@@ -598,7 +642,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                       </div>
                     )}
 
-                    {selectedProvince && formData.city && !shippingCalculation && (
+                    {selectedProvince && (!shippingNeedsCitySelection || formData.city) && !shippingCalculation && (
                       <p className="text-sm text-muted-foreground">
                         No tenemos envío configurado para esta zona. Seleccioná otra provincia o completá tu dirección.
                       </p>
@@ -701,14 +745,34 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                         <Label htmlFor="city">
                           {formData.state === "CABA" ? "Barrio *" : "Ciudad *"}
                         </Label>
-                        <Input 
-                          id="city" 
-                          name="city" 
-                          value={formData.city} 
-                          onChange={handleInputChange} 
-                          placeholder={formData.state === "CABA" ? "Escribí tu barrio" : "Escribí tu ciudad"}
-                          required 
-                        />
+                        {availableAddressCities.length > 0 ? (
+                          <select
+                            id="city"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            required
+                          >
+                            <option value="">
+                              {formData.state === "CABA" ? "Seleccioná un barrio" : "Seleccioná una ciudad"}
+                            </option>
+                            {availableAddressCities.map((city) => (
+                              <option key={city} value={city}>
+                                {city}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            id="city"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            placeholder={formData.state === "CABA" ? "Escribí tu barrio" : "Escribí tu ciudad"}
+                            required
+                          />
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="state">Provincia *</Label>
@@ -716,7 +780,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           id="state"
                           name="state"
                           value={formData.state}
-                          onChange={handleInputChange}
+                          onChange={handleAddressProvinceChange}
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                           required
                         >
@@ -847,6 +911,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                       <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
                       {item.variant?.title && (
                         <p className="text-xs text-muted-foreground">{item.variant.title}</p>
+                      )}
+                      {item.comboConfiguration && item.comboConfiguration.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          {summarizeComboConfiguration(item.comboConfiguration, item.quantity).map((line, index) => (
+                            <p key={`${item.id}-${index}`} className="text-xs text-muted-foreground">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
                       <p className="text-sm font-semibold">{formatCurrency(itemPrice * item.quantity)}</p>

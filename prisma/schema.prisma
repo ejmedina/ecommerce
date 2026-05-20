@@ -128,8 +128,12 @@ model Product {
 
   // === VARIANTES ===
   hasVariants     Boolean          @default(false)
+  isCombo         Boolean          @default(false)
   options         ProductOption[]
   variants        ProductVariant[]
+  comboComponents ComboComponent[] @relation("ComboDefinition")
+  includedInCombos ComboComponent[] @relation("ComboComponentProduct")
+  orderItemComponents OrderItemComponent[]
 
   // === DESCUENTOS ===
   discountType    String       @default("NONE") // NONE, COMPARE_PRICE, VOLUME_FIXED
@@ -200,8 +204,25 @@ model ProductVariant {
   
   cartItems       CartItem[]
   orderItems      OrderItem[]
+  orderItemComponents OrderItemComponent[]
   
   @@map("product_variants")
+}
+
+model ComboComponent {
+  id               String  @id @default(cuid())
+  comboProductId   String
+  comboProduct     Product @relation("ComboDefinition", fields: [comboProductId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product @relation("ComboComponentProduct", fields: [productId], references: [id])
+  quantity         Int     @default(1)
+  position         Int     @default(0)
+  createdAt        DateTime @default(now())
+  orderItemComponents OrderItemComponent[]
+
+  @@index([comboProductId, position])
+  @@index([productId])
+  @@map("combo_components")
 }
 
 // ============================================
@@ -231,6 +252,10 @@ model CartItem {
   variant   ProductVariant? @relation(fields: [variantId], references: [id])
   
   quantity  Int     @default(1)
+  comboConfiguration Json?
+  selectionSignature String?
+
+  @@index([cartId, productId, variantId])
 
   @@map("cart_items")
 }
@@ -270,6 +295,11 @@ enum PaymentStatus {
   REFUNDED            // Reembolsado completamente
   FAILED              // Falló el cobro
   VOIDED              // Anulado/sin efecto
+}
+
+enum OrderItemType {
+  PRODUCT
+  COMBO
 }
 
 model Order {
@@ -326,6 +356,8 @@ model OrderItem {
 
   variantId       String?
   variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  itemType        OrderItemType @default(PRODUCT)
+  components      OrderItemComponent[]
 
   name            String
   sku             String?
@@ -344,6 +376,35 @@ model OrderItem {
   fulfilledAt       DateTime?            // Cuándo se marcó como preparado
 
   @@map("order_items")
+}
+
+model OrderItemComponent {
+  id                String   @id @default(cuid())
+  orderItemId       String
+  orderItem         OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+  variantId         String?
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+  comboComponentId  String?
+  comboComponent    ComboComponent? @relation(fields: [comboComponentId], references: [id], onDelete: SetNull)
+
+  name              String
+  sku               String?
+  quantityPerCombo  Int
+  comboQuantity     Int
+  quantityOrdered   Int
+  quantityFulfilled Int?      @default(0)
+  quantityMissing   Int?      @default(0)
+  missingReason     String?
+  fulfilledAt       DateTime?
+  position          Int       @default(0)
+  createdAt         DateTime  @default(now())
+
+  @@index([orderItemId, position])
+  @@index([productId])
+  @@index([variantId])
+  @@map("order_item_components")
 }
 
 // ============================================
@@ -527,6 +588,7 @@ model StoreSettings {
   // URL base de la tienda (ej: https://mi-tienda.com)
   // Se usa para generar enlaces en emails, etc.
   storeUrl            String?
+  timeZone            String   @default("America/Argentina/Buenos_Aires")
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

@@ -49,7 +49,7 @@ describe('formatDate', () => {
   })
 
   it('should format a Date object', () => {
-    const date = new Date('2024-06-20')
+    const date = new Date('2024-06-20T12:00:00Z')
     const result = formatDate(date)
     expect(result).toContain('20')
     expect(result).toContain('jun')
@@ -57,13 +57,13 @@ describe('formatDate', () => {
   })
 
   it('should format a string date', () => {
-    const result = formatDate('2024-06-20')
+    const result = formatDate('2024-06-20T12:00:00Z')
     expect(result).toContain('20')
     expect(result).toContain('jun')
   })
 
   it('should use custom options', () => {
-    const date = new Date('2024-06-20')
+    const date = new Date('2024-06-20T12:00:00Z')
     const result = formatDate(date, { month: 'long', year: 'numeric' })
     expect(result).toContain('junio')
     expect(result).toContain('2024')
@@ -81,20 +81,25 @@ describe('formatDateTime', () => {
 
   it('should format a date with time in 12-hour format', () => {
     // The locale uses 12-hour format with AM/PM
-    const date = new Date('2024-06-20T14:30:00')
+    const date = new Date('2024-06-20T14:30:00Z')
     const result = formatDateTime(date)
     expect(result).toContain('20')
     expect(result).toContain('jun')
-    // 14:30 in 12-hour format is 02:30 PM
-    expect(result).toContain('02')
+    // 14:30 UTC in Buenos Aires is 11:30
+    expect(result).toContain('11')
     expect(result).toContain('30')
-    expect(result).toContain('m.')
   })
 
   it('should format a string date with time', () => {
-    const result = formatDateTime('2024-06-20T14:30:00')
+    const result = formatDateTime('2024-06-20T14:30:00Z')
     expect(result).toContain('20')
+    expect(result).toContain('11')
+  })
+
+  it('should allow overriding the target time zone', () => {
+    const result = formatDateTime('2024-06-20T14:30:00Z', 'UTC')
     expect(result).toContain('02')
+    expect(result).toContain('30')
   })
 })
 

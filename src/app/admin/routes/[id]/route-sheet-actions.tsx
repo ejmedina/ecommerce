@@ -6,6 +6,7 @@ import {
   updateRouteSheetStatus, 
   updateRouteSheet,
 } from "@/lib/actions/route-sheet-actions"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
 import { 
@@ -106,8 +107,15 @@ export function RouteSheetActions({
     const ordersHtml = routeSheet.items.map((item, index) => {
       const order = item.order
       const address = order.shippingAddress
-      const itemsList = order.items.map((oi) =>
-        `<li>${oi.quantityOrdered}x ${oi.name}</li>`
+      const itemsList = getCommercialOrderItems(order.items).map((oi) =>
+        `<li>
+          <div>${oi.quantityOrdered}x ${oi.name}${oi.itemType === "COMBO" ? ' <span style="font-size:11px;border:1px solid #bbb;border-radius:999px;padding:1px 8px;color:#666;">Combo</span>' : ""}</div>
+          ${oi.components.length > 0 ? `
+            <ul style="margin: 6px 0 0; padding-left: 18px; color: #666; font-size: 12px;">
+              ${oi.components.map((component) => `<li>${component.quantityOrdered}x ${component.name}</li>`).join("")}
+            </ul>
+          ` : ""}
+        </li>`
       ).join('')
 
       return `

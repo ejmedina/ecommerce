@@ -10,6 +10,7 @@ export async function GET() {
         storeName: true,
         logo: true,
         favicon: true,
+        timeZone: true,
         themeColors: true,
         minShippingOrderAmount: true,
         shippingConfig: true,

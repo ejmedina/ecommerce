@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { slugify } from "@/lib/utils"
 import { revalidatePath } from "next/cache"
+import { Prisma } from "@prisma/client"
 
 interface ParsedProductOption {
   name: string
@@ -20,8 +21,119 @@ interface ParsedProductVariant {
   isActive?: boolean
 }
 
+interface ParsedComboComponent {
+  id?: string
+  productId: string
+  quantity: number
+  position: number
+}
+
 function parseNumericValue(value: string | number | null | undefined, fallback: number) {
   return value ? Number(value) : fallback
+}
+
+function normalizeVariantSku(value: string | null | undefined) {
+  if (typeof value !== "string") return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
+function normalizeParsedVariants(
+  variants: ParsedProductVariant[],
+  fallbackPrice: number
+) {
+  return variants.map((variant) => ({
+    ...variant,
+    sku: normalizeVariantSku(variant.sku),
+    price: parseNumericValue(variant.price, fallbackPrice),
+    comparePrice: variant.comparePrice ? Number(variant.comparePrice) : null,
+    stock: parseNumericValue(variant.stock, 0),
+    isActive: variant.isActive ?? true,
+  }))
+}
+
+function findDuplicateVariantSkus(variants: Array<{ sku: string | null }>) {
+  const seen = new Set<string>()
+  const duplicates = new Set<string>()
+
+  for (const variant of variants) {
+    if (!variant.sku) continue
+
+    const skuKey = variant.sku.toUpperCase()
+    if (seen.has(skuKey)) {
+      duplicates.add(variant.sku)
+      continue
+    }
+
+    seen.add(skuKey)
+  }
+
+  return [...duplicates]
+}
+
+function generateVariantCombinations(
+  options: ParsedProductOption[],
+  baseSku: string | null,
+  basePrice: number,
+  baseComparePrice: number | null
+) {
+  if (options.length === 0) {
+    return []
+  }
+
+  const combinations: Record<string, string>[] = []
+
+  const walk = (index: number, current: Record<string, string>) => {
+    if (index === options.length) {
+      combinations.push({ ...current })
+      return
+    }
+
+    const option = options[index]
+    const cleanValues = option.values.map((value) => value.trim()).filter(Boolean)
+
+    if (cleanValues.length === 0) {
+      return
+    }
+
+    for (const value of cleanValues) {
+      current[option.name] = value
+      walk(index + 1, current)
+    }
+  }
+
+  walk(0, {})
+
+  return combinations.map((combination) => {
+    const title = Object.values(combination).join(" / ")
+    return {
+      sku: baseSku ? `${baseSku}-${title.replace(/\s+/g, "-").toUpperCase()}` : null,
+      price: basePrice,
+      comparePrice: baseComparePrice,
+      stock: 0,
+      options: combination,
+      title,
+      isActive: true,
+    }
+  })
+}
+
+function parseComboComponents(
+  value: FormDataEntryValue | null
+): ParsedComboComponent[] {
+  if (typeof value !== "string" || !value.trim()) {
+    return []
+  }
+
+  const parsed = JSON.parse(value) as ParsedComboComponent[]
+  return parsed
+    .map((component, index) => ({
+      id: component.id,
+      productId: component.productId,
+      quantity: Math.max(1, Number(component.quantity) || 1),
+      position: Number.isFinite(component.position) ? Number(component.position) : index,
+    }))
+    .filter((component) => Boolean(component.productId))
 }
 
 export async function createProduct(formData: FormData) {
@@ -46,8 +158,10 @@ export async function createProduct(formData: FormData) {
     
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
+    const isCombo = formData.get("isCombo") === "1"
     const optionsJson = formData.get("options") as string // JSON string
     const variantsJson = formData.get("variants") as string // JSON string
+    const comboComponents = parseComboComponents(formData.get("comboComponents"))
 
     const slug = slugify(name)
 
@@ -55,59 +169,118 @@ export async function createProduct(formData: FormData) {
     const existing = await db.product.findUnique({ where: { slug } })
     const finalSlug = existing ? `${slug}-${Date.now()}` : slug
 
-    const product = await db.product.create({
-      data: {
-        name,
-        slug: finalSlug,
-        sku: hasVariants ? null : sku, // Reset product SKU if it has variants
-        stock: hasVariants ? 0 : stock, // Product stock is sum of variants or 0
-        price,
-        comparePrice,
-        description,
-        categoryId,
-        metaTitle,
-        metaDescription,
-        isActive,
-        isFeatured,
-        hasPermanentStock,
-        hasVariants,
-        discountType,
-        discountConfig,
-        publishedAt: isActive ? new Date() : null,
-        ...(imageUrl && {
-          images: {
-            create: { url: imageUrl, alt: imageAlt },
-          },
-        }),
-        // Create options if provided
-        ...(hasVariants && optionsJson && {
-          options: {
-            create: (JSON.parse(optionsJson) as ParsedProductOption[]).map((opt, index) => ({
-              name: opt.name,
-              values: opt.values,
-              position: index,
-            })),
-          },
-        }),
-      },
-    })
-
-    // Create variants if provided
-    if (hasVariants && variantsJson) {
-      const variantsData = JSON.parse(variantsJson) as ParsedProductVariant[]
-      await db.productVariant.createMany({
-        data: variantsData.map((v) => ({
-          productId: product.id,
-          sku: v.sku,
-          price: parseNumericValue(v.price, price),
-          comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-          stock: parseNumericValue(v.stock, 0),
-          options: v.options,
-          title: v.title,
-          isActive: v.isActive ?? true,
-        })),
-      })
+    if (isCombo && hasVariants) {
+      return { error: "Un combo no puede tener variantes propias." }
     }
+
+    if (isCombo && comboComponents.length === 0) {
+      return { error: "Agregá al menos un producto al combo." }
+    }
+
+    const parsedOptions = hasVariants && optionsJson
+      ? (JSON.parse(optionsJson) as ParsedProductOption[])
+      : []
+    const parsedVariants = hasVariants && variantsJson
+      ? (JSON.parse(variantsJson) as ParsedProductVariant[])
+      : []
+    const normalizedVariants = hasVariants
+      ? normalizeParsedVariants(
+          parsedVariants.length > 0
+            ? parsedVariants
+            : generateVariantCombinations(parsedOptions, sku, price, comparePrice),
+          price
+        )
+      : []
+
+    if (hasVariants && parsedOptions.length > 0 && normalizedVariants.length === 0) {
+      return { error: "Configurá al menos una variante válida antes de guardar el producto." }
+    }
+
+    const duplicateVariantSkus = findDuplicateVariantSkus(normalizedVariants)
+    if (duplicateVariantSkus.length > 0) {
+      return {
+        error: `Hay SKUs repetidos entre las variantes: ${duplicateVariantSkus.join(", ")}.`,
+      }
+    }
+
+    if (isCombo) {
+      const nestedCombo = await db.product.findFirst({
+        where: {
+          id: { in: comboComponents.map((component) => component.productId) },
+          isCombo: true,
+        },
+        select: { id: true },
+      })
+
+      if (nestedCombo) {
+        return { error: "Los combos no pueden incluir otros combos." }
+      }
+    }
+
+    const product = await db.$transaction(async (tx) => {
+      const createdProduct = await tx.product.create({
+        data: {
+          name,
+          slug: finalSlug,
+          sku: hasVariants ? null : sku, // Reset product SKU if it has variants
+          stock: hasVariants || isCombo ? 0 : stock, // Product stock is sum of variants or 0
+          price,
+          comparePrice,
+          description,
+          categoryId,
+          metaTitle,
+          metaDescription,
+          isActive,
+          isFeatured,
+          hasPermanentStock: isCombo ? false : hasPermanentStock,
+          hasVariants,
+          isCombo,
+          discountType,
+          discountConfig,
+          publishedAt: isActive ? new Date() : null,
+          ...(imageUrl && {
+            images: {
+              create: { url: imageUrl, alt: imageAlt },
+            },
+          }),
+          ...(hasVariants && parsedOptions.length > 0 && {
+            options: {
+              create: parsedOptions.map((opt, index) => ({
+                name: opt.name,
+                values: opt.values,
+                position: index,
+              })),
+            },
+          }),
+          ...(isCombo && comboComponents.length > 0 && {
+            comboComponents: {
+              create: comboComponents.map((component, index) => ({
+                productId: component.productId,
+                quantity: component.quantity,
+                position: index,
+              })),
+            },
+          }),
+        },
+      })
+
+      if (hasVariants && normalizedVariants.length > 0) {
+        await tx.productVariant.createMany({
+          data: normalizedVariants.map((variant) => ({
+            productId: createdProduct.id,
+            sku: variant.sku,
+            price: variant.price,
+            comparePrice: variant.comparePrice,
+            stock: variant.stock,
+            options: variant.options,
+            title: variant.title,
+            isActive: variant.isActive,
+          })),
+        })
+      }
+
+      return createdProduct
+    })
 
     revalidatePath("/admin/products")
     revalidatePath("/")
@@ -116,6 +289,11 @@ export async function createProduct(formData: FormData) {
     return { success: true, productId: product.id }
   } catch (error) {
     console.error("Create product error:", error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (Array.isArray(error.meta?.target) && error.meta.target.includes("sku")) {
+        return { error: "Ya existe una variante con ese SKU. Revisá que no haya SKUs duplicados." }
+      }
+    }
     return { error: "Error al crear el producto" }
   }
 }
@@ -143,15 +321,69 @@ export async function updateProduct(formData: FormData) {
 
     // VARIANTES
     const hasVariants = formData.get("hasVariants") === "1"
+    const isCombo = formData.get("isCombo") === "1"
     const optionsJson = formData.get("options") as string
     const variantsJson = formData.get("variants") as string
+    const comboComponents = parseComboComponents(formData.get("comboComponents"))
+
+    if (isCombo && hasVariants) {
+      return { error: "Un combo no puede tener variantes propias." }
+    }
+
+    if (isCombo && comboComponents.length === 0) {
+      return { error: "Agregá al menos un producto al combo." }
+    }
+
+    const parsedOptions = hasVariants && optionsJson
+      ? (JSON.parse(optionsJson) as ParsedProductOption[])
+      : []
+    const parsedVariants = hasVariants && variantsJson
+      ? (JSON.parse(variantsJson) as ParsedProductVariant[])
+      : []
+    const normalizedVariants = hasVariants
+      ? normalizeParsedVariants(
+          parsedVariants.length > 0
+            ? parsedVariants
+            : generateVariantCombinations(parsedOptions, sku, price, comparePrice),
+          price
+        )
+      : []
+
+    if (hasVariants && parsedOptions.length > 0 && normalizedVariants.length === 0) {
+      return { error: "Configurá al menos una variante válida antes de guardar el producto." }
+    }
+
+    const duplicateVariantSkus = findDuplicateVariantSkus(normalizedVariants)
+    if (duplicateVariantSkus.length > 0) {
+      return {
+        error: `Hay SKUs repetidos entre las variantes: ${duplicateVariantSkus.join(", ")}.`,
+      }
+    }
+
+    if (isCombo && comboComponents.some((component) => component.productId === id)) {
+      return { error: "Un combo no puede incluirse a sí mismo." }
+    }
+
+    if (isCombo) {
+      const nestedCombo = await db.product.findFirst({
+        where: {
+          id: { in: comboComponents.map((component) => component.productId) },
+          isCombo: true,
+        },
+        select: { id: true },
+      })
+
+      if (nestedCombo) {
+        return { error: "Los combos no pueden incluir otros combos." }
+      }
+    }
 
     const product = await db.product.update({
       where: { id },
       data: {
         name,
         sku: hasVariants ? null : sku,
-        stock: hasVariants ? 0 : stock,
+        stock: hasVariants || isCombo ? 0 : stock,
         price,
         comparePrice,
         description,
@@ -160,8 +392,9 @@ export async function updateProduct(formData: FormData) {
         metaDescription,
         isActive,
         isFeatured,
-        hasPermanentStock,
+        hasPermanentStock: isCombo ? false : hasPermanentStock,
         hasVariants,
+        isCombo,
         discountType,
         discountConfig,
         publishedAt: isActive ? new Date() : null,
@@ -169,11 +402,10 @@ export async function updateProduct(formData: FormData) {
     })
 
     // Sincronizar Opciones (Borrar y Volver a crear es más simple para este caso)
-    if (hasVariants && optionsJson) {
+    if (hasVariants && parsedOptions.length > 0) {
       await db.productOption.deleteMany({ where: { productId: id } })
-      const optionsData = JSON.parse(optionsJson) as ParsedProductOption[]
       await db.productOption.createMany({
-        data: optionsData.map((opt, index) => ({
+        data: parsedOptions.map((opt, index) => ({
           productId: id,
           name: opt.name,
           values: opt.values,
@@ -186,8 +418,7 @@ export async function updateProduct(formData: FormData) {
 
     // Sincronizar Variantes
     if (hasVariants && variantsJson) {
-      const variantsData = JSON.parse(variantsJson) as ParsedProductVariant[]
-      const newVariantIds = variantsData.flatMap((v) => v.id ? [v.id] : [])
+      const newVariantIds = normalizedVariants.flatMap((v) => v.id ? [v.id] : [])
       
       // Borramos las que ya no están
       await db.productVariant.deleteMany({
@@ -198,18 +429,18 @@ export async function updateProduct(formData: FormData) {
       })
 
       // Actualizamos o creamos
-      for (const v of variantsData) {
+      for (const v of normalizedVariants) {
         if (v.id) {
           await db.productVariant.update({
             where: { id: v.id },
             data: {
               sku: v.sku,
-              price: parseNumericValue(v.price, price),
-              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-              stock: parseNumericValue(v.stock, 0),
+              price: v.price,
+              comparePrice: v.comparePrice,
+              stock: v.stock,
               options: v.options,
               title: v.title,
-              isActive: v.isActive ?? true,
+              isActive: v.isActive,
             }
           })
         } else {
@@ -217,18 +448,32 @@ export async function updateProduct(formData: FormData) {
             data: {
               productId: id,
               sku: v.sku,
-              price: parseNumericValue(v.price, price),
-              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-              stock: parseNumericValue(v.stock, 0),
+              price: v.price,
+              comparePrice: v.comparePrice,
+              stock: v.stock,
               options: v.options,
               title: v.title,
-              isActive: v.isActive ?? true,
+              isActive: v.isActive,
             }
           })
         }
       }
     } else {
       await db.productVariant.deleteMany({ where: { productId: id } })
+    }
+
+    if (isCombo) {
+      await db.comboComponent.deleteMany({ where: { comboProductId: id } })
+      await db.comboComponent.createMany({
+        data: comboComponents.map((component, index) => ({
+          comboProductId: id,
+          productId: component.productId,
+          quantity: component.quantity,
+          position: index,
+        })),
+      })
+    } else {
+      await db.comboComponent.deleteMany({ where: { comboProductId: id } })
     }
 
     // Update image if provided
@@ -247,6 +492,11 @@ export async function updateProduct(formData: FormData) {
     return { success: true }
   } catch (error) {
     console.error("Update product error:", error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (Array.isArray(error.meta?.target) && error.meta.target.includes("sku")) {
+        return { error: "Ya existe una variante con ese SKU. Revisá que no haya SKUs duplicados." }
+      }
+    }
     return { error: "Error al actualizar el producto" }
   }
 }

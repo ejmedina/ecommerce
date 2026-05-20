@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { X, Trash2, ShoppingBag } from "lucide-react"
 import { useCart } from "@/components/cart-context"
+import { summarizeComboConfiguration } from "@/lib/combos"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import { QuantitySelector } from "@/components/ui/quantity-selector"
@@ -169,6 +170,15 @@ export function FloatingCart() {
                       <p className="text-xs text-muted-foreground truncate">
                         {item.variant.title}
                       </p>
+                    )}
+                    {item.comboConfiguration && item.comboConfiguration.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {summarizeComboConfiguration(item.comboConfiguration, item.quantity).map((line, index) => (
+                          <p key={`${item.id}-${index}`} className="text-xs text-muted-foreground">
+                            {line}
+                          </p>
+                        ))}
+                      </div>
                     )}
                     <p className="text-sm font-semibold mt-1">
                       {formatCurrency(itemPrice)}

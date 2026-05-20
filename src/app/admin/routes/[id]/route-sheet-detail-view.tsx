@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -36,6 +37,7 @@ interface RouteSheetDetailViewProps {
   routeSheet: RouteSheetDetail
   whatsappMessage: string
   storeName: string
+  timeZone?: string | null
   depots: LogisticsOption[]
   vehicles: LogisticsOption[]
 }
@@ -52,6 +54,7 @@ export function RouteSheetDetailView({
   routeSheet,
   whatsappMessage,
   storeName,
+  timeZone,
   depots,
   vehicles,
 }: RouteSheetDetailViewProps) {
@@ -73,7 +76,7 @@ export function RouteSheetDetailView({
           </Link>
           <h1 className="text-2xl font-semibold mt-1">{routeSheet.name}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>Fecha: {new Date(routeSheet.date).toLocaleDateString("es-AR")}</span>
+            <span>Fecha: {formatDate(routeSheet.date, undefined, timeZone)}</span>
             <span>•</span>
             <span>Creada por: {routeSheet.createdBy?.name || "Sistema"}</span>
             <span>•</span>
@@ -148,6 +151,7 @@ export function RouteSheetDetailView({
             depots={depots}
             vehicles={vehicles}
             routeSheet={routeSheet}
+            timeZone={timeZone}
           />
         </TabsContent>
 
@@ -165,6 +169,7 @@ export function RouteSheetDetailView({
                 totalItems={routeItems.length}
                 whatsappMessage={whatsappMessage}
                 storeName={storeName}
+                timeZone={timeZone}
               />
             ))}
           </div>

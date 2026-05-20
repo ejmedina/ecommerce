@@ -4,6 +4,8 @@ import { useEffect, useState, useTransition, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getEffectiveDeliveryOutcome } from "../delivery-status"
+import { flattenOrderItemsForOperations } from "@/lib/order-operations"
+import { getCommercialOrderItems } from "@/lib/order-commercial"
 import { 
   reorderRouteSheetItem, 
   removeOrderFromRouteSheet,
@@ -35,7 +37,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2, Trash2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
@@ -62,6 +64,7 @@ interface OrderCardProps {
       }
       items: {
         id: string
+        itemType?: "PRODUCT" | "COMBO"
         name: string
         quantityOrdered: number | null
         quantity: number | null
@@ -74,6 +77,19 @@ interface OrderCardProps {
           name: string
           sku: string | null
         }
+        components?: {
+          id: string
+          orderItemId: string
+          productId: string
+          variantId?: string | null
+          name: string
+          quantityOrdered: number
+          quantityFulfilled?: number | null
+          quantityMissing?: number | null
+          missingReason?: string | null
+          fulfilledAt?: string | null
+          quantityPerCombo?: number
+        }[]
       }[]
     }
   }
@@ -82,6 +98,7 @@ interface OrderCardProps {
   totalItems: number
   whatsappMessage?: string
   storeName?: string
+  timeZone?: string | null
 }
 
 export type RouteSheetOrderCardItem = OrderCardProps["item"]
@@ -118,11 +135,7 @@ function parseCoordinate(value: unknown) {
   return null
 }
 
-function getQuantity(orderItem: { quantityOrdered?: number | null; quantity?: number | null }) {
-  return orderItem.quantityOrdered ?? orderItem.quantity ?? 0
-}
-
-export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName }: OrderCardProps) {
+export function OrderCard({ item, index, mode, totalItems, whatsappMessage, storeName, timeZone }: OrderCardProps) {
   const router = useRouter()
   const shippingAddress = item.order.shippingAddress
   const latitude = parseCoordinate(shippingAddress?.lat)
@@ -141,12 +154,16 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const [isRemoving, setIsRemoving] = useState(false)
   const [isSavingFulfillment, setIsSavingFulfillment] = useState(false)
   const [, startTransition] = useTransition()
+  const commercialItems = getCommercialOrderItems(item.order.items)
+  const operationalItems = flattenOrderItemsForOperations(item.order.items)
   const [fulfillmentData, setFulfillmentData] = useState(() =>
-    item.order.items.map((orderItem) => ({
-      itemId: orderItem.id,
+    operationalItems.map((orderItem) => ({
+      targetId: orderItem.targetId,
+      targetType: orderItem.targetType,
+      orderItemId: orderItem.orderItemId,
       name: orderItem.name,
-      ordered: getQuantity(orderItem),
-      fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+      ordered: orderItem.quantityOrdered,
+      fulfilled: orderItem.quantityFulfilled,
       missingReason: orderItem.missingReason || "",
     }))
   )
@@ -178,11 +195,13 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
 
   useEffect(() => {
     setFulfillmentData(
-      item.order.items.map((orderItem) => ({
-        itemId: orderItem.id,
+      flattenOrderItemsForOperations(item.order.items).map((orderItem) => ({
+        targetId: orderItem.targetId,
+        targetType: orderItem.targetType,
+        orderItemId: orderItem.orderItemId,
         name: orderItem.name,
-        ordered: getQuantity(orderItem),
-        fulfilled: orderItem.fulfilledAt ? orderItem.quantityFulfilled ?? getQuantity(orderItem) : getQuantity(orderItem),
+        ordered: orderItem.quantityOrdered,
+        fulfilled: orderItem.quantityFulfilled,
         missingReason: orderItem.missingReason || "",
       }))
     )
@@ -391,16 +410,32 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           {/* Items summary */}
           <div className="space-y-1">
             <p className="text-sm font-medium">Productos:</p>
-            {item.order.items.map((orderItem) => {
-              const qty = getQuantity(orderItem)
-              const missing = orderItem.quantityMissing ?? 0
-              const hasFaltante = missing > 0
+            {commercialItems.map((orderItem) => {
+              const hasFaltante = orderItem.quantityMissing > 0
               return (
-                <div key={orderItem.id} className="flex justify-between text-sm">
-                  <span>
-                    {qty}x {orderItem.name}
-                    {hasFaltante && <span className="text-red-500 ml-1">(Faltante: {missing})</span>}
-                  </span>
+                <div key={orderItem.id} className="space-y-1 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {orderItem.quantityOrdered}x {orderItem.name}
+                    </span>
+                    {orderItem.itemType === "COMBO" && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Combo
+                      </Badge>
+                    )}
+                    {hasFaltante && (
+                      <span className="text-red-500">(Faltante: {orderItem.quantityMissing})</span>
+                    )}
+                  </div>
+                  {orderItem.components.length > 0 && (
+                    <div className="pl-3 text-xs text-muted-foreground">
+                      {orderItem.components.map((component) => (
+                        <div key={component.id}>
+                          {component.quantityOrdered}x {component.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -682,18 +717,51 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
           )}
         </div>
 
-        {/* Items */}
+        {/* Commercial summary */}
         <div>
-          <p className="text-sm font-medium mb-2">Productos:</p>
+          <p className="text-sm font-medium mb-2">Resumen del pedido:</p>
           <div className="space-y-2">
-            {item.order.items.map((orderItem, orderItemIndex) => {
-              const qty = getQuantity(orderItem)
+            {commercialItems.map((orderItem) => (
+              <div key={orderItem.id} className="rounded border bg-muted/30 p-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">
+                    {orderItem.quantityOrdered}x {orderItem.name}
+                  </span>
+                  {orderItem.itemType === "COMBO" && <Badge variant="outline">Combo</Badge>}
+                  {orderItem.quantityMissing > 0 && <Badge variant="warning">Faltante</Badge>}
+                </div>
+                {orderItem.components.length > 0 && (
+                  <div className="mt-2 space-y-1 pl-3 text-xs text-muted-foreground">
+                    {orderItem.components.map((component) => (
+                      <div key={component.id}>
+                        {component.quantityOrdered}x {component.name}
+                        {component.quantityMissing > 0 && (
+                          <span className="text-orange-600">
+                            {" "}
+                            ({component.quantityFulfilled}/{component.quantityOrdered} preparados)
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Operational preparation */}
+        <div>
+          <p className="text-sm font-medium mb-2">Preparación real:</p>
+          <div className="space-y-2">
+            {operationalItems.map((orderItem, orderItemIndex) => {
+              const qty = orderItem.quantityOrdered
               const missing = orderItem.quantityMissing ?? 0
               const hasFaltante = missing > 0
               const fulfillment = fulfillmentData[orderItemIndex]
               return (
                 <div 
-                  key={orderItem.id} 
+                  key={`${orderItem.targetType}-${orderItem.targetId}`}
                   className={`
                     flex flex-col gap-3 text-sm p-2 rounded md:flex-row md:items-center md:justify-between
                     ${hasFaltante ? "bg-red-50 border border-red-200" : "bg-muted/50"}
@@ -751,7 +819,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
         </div>
 
         {/* Missing items summary */}
-        {item.order.items.some(oi => (oi.quantityMissing ?? 0) > 0) && (
+        {operationalItems.some((oi) => (oi.quantityMissing ?? 0) > 0) && (
           <div className="bg-red-50 border border-red-200 rounded p-3">
             <p className="text-sm font-medium text-red-600">
               ⚠️ Tiene productos con faltantes
@@ -768,7 +836,7 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
             <p className="text-sm font-medium">
               {isDelivered ? "✓ Entregado" : "✗ No entregado"}
               {item.deliveredAt && (
-                <> • {new Date(item.deliveredAt).toLocaleString("es-AR")}</>
+                <> • {formatDateTime(item.deliveredAt, timeZone)}</>
               )}
             </p>
             {item.deliveryFailureReason && (
