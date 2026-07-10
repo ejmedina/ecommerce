@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Prisma } from "@prisma/client"
-import { AlertCircle, Edit, ImageOff, Save } from "lucide-react"
+import { AlertCircle, Edit, ImageOff, Save, Upload } from "lucide-react"
 import { db } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -93,6 +93,12 @@ export default async function ProductPricesPage({ searchParams }: Props) {
             Edición rápida de precios de productos y variantes.
           </p>
         </div>
+        <Link href="/admin/products/prices/import">
+          <Button variant="outline">
+            <Upload className="mr-2 h-4 w-4" />
+            Cargar precios
+          </Button>
+        </Link>
 
         <form className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_150px_160px_auto] lg:w-[900px]">
           <PriceProductSearch defaultValue={search} />
@@ -161,6 +167,9 @@ export default async function ProductPricesPage({ searchParams }: Props) {
                         <h2 className="truncate font-semibold">{product.name}</h2>
                         <p className="text-xs text-muted-foreground">
                           SKU: {product.sku || "N/A"} · {product.category?.name || "Sin categoría"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Código proveedor: {product.externalProviderCode || "N/A"}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
