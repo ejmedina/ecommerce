@@ -60,6 +60,7 @@ interface Product {
   name: string
   slug: string
   sku: string | null
+  externalProviderCode: string | null
   stock: number
   price: number
   comparePrice: number | null
@@ -104,6 +105,7 @@ export function ProductForm({ product, categories, availableProducts, onCategori
   // Form state
   const [name, setName] = useState(product?.name || "")
   const [sku, setSku] = useState(product?.sku || "")
+  const [externalProviderCode, setExternalProviderCode] = useState(product?.externalProviderCode || "")
   const [stock, setStock] = useState(product?.stock?.toString() || "0")
   const [price, setPrice] = useState(product?.price?.toString() || "")
   const [comparePrice, setComparePrice] = useState(product?.comparePrice?.toString() || "")
@@ -207,6 +209,7 @@ export function ProductForm({ product, categories, availableProducts, onCategori
       const formData = new FormData()
       formData.set("name", name)
       formData.set("sku", sku)
+      formData.set("externalProviderCode", externalProviderCode)
       formData.set("stock", stock)
       formData.set("price", price)
       if (comparePrice) formData.set("comparePrice", comparePrice)
@@ -570,7 +573,7 @@ export function ProductForm({ product, categories, availableProducts, onCategori
                   required
                 />
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sku">SKU</Label>
                   <Input
@@ -578,6 +581,15 @@ export function ProductForm({ product, categories, availableProducts, onCategori
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                     placeholder="Ej: REM-001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="externalProviderCode">Código proveedor</Label>
+                  <Input
+                    id="externalProviderCode"
+                    value={externalProviderCode}
+                    onChange={(e) => setExternalProviderCode(e.target.value)}
+                    placeholder="Ej: 965246"
                   />
                 </div>
                 <div className="space-y-2">

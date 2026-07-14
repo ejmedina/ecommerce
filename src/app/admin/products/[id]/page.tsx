@@ -7,6 +7,7 @@ type ProductFormProduct = {
   name: string
   slug: string
   sku: string | null
+  externalProviderCode: string | null
   stock: number
   price: number
   comparePrice: number | null

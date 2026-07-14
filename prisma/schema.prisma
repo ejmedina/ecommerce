@@ -51,6 +51,9 @@ model User {
   cart         Cart?
   auditLogs    AuditLog[]
   routeSheets  RouteSheet[]
+  uploadedPriceImportBatches PriceImportBatch[] @relation("PriceImportUploadedBy")
+  revertedPriceImportBatches PriceImportBatch[] @relation("PriceImportRevertedBy")
+  productPriceChangeLogs     ProductPriceChangeLog[] @relation("ProductPriceChangedBy")
 
   @@map("users")
 }
@@ -118,6 +121,7 @@ model Product {
   category        Category?    @relation(fields: [categoryId], references: [id])
 
   sku             String?      @unique
+  externalProviderCode String? @map("external_provider_code")
   stock           Int          @default(0)
   hasPermanentStock Boolean    @default(false)
 
@@ -151,7 +155,9 @@ model Product {
 
   cartItems       CartItem[]
   orderItems      OrderItem[]
+  priceChangeLogs ProductPriceChangeLog[]
 
+  @@index([externalProviderCode])
   @@map("products")
 }
 
@@ -594,6 +600,63 @@ model StoreSettings {
   updatedAt           DateTime @updatedAt
 
   @@map("store_settings")
+}
+
+// ============================================
+// PRICE IMPORTS
+// ============================================
+
+enum PriceImportStatus {
+  ANALYZED
+  APPLIED
+  REVERTED
+  PARTIALLY_REVERTED
+  FAILED
+}
+
+model PriceImportBatch {
+  id                 String            @id @default(cuid())
+  filename           String
+  uploadedById       String?           @map("uploaded_by")
+  uploadedBy         User?             @relation("PriceImportUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedAt         DateTime          @default(now()) @map("uploaded_at")
+  appliedAt          DateTime?         @map("applied_at")
+  status             PriceImportStatus @default(ANALYZED)
+  totalRows          Int               @default(0) @map("total_rows")
+  appliedUnitPrices  Int               @default(0) @map("applied_unit_prices")
+  appliedComboPrices Int               @default(0) @map("applied_combo_prices")
+  warningRows        Int               @default(0) @map("warning_rows")
+  errorRows          Int               @default(0) @map("error_rows")
+  previewData        Json?             @map("preview_data")
+  revertedAt         DateTime?         @map("reverted_at")
+  revertedById       String?           @map("reverted_by")
+  revertedBy         User?             @relation("PriceImportRevertedBy", fields: [revertedById], references: [id], onDelete: SetNull)
+  revertSummary      Json?             @map("revert_summary")
+  changes            ProductPriceChangeLog[]
+
+  @@index([uploadedById])
+  @@index([status])
+  @@map("price_import_batches")
+}
+
+model ProductPriceChangeLog {
+  id                   String           @id @default(cuid())
+  importBatchId        String           @map("import_batch_id")
+  importBatch          PriceImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  productId            String           @map("product_id")
+  product              Product          @relation(fields: [productId], references: [id])
+  oldPrice             Decimal          @map("old_price") @db.Decimal(10, 2)
+  newPrice             Decimal          @map("new_price") @db.Decimal(10, 2)
+  externalProviderCode String?          @map("external_provider_code")
+  priceRole            String?          @map("price_role")
+  changedAt            DateTime         @default(now()) @map("changed_at")
+  changedById          String?          @map("changed_by")
+  changedBy            User?            @relation("ProductPriceChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([importBatchId])
+  @@index([productId])
+  @@index([changedById])
+  @@map("product_price_change_logs")
 }
 
 // ============================================
