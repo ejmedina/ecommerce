@@ -93,6 +93,8 @@ export async function PUT(req: NextRequest) {
       // Theme colors
       themeColors,
       paymentMethods,
+      blogEnabled,
+      blogHomeLayout,
     } = body
 
     // Get existing settings to check if shippingConfig needs default
@@ -142,6 +144,10 @@ export async function PUT(req: NextRequest) {
     if (bestSellersLimit !== undefined) updateData.bestSellersLimit = bestSellersLimit
     if (infoCardsEnabled !== undefined) updateData.infoCardsEnabled = infoCardsEnabled
     if (infoCards !== undefined) updateData.infoCards = infoCards
+    
+    // Update blog fields if provided
+    if (blogEnabled !== undefined) updateData.blogEnabled = blogEnabled
+    if (blogHomeLayout !== undefined) updateData.blogHomeLayout = blogHomeLayout
 
     // Update theme colors if provided
     if (themeColors !== undefined) {

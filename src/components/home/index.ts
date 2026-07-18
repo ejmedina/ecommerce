@@ -8,3 +8,5 @@ export { BestSellers } from "./best-sellers"
 
 export { InfoCards } from "./info-cards"
 export type { InfoCard } from "./info-cards"
+
+export { BlogSection } from "./blog-section"
