@@ -45,6 +45,8 @@ interface StoreSettings {
   storePickupEnabled: boolean
   storeUrl: string | null
   timeZone: string
+  blogEnabled: boolean
+  blogHomeLayout: string
 }
 
 export function SettingsForm() {
@@ -71,6 +73,8 @@ export function SettingsForm() {
   const [whatsappWidgetPhone, setWhatsappWidgetPhone] = useState("")
   const [whatsappWidgetMessage, setWhatsappWidgetMessage] = useState("")
   const [storePickupEnabled, setStorePickupEnabled] = useState(true)
+  const [blogEnabled, setBlogEnabled] = useState(false)
+  const [blogHomeLayout, setBlogHomeLayout] = useState("latest")
 
   // Theme colors state
   const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
@@ -109,6 +113,8 @@ export function SettingsForm() {
       setWhatsappWidgetPhone(data.whatsappWidgetPhone || "")
       setWhatsappWidgetMessage(data.whatsappWidgetMessage || "")
       setStorePickupEnabled(data.storePickupEnabled ?? true)
+      setBlogEnabled(data.blogEnabled ?? false)
+      setBlogHomeLayout(data.blogHomeLayout || "latest")
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -161,6 +167,8 @@ export function SettingsForm() {
           paymentMethods,
           storeUrl: storeUrl || null,
           timeZone,
+          blogEnabled,
+          blogHomeLayout,
         }),
       })
 
@@ -296,11 +304,12 @@ export function SettingsForm() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="colors">Colores</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="media">Logos</TabsTrigger>
+          <TabsTrigger value="blog">Blog</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6 mt-6">
@@ -793,6 +802,78 @@ export function SettingsForm() {
                         Eliminar
                       </Button>
                     )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="blog" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sección de Blog</CardTitle>
+              <CardDescription>
+                Configura la sección de blog de tu tienda y cómo se muestra en la página principal.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="blogEnabled"
+                  checked={blogEnabled}
+                  onCheckedChange={(checked) => setBlogEnabled(!!checked)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="blogEnabled" className="font-medium cursor-pointer">
+                    Habilitar módulo de Blog
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Activa la sección de blog en el sitio web (ruta /blog).
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <Label>Diseño en la Home</Label>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      id="layout-none" 
+                      name="blogHomeLayout" 
+                      value="none" 
+                      checked={blogHomeLayout === 'none'}
+                      onChange={(e) => setBlogHomeLayout(e.target.value)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <Label htmlFor="layout-none" className="font-normal cursor-pointer">No mostrar en la home</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      id="layout-latest" 
+                      name="blogHomeLayout" 
+                      value="latest" 
+                      checked={blogHomeLayout === 'latest'}
+                      onChange={(e) => setBlogHomeLayout(e.target.value)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <Label htmlFor="layout-latest" className="font-normal cursor-pointer">Grilla de últimos artículos</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      id="layout-carousel" 
+                      name="blogHomeLayout" 
+                      value="carousel" 
+                      checked={blogHomeLayout === 'carousel'}
+                      onChange={(e) => setBlogHomeLayout(e.target.value)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <Label htmlFor="layout-carousel" className="font-normal cursor-pointer">Carrusel horizontal</Label>
                   </div>
                 </div>
               </div>

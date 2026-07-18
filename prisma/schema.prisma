@@ -590,6 +590,10 @@ model StoreSettings {
   infoCardsEnabled     Boolean  @default(true)
   infoCards           Json?    // [{ icon, title, description }]
   
+  // === CONFIGURACIÓN DE BLOG ===
+  blogEnabled         Boolean  @default(false)
+  blogHomeLayout      String   @default("latest") // "latest" | "carousel" | "none"
+
   // === CONFIGURACIÓN DEL DOMINIO ===
   // URL base de la tienda (ej: https://mi-tienda.com)
   // Se usa para generar enlaces en emails, etc.
@@ -657,6 +661,26 @@ model ProductPriceChangeLog {
   @@index([productId])
   @@index([changedById])
   @@map("product_price_change_logs")
+}
+
+// ============================================
+// BLOG
+// ============================================
+
+model Article {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String?
+  content     String   @db.Text
+  image       String?
+  published   Boolean  @default(true)
+  
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("articles")
 }
 
 // ============================================
