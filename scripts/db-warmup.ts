@@ -12,6 +12,7 @@ async function warmup() {
   const client = new Client({
     connectionString: url,
     connectionTimeoutMillis: 5000,
+    ssl: url.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
   });
 
   let attempts = 0;
