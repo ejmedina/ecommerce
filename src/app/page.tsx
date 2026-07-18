@@ -32,3 +32,4 @@ export default async function Home() {
     />
   )
 }
+// force rebuild for new DB settings

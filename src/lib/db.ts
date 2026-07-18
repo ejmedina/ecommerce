@@ -8,8 +8,16 @@ function configureDatabaseUrl() {
 
   try {
     const url = new URL(databaseUrl)
+    let modified = false
     if (!url.searchParams.has("connect_timeout")) {
       url.searchParams.set("connect_timeout", "15")
+      modified = true
+    }
+    if (url.hostname.includes("pooler") && !url.searchParams.has("pgbouncer")) {
+      url.searchParams.set("pgbouncer", "true")
+      modified = true
+    }
+    if (modified) {
       process.env.DATABASE_URL = url.toString()
     }
   } catch {
