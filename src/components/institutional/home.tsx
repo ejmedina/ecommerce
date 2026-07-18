@@ -18,6 +18,7 @@ import type { Audience, ProductVariant } from "@/content/institutional-home"
 import { InstitutionalTestimonials } from "@/components/institutional/testimonials"
 import { InstitutionalContactForm } from "@/components/institutional/contact-form"
 import type { InstitutionalHomeFlavor } from "@/lib/home-flavor"
+import { BlogSection } from "@/components/home/blog-section"
 
 const headingFont = Sora({
   subsets: ["latin"],
@@ -68,8 +69,12 @@ function SectionHeading({
 
 export function InstitutionalHome({
   flavor,
+  settings,
+  articles = [],
 }: {
   flavor: InstitutionalHomeFlavor
+  settings?: any
+  articles?: any[]
 }) {
   const content = flavor.content
 
@@ -369,6 +374,14 @@ export function InstitutionalHome({
           </div>
         </div>
       </section>
+
+      {settings && (
+        <BlogSection 
+          articles={articles}
+          enabled={settings.blogEnabled}
+          layout={settings.blogHomeLayout}
+        />
+      )}
 
       <section id="faq" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <SectionHeading
