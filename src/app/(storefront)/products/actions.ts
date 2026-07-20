@@ -133,17 +133,26 @@ export async function getProductsAction({
   // Total count for identifying if there's more
   const total = await db.product.count({ where })
 
-  // Sort out of stock items at the end if searching
-  let sortedProducts = products
-  if (s) {
-    sortedProducts = [...products].sort((a, b) => {
+  // Always show products with photos first, then products without photos.
+  // When searching, also deprioritize out-of-stock items (within each photo group).
+  const sortedProducts = [...products].sort((a, b) => {
+    const aHasPhoto = a.images.length > 0
+    const bHasPhoto = b.images.length > 0
+
+    // Primary: products with photos come first
+    if (aHasPhoto && !bHasPhoto) return -1
+    if (!aHasPhoto && bHasPhoto) return 1
+
+    // Secondary (only when searching): in-stock before out-of-stock
+    if (s) {
       const aInStock = a.stock > 0 || a.hasPermanentStock
       const bInStock = b.stock > 0 || b.hasPermanentStock
       if (aInStock && !bInStock) return -1
       if (!aInStock && bInStock) return 1
-      return 0
-    })
-  }
+    }
+
+    return 0
+  })
 
   return {
     products: sortedProducts.map(p => ({
