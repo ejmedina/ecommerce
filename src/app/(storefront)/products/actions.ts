@@ -83,76 +83,114 @@ export async function getProductsAction({
     ]
   }
 
-  const products = await db.product.findMany({
-    where,
-    include: {
-      images: { take: 1, orderBy: { order: "asc" } },
-      category: true,
-      variants: {
-        where: { isActive: true },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          title: true,
-          sku: true,
-          stock: true,
-          price: true,
-        },
+  // Shared include block for both queries
+  const productInclude = {
+    images: { take: 1, orderBy: { order: "asc" } },
+    category: true,
+    variants: {
+      where: { isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        sku: true,
+        stock: true,
+        price: true,
       },
-      comboComponents: {
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              sku: true,
-              hasVariants: true,
-              stock: true,
-              hasPermanentStock: true,
-              variants: {
-                where: { isActive: true },
-                orderBy: { createdAt: "asc" },
-                select: {
-                  id: true,
-                  title: true,
-                  sku: true,
-                  stock: true,
-                  price: true,
-                },
+    },
+    comboComponents: {
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            hasVariants: true,
+            stock: true,
+            hasPermanentStock: true,
+            variants: {
+              where: { isActive: true },
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                title: true,
+                sku: true,
+                stock: true,
+                price: true,
               },
             },
           },
         },
       },
     },
-    orderBy,
-    skip,
-    take: limit,
-  })
+  } satisfies Prisma.ProductInclude
 
-  // Total count for identifying if there's more
-  const total = await db.product.count({ where })
+  // Products are split into two virtual pools: those WITH images and those WITHOUT.
+  // All products with images always appear before products without images, across all pages.
+  // We count each pool and then fetch the correct slice based on `skip` and `limit`.
+  const [countWithImages, countWithoutImages] = await Promise.all([
+    db.product.count({ where: { ...where, images: { some: {} } } }),
+    db.product.count({ where: { ...where, images: { none: {} } } }),
+  ])
+  const total = countWithImages + countWithoutImages
 
-  // Always show products with photos first, then products without photos.
-  // When searching, also deprioritize out-of-stock items (within each photo group).
-  const sortedProducts = [...products].sort((a, b) => {
-    const aHasPhoto = a.images.length > 0
-    const bHasPhoto = b.images.length > 0
+  const start = skip
+  let products: Awaited<ReturnType<typeof db.product.findMany<{ include: typeof productInclude }>>> = []
 
-    // Primary: products with photos come first
-    if (aHasPhoto && !bHasPhoto) return -1
-    if (!aHasPhoto && bHasPhoto) return 1
+  if (start < countWithImages) {
+    // This page starts inside the "with images" pool
+    const withImagesTake = Math.min(limit, countWithImages - start)
+    const withImages = await db.product.findMany({
+      where: { ...where, images: { some: {} } },
+      include: productInclude,
+      orderBy,
+      skip: start,
+      take: withImagesTake,
+    })
+    products = [...withImages]
 
-    // Secondary (only when searching): in-stock before out-of-stock
-    if (s) {
+    // If we still need more rows, pull the remainder from "without images"
+    if (products.length < limit) {
+      const withoutImages = await db.product.findMany({
+        where: { ...where, images: { none: {} } },
+        include: productInclude,
+        orderBy,
+        skip: 0,
+        take: limit - products.length,
+      })
+      products = [...products, ...withoutImages]
+    }
+  } else {
+    // This page is entirely inside the "without images" pool
+    const withoutImages = await db.product.findMany({
+      where: { ...where, images: { none: {} } },
+      include: productInclude,
+      orderBy,
+      skip: start - countWithImages,
+      take: limit,
+    })
+    products = withoutImages
+  }
+
+  // Secondary in-memory sort (only when searching): within each photo group,
+  // deprioritize out-of-stock items. The photo boundary is already guaranteed
+  // by the two-query approach above.
+  let sortedProducts = products
+  if (s) {
+    sortedProducts = [...products].sort((a, b) => {
+      const aHasPhoto = a.images.length > 0
+      const bHasPhoto = b.images.length > 0
+      // Preserve the photo boundary established by the DB queries
+      if (aHasPhoto && !bHasPhoto) return -1
+      if (!aHasPhoto && bHasPhoto) return 1
+      // Within same group: in-stock before out-of-stock
       const aInStock = a.stock > 0 || a.hasPermanentStock
       const bInStock = b.stock > 0 || b.hasPermanentStock
       if (aInStock && !bInStock) return -1
       if (!aInStock && bInStock) return 1
-    }
-
-    return 0
-  })
+      return 0
+    })
+  }
 
   return {
     products: sortedProducts.map(p => ({
