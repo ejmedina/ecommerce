@@ -5,6 +5,7 @@ import { getDefaultShippingConfig } from "@/lib/shipping"
 import { requireAuth } from "@/lib/admin-auth"
 import { normalizeTimeZone } from "@/lib/time-zone"
 import { mergeThemeColors } from "@/lib/theme-colors"
+import { validateNotificationEmails } from "@/lib/notification-emails"
 
 export async function GET() {
   const authError = await requireAuth()
@@ -76,6 +77,8 @@ export async function PUT(req: NextRequest) {
       whatsappWidgetMessage,
       autoConfirmOrders,
       requiresPaymentToFulfill,
+      newOrderEmailNotificationsEnabled,
+      newOrderNotificationEmails,
       minShippingOrderAmount,
       storeUrl,
       timeZone,
@@ -100,6 +103,21 @@ export async function PUT(req: NextRequest) {
     
     // If no shipping config provided, use default
     const finalShippingConfig = shippingConfig || (!existing ? getDefaultShippingConfig() : null)
+    const notificationEmails = validateNotificationEmails(newOrderNotificationEmails)
+
+    if (notificationEmails.invalidEmails.length > 0) {
+      return NextResponse.json(
+        { error: `Emails inválidos: ${notificationEmails.invalidEmails.join(", ")}` },
+        { status: 400 },
+      )
+    }
+
+    if (newOrderEmailNotificationsEnabled && notificationEmails.emails.length === 0) {
+      return NextResponse.json(
+        { error: "Agregá al menos un email para activar los avisos de nuevos pedidos." },
+        { status: 400 },
+      )
+    }
 
     const updateData: Prisma.StoreSettingsUpdateInput = {
       storeName,
@@ -118,6 +136,13 @@ export async function PUT(req: NextRequest) {
       whatsappWidgetMessage,
       storePickupEnabled,
       timeZone: normalizeTimeZone(timeZone),
+    }
+
+    if (newOrderEmailNotificationsEnabled !== undefined) {
+      updateData.newOrderEmailNotificationsEnabled = newOrderEmailNotificationsEnabled === true
+    }
+    if (newOrderNotificationEmails !== undefined) {
+      updateData.newOrderNotificationEmails = notificationEmails.emails
     }
 
     // Only update logo/favicon if provided

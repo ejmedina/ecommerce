@@ -1,6 +1,6 @@
 "use server"
 
-import { sendOrderConfirmationEmail } from "@/lib/email"
+import { sendNewOrderNotificationEmail, sendOrderConfirmationEmail } from "@/lib/email"
 
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
@@ -385,6 +385,14 @@ export async function createOrder(formData: FormData) {
     } catch (emailError) {
       console.error("Failed to send order confirmation email:", emailError)
       // We don't fail the whole process if email fails
+    }
+
+    if (settings?.newOrderEmailNotificationsEnabled && settings.newOrderNotificationEmails.length > 0) {
+      try {
+        await sendNewOrderNotificationEmail(order, settings.newOrderNotificationEmails, settings.timeZone)
+      } catch (emailError) {
+        console.error("Failed to send new order notification email:", emailError)
+      }
     }
 
     return { orderId: order.id, paymentUrl: undefined }

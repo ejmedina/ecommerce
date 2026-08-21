@@ -16,6 +16,7 @@ import { ShippingZone, ShippingConfig, getDefaultShippingConfig } from "@/lib/sh
 import { ColorPicker, ThemePreview } from "@/components/admin/color-picker"
 import { defaultColors } from "@/components/theme-provider"
 import { mergeThemeColors, type ThemeColors } from "@/lib/theme-colors"
+import { validateNotificationEmails } from "@/lib/notification-emails"
 
 interface StoreSettings {
   id: string
@@ -35,6 +36,8 @@ interface StoreSettings {
   bankAccount: unknown
   autoConfirmOrders: boolean
   requiresPaymentToFulfill: boolean
+  newOrderEmailNotificationsEnabled: boolean
+  newOrderNotificationEmails: string[]
   whatsappPreArrivalMessage: string | null
   whatsappWidgetEnabled: boolean
   whatsappWidgetPhone: string | null
@@ -65,6 +68,8 @@ export function SettingsForm() {
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig>({ zones: [] })
   const [autoConfirmOrders, setAutoConfirmOrders] = useState(true)
   const [requiresPaymentToFulfill, setRequiresPaymentToFulfill] = useState(false)
+  const [newOrderEmailNotificationsEnabled, setNewOrderEmailNotificationsEnabled] = useState(false)
+  const [newOrderNotificationEmails, setNewOrderNotificationEmails] = useState("")
   const [minShippingOrderAmount, setMinShippingOrderAmount] = useState(0)
   const [whatsappPreArrivalMessage, setWhatsappPreArrivalMessage] = useState("")
   const [whatsappWidgetEnabled, setWhatsappWidgetEnabled] = useState(false)
@@ -103,6 +108,8 @@ export function SettingsForm() {
       setFavicon(data.favicon)
       setAutoConfirmOrders(data.autoConfirmOrders ?? true)
       setRequiresPaymentToFulfill(data.requiresPaymentToFulfill ?? false)
+      setNewOrderEmailNotificationsEnabled(data.newOrderEmailNotificationsEnabled ?? false)
+      setNewOrderNotificationEmails((data.newOrderNotificationEmails ?? []).join("\n"))
       setMinShippingOrderAmount(Number(data.minShippingOrderAmount) || 0)
       setWhatsappPreArrivalMessage(data.whatsappPreArrivalMessage || "")
       setWhatsappWidgetEnabled(data.whatsappWidgetEnabled ?? false)
@@ -136,6 +143,24 @@ export function SettingsForm() {
   }
 
   const handleSave = async () => {
+    const notificationEmails = validateNotificationEmails(newOrderNotificationEmails)
+    if (notificationEmails.invalidEmails.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Revisá los emails",
+        description: `Direcciones inválidas: ${notificationEmails.invalidEmails.join(", ")}`,
+      })
+      return
+    }
+    if (newOrderEmailNotificationsEnabled && notificationEmails.emails.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Falta un destinatario",
+        description: "Agregá al menos un email para activar los avisos.",
+      })
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetch("/api/admin/settings", {
@@ -151,6 +176,8 @@ export function SettingsForm() {
           shippingConfig,
           autoConfirmOrders,
           requiresPaymentToFulfill,
+          newOrderEmailNotificationsEnabled,
+          newOrderNotificationEmails: notificationEmails.emails,
           minShippingOrderAmount,
           whatsappPreArrivalMessage: whatsappPreArrivalMessage || null,
           whatsappWidgetEnabled,
@@ -171,10 +198,11 @@ export function SettingsForm() {
           description: "Configuración guardada",
         })
       } else {
+        const data = await res.json().catch(() => null)
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Error al guardar",
+          description: data?.error || "Error al guardar",
         })
       }
     } catch (error) {
@@ -581,6 +609,47 @@ export function SettingsForm() {
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Avisos de nuevos pedidos</CardTitle>
+              <CardDescription>
+                Enviá una copia imprimible de cada pedido nuevo al equipo de la tienda.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="newOrderEmailNotificationsEnabled"
+                  checked={newOrderEmailNotificationsEnabled}
+                  onCheckedChange={(checked) => setNewOrderEmailNotificationsEnabled(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="newOrderEmailNotificationsEnabled" className="font-medium cursor-pointer">
+                    Enviar un email por cada pedido nuevo
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    El pedido se crea aunque el servicio de correo no esté disponible.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newOrderNotificationEmails">Destinatarios</Label>
+                <Textarea
+                  id="newOrderNotificationEmails"
+                  value={newOrderNotificationEmails}
+                  onChange={(event) => setNewOrderNotificationEmails(event.target.value)}
+                  placeholder={"administracion@ejemplo.com\nventas@ejemplo.com"}
+                  rows={4}
+                  aria-describedby="new-order-email-help"
+                />
+                <p id="new-order-email-help" className="text-sm text-muted-foreground">
+                  Ingresá una dirección por línea. También podés separarlas con comas o punto y coma.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Order Flow Settings */}
           <Card>
             <CardHeader>

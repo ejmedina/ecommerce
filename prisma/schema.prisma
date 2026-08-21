@@ -550,6 +550,10 @@ model StoreSettings {
   // false = avanzar aunque paymentStatus = PENDING (contra entrega)
   requiresPaymentToFulfill Boolean @default(false)
 
+  // === AVISOS INTERNOS DE NUEVOS PEDIDOS ===
+  newOrderEmailNotificationsEnabled Boolean @default(false)
+  newOrderNotificationEmails         String[] @default([])
+
   // === CONFIGURACIÓN DE MONTO MÍNIMO ===
   // Monto mínimo de pedido para habilitar el envío a domicilio
   minShippingOrderAmount Decimal @db.Decimal(10, 2) @default(0)

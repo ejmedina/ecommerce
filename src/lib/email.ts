@@ -31,7 +31,7 @@ export async function getStoreUrl(): Promise<string> {
 }
 
 interface EmailOptions {
-  to: string
+  to: string | string[]
   subject: string
   html: string
 }
@@ -45,6 +45,7 @@ interface OrderEmailItem {
 }
 
 interface OrderEmailAddress {
+  name?: string
   street?: string
   number?: string
   floor?: string | null
@@ -53,6 +54,7 @@ interface OrderEmailAddress {
   state?: string
   postalCode?: string
   phone?: string
+  instructions?: string | null
 }
 
 interface OrderEmailData {
@@ -68,6 +70,22 @@ interface OrderEmailData {
   total: unknown
   shippingMethod: string
   shippingAddress?: unknown
+  paymentMethod?: string
+  paymentStatus?: string
+  createdAt?: Date
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
+}
+
+function formatMoney(value: unknown) {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(Number(value))
 }
 
 function isOrderEmailAddress(value: unknown): value is OrderEmailAddress {
@@ -232,4 +250,60 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData) {
   `
 
   return sendEmail({ to, subject, html })
+}
+
+const paymentMethodLabels: Record<string, string> = {
+  ONLINE_CARD: "Pago online",
+  BANK_TRANSFER: "Transferencia bancaria",
+  DIGITAL_WALLET: "Billetera digital",
+  CASH_ON_DELIVERY: "Efectivo contra entrega",
+  CARD_ON_DELIVERY: "Tarjeta contra entrega",
+  TRANSFER_ON_DELIVERY: "Transferencia contra entrega",
+}
+
+export async function sendNewOrderNotificationEmail(
+  order: OrderEmailData,
+  recipients: string[],
+  timeZone = "America/Argentina/Buenos_Aires",
+) {
+  const address = isOrderEmailAddress(order.shippingAddress) ? order.shippingAddress : null
+  const createdAt = order.createdAt ?? new Date()
+  const itemsHtml = order.items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.name)}${item.sku ? `<br><small>SKU: ${escapeHtml(item.sku)}</small>` : ""}</td>
+      <td style="text-align:center">${item.quantityOrdered}</td>
+      <td style="text-align:right">${formatMoney(item.price)}</td>
+      <td style="text-align:right">${formatMoney(item.unitTotal)}</td>
+    </tr>
+  `).join("")
+  const deliveryHtml = order.shippingMethod === "pickup"
+    ? "<strong>Retiro en tienda</strong>"
+    : `${escapeHtml(address?.street)} ${escapeHtml(address?.number)}${address?.floor ? `, Piso ${escapeHtml(address.floor)}` : ""}${address?.apartment ? `, Depto. ${escapeHtml(address.apartment)}` : ""}<br>${escapeHtml(address?.city)}, ${escapeHtml(address?.state)} (${escapeHtml(address?.postalCode)})`
+
+  const html = `<!doctype html>
+  <html><head><meta charset="utf-8"><style>
+    body{font-family:Arial,sans-serif;color:#111;margin:0;padding:24px} .sheet{max-width:760px;margin:auto}
+    h1{font-size:24px;margin:0 0 4px} h2{font-size:16px;margin:24px 0 8px;border-bottom:1px solid #999;padding-bottom:5px}
+    p{margin:5px 0;line-height:1.4} table{border-collapse:collapse;width:100%;font-size:14px} th,td{border:1px solid #bbb;padding:8px} th{background:#eee;text-align:left}
+    .totals{margin-left:auto;margin-top:12px;width:280px}.totals td{border:0;padding:3px 0}.total{font-size:18px;font-weight:bold;border-top:1px solid #555!important;padding-top:7px!important}
+    .note{border:1px solid #999;padding:10px;white-space:pre-wrap}.muted{color:#555;font-size:13px}
+    @media print{body{padding:0}.sheet{max-width:none}a{color:#111;text-decoration:none}}
+  </style></head><body><main class="sheet">
+    <h1>Pedido ${escapeHtml(order.orderNumber)}</h1>
+    <p class="muted">Recibido el ${escapeHtml(new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeStyle: "short", timeZone }).format(createdAt))}</p>
+    <h2>Cliente</h2>
+    <p><strong>${escapeHtml(order.user.name || "Sin nombre")}</strong><br>${escapeHtml(order.user.email)}${address?.phone ? `<br>Tel.: ${escapeHtml(address.phone)}` : ""}</p>
+    <h2>Entrega</h2><p>${deliveryHtml}</p>
+    ${address?.instructions ? `<p class="note"><strong>Indicaciones:</strong><br>${escapeHtml(address.instructions)}</p>` : ""}
+    <h2>Detalle del pedido</h2>
+    <table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+    <table class="totals"><tr><td>Subtotal</td><td style="text-align:right">${formatMoney(order.subtotal)}</td></tr><tr><td>Envío</td><td style="text-align:right">${formatMoney(order.shippingCost)}</td></tr><tr><td class="total">Total</td><td class="total" style="text-align:right">${formatMoney(order.total)}</td></tr></table>
+    <h2>Pago</h2><p>${escapeHtml(paymentMethodLabels[order.paymentMethod || ""] || order.paymentMethod || "Sin especificar")} · Estado: ${escapeHtml(order.paymentStatus || "PENDING")}</p>
+  </main></body></html>`
+
+  return sendEmail({
+    to: recipients,
+    subject: `Nuevo pedido ${order.orderNumber} — ${order.user.name || order.user.email}`,
+    html,
+  })
 }
