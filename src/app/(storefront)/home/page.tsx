@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
-import { HeroSlider, CategoryCards, BestSellers, InfoCards } from "@/components/home"
+import { HeroSlider, CategoryCards, BestSellers, InfoCards, BlogSection } from "@/components/home"
+import { getPublishedArticles } from "@/lib/data/blog"
 
 export default async function HomePage() {
   // Get settings from database
@@ -14,6 +15,7 @@ export default async function HomePage() {
         <CategoryCards cards={[]} enabled={false} />
         <BestSellers products={[]} enabled={false} />
         <InfoCards cards={[]} enabled={false} />
+        <BlogSection articles={[]} enabled={false} layout="none" />
       </>
     )
   }
@@ -74,6 +76,12 @@ export default async function HomePage() {
     return product ? [product] : []
   })
 
+  // Get published articles
+  let articles: any[] = []
+  if (settings.blogEnabled && settings.blogHomeLayout !== 'none') {
+    articles = await getPublishedArticles(6)
+  }
+
   return (
     <>
       {/* Hero Slider */}
@@ -112,6 +120,13 @@ export default async function HomePage() {
       <InfoCards 
         cards={infoCards} 
         enabled={settings.infoCardsEnabled ?? false} 
+      />
+
+      {/* Blog Section */}
+      <BlogSection 
+        articles={articles} 
+        enabled={settings.blogEnabled ?? false} 
+        layout={settings.blogHomeLayout ?? 'latest'} 
       />
     </>
   )

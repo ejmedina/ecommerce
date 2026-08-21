@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Edit, ImageOff, AlertCircle, BadgeDollarSign } from "lucide-react"
+import { Plus, Edit, ImageOff, AlertCircle, BadgeDollarSign, Upload } from "lucide-react"
 import { ProductFilters } from "./product-filters"
 import { PaginationControls } from "./pagination-controls"
 import { Badge } from "@/components/ui/badge"
@@ -166,6 +166,12 @@ export default async function ProductsPage(props: {
           <p className="text-muted-foreground">Gestiona el inventario, precios y categorías de tu tienda.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/products/prices/import">
+            <Button size="lg" variant="outline" className="shadow-sm">
+              <Upload className="h-5 w-5 mr-2" />
+              Cargar precios
+            </Button>
+          </Link>
           <Link href="/admin/products/prices">
             <Button size="lg" variant="outline" className="shadow-sm">
               <BadgeDollarSign className="h-5 w-5 mr-2" />

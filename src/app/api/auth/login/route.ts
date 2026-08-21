@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { signIn } from "@/lib/auth"
 import { isMigratedUserPendingActivation } from "@/lib/account-activation"
+import { AuthError } from "next-auth"
 
 export async function POST(request: Request) {
   try {
@@ -77,6 +78,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof AuthError) {
+      if (error.type === "CredentialsSignin") {
+        return NextResponse.json(
+          { error: "Credenciales inválidas" },
+          { status: 401 }
+        )
+      }
+    }
+
     console.error("Login error:", error)
     return NextResponse.json(
       { error: "Error interno del servidor" },

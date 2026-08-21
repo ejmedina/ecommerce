@@ -17,7 +17,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import type { Audience, ProductVariant } from "@/content/institutional-home"
 import { InstitutionalTestimonials } from "@/components/institutional/testimonials"
 import { InstitutionalContactForm } from "@/components/institutional/contact-form"
+import { InstitutionalMobileNav } from "@/components/institutional/mobile-nav"
 import type { InstitutionalHomeFlavor } from "@/lib/home-flavor"
+import { BlogSection } from "@/components/home/blog-section"
 
 const headingFont = Sora({
   subsets: ["latin"],
@@ -68,8 +70,12 @@ function SectionHeading({
 
 export function InstitutionalHome({
   flavor,
+  settings,
+  articles = [],
 }: {
   flavor: InstitutionalHomeFlavor
+  settings?: any
+  articles?: any[]
 }) {
   const content = flavor.content
 
@@ -99,14 +105,20 @@ export function InstitutionalHome({
             <a href="#testimonios" className="transition-colors hover:text-emerald-900">Testimonios</a>
             <a href="#faq" className="transition-colors hover:text-emerald-900">FAQ</a>
             <a href="#contacto" className="transition-colors hover:text-emerald-900">Contacto</a>
+            {settings?.blogEnabled && (
+              <Link href="/blog" className="transition-colors hover:text-emerald-900">Blog</Link>
+            )}
           </nav>
 
-          <Button asChild className="rounded-full px-5">
-            <Link href="/products">
-              Tienda
-              <ShoppingBag className="h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <InstitutionalMobileNav storePath="/products" showBlog={settings?.blogEnabled ?? false} />
+            <Button asChild className="hidden rounded-full px-5 lg:flex">
+              <Link href="/products">
+                Tienda
+                <ShoppingBag className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -369,6 +381,14 @@ export function InstitutionalHome({
           </div>
         </div>
       </section>
+
+      {settings && (
+        <BlogSection 
+          articles={articles}
+          enabled={settings.blogEnabled}
+          layout={settings.blogHomeLayout}
+        />
+      )}
 
       <section id="faq" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <SectionHeading

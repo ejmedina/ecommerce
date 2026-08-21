@@ -38,6 +38,12 @@ function normalizeVariantSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null
 }
 
+function normalizeOptionalText(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
 function normalizeParsedVariants(
   variants: ParsedProductVariant[],
   fallbackPrice: number
@@ -140,6 +146,7 @@ export async function createProduct(formData: FormData) {
   try {
     const name = formData.get("name") as string
     const sku = formData.get("sku") as string || null
+    const externalProviderCode = normalizeOptionalText(formData.get("externalProviderCode"))
     const stock = parseInt(formData.get("stock") as string) || 0
     const price = parseFloat(formData.get("price") as string) || 0
     const comparePrice = formData.get("comparePrice") ? parseFloat(formData.get("comparePrice") as string) : null
@@ -223,6 +230,7 @@ export async function createProduct(formData: FormData) {
           name,
           slug: finalSlug,
           sku: hasVariants ? null : sku, // Reset product SKU if it has variants
+          externalProviderCode,
           stock: hasVariants || isCombo ? 0 : stock, // Product stock is sum of variants or 0
           price,
           comparePrice,
@@ -303,6 +311,7 @@ export async function updateProduct(formData: FormData) {
     const id = formData.get("id") as string
     const name = formData.get("name") as string
     const sku = formData.get("sku") as string || null
+    const externalProviderCode = normalizeOptionalText(formData.get("externalProviderCode"))
     const stock = parseInt(formData.get("stock") as string) || 0
     const price = parseFloat(formData.get("price") as string) || 0
     const comparePrice = formData.get("comparePrice") ? parseFloat(formData.get("comparePrice") as string) : null
@@ -383,6 +392,7 @@ export async function updateProduct(formData: FormData) {
       data: {
         name,
         sku: hasVariants ? null : sku,
+        externalProviderCode,
         stock: hasVariants || isCombo ? 0 : stock,
         price,
         comparePrice,
