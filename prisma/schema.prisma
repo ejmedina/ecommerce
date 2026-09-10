@@ -604,10 +604,34 @@ model StoreSettings {
   storeUrl            String?
   timeZone            String   @default("America/Argentina/Buenos_Aires")
 
+  // === ANALYTICS Y PUBLICIDAD ===
+  // Se guardan por tienda para que cada despliegue use sus propias cuentas.
+  gtmContainerId      String?
+  gaMeasurementId     String?
+  metaPixelId         String?
+  analyticsSecret     StoreAnalyticsSecret?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@map("store_settings")
+}
+
+// Server-only credentials. The token is encrypted before it reaches this table
+// and must never be included in public settings responses.
+model StoreAnalyticsSecret {
+  id                              String   @id @default(cuid())
+  storeSettingsId                 String   @unique
+  metaCapiAccessTokenCiphertext   String?  @db.Text
+  metaCapiAccessTokenIv           String?
+  metaCapiAccessTokenAuthTag      String?
+  metaCapiAccessTokenUpdatedAt    DateTime?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  storeSettings StoreSettings @relation(fields: [storeSettingsId], references: [id], onDelete: Cascade)
+
+  @@map("store_analytics_secrets")
 }
 
 // ============================================

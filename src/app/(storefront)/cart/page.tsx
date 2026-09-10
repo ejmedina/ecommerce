@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Trash2, Loader2 } from "lucide-react"
@@ -14,6 +15,7 @@ import {
   createEcommercePayload,
   trackBeginCheckout,
   trackRemoveFromCart,
+  trackViewCart,
 } from "@/lib/analytics"
 
 interface CartPageItem {
@@ -38,6 +40,28 @@ interface CartPageItem {
 
 export default function CartPage() {
   const { cart, settings, updateItemQuantityOptimistic, isSyncing, refreshCart } = useCart()
+
+  useEffect(() => {
+    if (!cart || cart.items.length === 0) return
+
+    const total = cart.pricingResult?.totalToPay || 0
+    trackViewCart(
+      createEcommercePayload(
+        cart.items.map((item: CartPageItem) => {
+          const price = item.variant?.price ? Number(item.variant.price) : Number(item.product.price)
+          return createAnalyticsItem({
+            itemId: item.variant?.id || item.product.id,
+            itemName: item.variant?.title ? `${item.product.name} - ${item.variant.title}` : item.product.name,
+            price,
+            quantity: item.quantity,
+            itemCategory: item.product.category?.name || null,
+            itemVariant: item.variant?.title || null,
+          })
+        }),
+        { value: total },
+      ),
+    )
+  }, [cart])
 
   if (!cart) {
     return (

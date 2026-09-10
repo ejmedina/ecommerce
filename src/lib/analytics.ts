@@ -12,6 +12,8 @@ export interface AnalyticsItem {
 export interface EcommerceEventPayload {
   currency: typeof TRACKING_CURRENCY
   value?: number
+  shipping?: number
+  tax?: number
   items: AnalyticsItem[]
 }
 
@@ -31,6 +33,8 @@ type DataLayerEvent = {
 declare global {
   interface Window {
     dataLayer?: DataLayerEvent[]
+    fbq?: (...args: unknown[]) => void
+    gtag?: (...args: unknown[]) => void
   }
 }
 
@@ -44,7 +48,7 @@ function normalizeNumber(value?: number | null) {
 
 export function trackEvent(
   eventName: string,
-  payload: Record<string, unknown> = {}
+  payload: object = {}
 ): void {
   if (!isBrowser()) return
 
@@ -53,6 +57,54 @@ export function trackEvent(
     event: eventName,
     ...payload,
   })
+
+  // GoogleAnalytics (the direct fallback) exposes gtag. With GTM this is
+  // intentionally absent: GTM consumes the dataLayer event instead.
+  window.gtag?.("event", eventName, payload)
+  trackMetaEvent(eventName, payload)
+}
+
+function trackMetaEvent(eventName: string, payload: object): void {
+  if (!window.fbq) return
+
+  const ecommerce = payload as Partial<EcommerceEventPayload>
+  const firstItem = ecommerce.items?.[0]
+  const eventParams = {
+    currency: ecommerce.currency,
+    value: ecommerce.value,
+    content_ids: ecommerce.items?.map((item) => item.item_id),
+    content_type: "product",
+    content_name: firstItem?.item_name,
+    contents: ecommerce.items?.map((item) => ({
+      id: item.item_id,
+      quantity: item.quantity ?? 1,
+      item_price: item.price,
+    })),
+  }
+
+  const metaEventByStoreEvent: Record<string, string> = {
+    view_item: "ViewContent",
+    add_to_cart: "AddToCart",
+    remove_from_cart: "RemoveFromCart",
+    begin_checkout: "InitiateCheckout",
+    purchase: "Purchase",
+    search: "Search",
+  }
+  const metaEvent = metaEventByStoreEvent[eventName]
+
+  if (metaEvent) {
+    if (eventName === "search") {
+      window.fbq("track", metaEvent, { search_string: (payload as { search_term?: unknown }).search_term })
+      return
+    }
+
+    const eventId = (payload as { event_id?: unknown }).event_id
+    if (typeof eventId === "string") {
+      window.fbq("track", metaEvent, eventParams, { eventID: eventId })
+    } else {
+      window.fbq("track", metaEvent, eventParams)
+    }
+  }
 }
 
 export function createAnalyticsItem({
@@ -100,6 +152,10 @@ export function trackBeginCheckout(payload: EcommerceEventPayload): void {
   trackEvent("begin_checkout", payload)
 }
 
+export function trackViewCart(payload: EcommerceEventPayload): void {
+  trackEvent("view_cart", payload)
+}
+
 export function trackSearch(searchTerm: string): void {
   trackEvent("search", { search_term: searchTerm })
 }
@@ -110,7 +166,7 @@ export function trackSelectItem(payload: EcommerceEventPayload): void {
 
 export function trackPurchase(
   orderId: string,
-  payload: EcommerceEventPayload & { transaction_id: string }
+  payload: EcommerceEventPayload & { transaction_id: string; event_id: string }
 ): void {
   if (!isBrowser()) return
 

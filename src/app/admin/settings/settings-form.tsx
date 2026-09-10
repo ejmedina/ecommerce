@@ -50,6 +50,10 @@ interface StoreSettings {
   timeZone: string
   blogEnabled: boolean
   blogHomeLayout: string
+  gtmContainerId: string | null
+  gaMeasurementId: string | null
+  metaPixelId: string | null
+  metaCapiAccessTokenConfigured: boolean
 }
 
 export function SettingsForm() {
@@ -80,6 +84,12 @@ export function SettingsForm() {
   const [storePickupEnabled, setStorePickupEnabled] = useState(true)
   const [blogEnabled, setBlogEnabled] = useState(false)
   const [blogHomeLayout, setBlogHomeLayout] = useState("latest")
+  const [gtmContainerId, setGtmContainerId] = useState("")
+  const [gaMeasurementId, setGaMeasurementId] = useState("")
+  const [metaPixelId, setMetaPixelId] = useState("")
+  const [metaCapiAccessToken, setMetaCapiAccessToken] = useState("")
+  const [metaCapiAccessTokenConfigured, setMetaCapiAccessTokenConfigured] = useState(false)
+  const [clearMetaCapiAccessToken, setClearMetaCapiAccessToken] = useState(false)
 
   // Theme colors state
   const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
@@ -122,6 +132,12 @@ export function SettingsForm() {
       setStorePickupEnabled(data.storePickupEnabled ?? true)
       setBlogEnabled(data.blogEnabled ?? false)
       setBlogHomeLayout(data.blogHomeLayout || "latest")
+      setGtmContainerId(data.gtmContainerId || "")
+      setGaMeasurementId(data.gaMeasurementId || "")
+      setMetaPixelId(data.metaPixelId || "")
+      setMetaCapiAccessToken("")
+      setMetaCapiAccessTokenConfigured(data.metaCapiAccessTokenConfigured === true)
+      setClearMetaCapiAccessToken(false)
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -196,10 +212,19 @@ export function SettingsForm() {
           timeZone,
           blogEnabled,
           blogHomeLayout,
+          gtmContainerId: gtmContainerId || null,
+          gaMeasurementId: gaMeasurementId || null,
+          metaPixelId: metaPixelId || null,
+          ...(metaCapiAccessToken ? { metaCapiAccessToken } : {}),
+          ...(clearMetaCapiAccessToken ? { clearMetaCapiAccessToken: true } : {}),
         }),
       })
 
       if (res.ok) {
+        if (metaCapiAccessToken) setMetaCapiAccessTokenConfigured(true)
+        if (clearMetaCapiAccessToken) setMetaCapiAccessTokenConfigured(false)
+        setMetaCapiAccessToken("")
+        setClearMetaCapiAccessToken(false)
         toast({
           variant: "success",
           title: "Éxito",
@@ -332,12 +357,13 @@ export function SettingsForm() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="colors">Colores</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="media">Logos</TabsTrigger>
           <TabsTrigger value="blog">Blog</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6 mt-6">
@@ -468,6 +494,104 @@ export function SettingsForm() {
                 <p className="text-xs text-muted-foreground">
                   Usa [NOMBRE_TIENDA] para insertar automáticamente el nombre de tu tienda.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Medición y publicidad</CardTitle>
+              <CardDescription>
+                Cada tienda usa sus propios identificadores. No ingreses secretos ni tokens en estos campos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-2">
+                <Label htmlFor="gtmContainerId">Google Tag Manager</Label>
+                <Input
+                  id="gtmContainerId"
+                  value={gtmContainerId}
+                  onChange={(event) => setGtmContainerId(event.target.value)}
+                  placeholder="GTM-ABC1234"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recomendado. El contenedor recibe los eventos de e-commerce del sitio. Configurá dentro de GTM las etiquetas y triggers de GA4, Google Ads u otros destinos.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-2">
+                <Label htmlFor="gaMeasurementId">Google Analytics 4</Label>
+                <Input
+                  id="gaMeasurementId"
+                  value={gaMeasurementId}
+                  onChange={(event) => setGaMeasurementId(event.target.value)}
+                  placeholder="G-ABC1234567"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se carga directamente solo si no hay un contenedor GTM configurado, para evitar eventos duplicados. Si usás GTM, configurá GA4 dentro del contenedor.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-2">
+                <Label htmlFor="metaPixelId">Meta Pixel</Label>
+                <Input
+                  id="metaPixelId"
+                  inputMode="numeric"
+                  value={metaPixelId}
+                  onChange={(event) => setMetaPixelId(event.target.value)}
+                  placeholder="123456789012345"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se instala directamente y traduce los eventos principales de la tienda a Meta. No agregues el mismo Pixel también en GTM, porque duplicaría conversiones.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="metaCapiAccessToken">Token de Conversions API</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {clearMetaCapiAccessToken
+                      ? "Se eliminará al guardar"
+                      : metaCapiAccessTokenConfigured
+                        ? "Configurado"
+                        : "No configurado"}
+                  </span>
+                </div>
+                <Input
+                  id="metaCapiAccessToken"
+                  type="password"
+                  autoComplete="new-password"
+                  value={metaCapiAccessToken}
+                  onChange={(event) => {
+                    setMetaCapiAccessToken(event.target.value)
+                    if (event.target.value) setClearMetaCapiAccessToken(false)
+                  }}
+                  placeholder={metaCapiAccessTokenConfigured ? "Dejá vacío para conservarlo" : "Pegá el token generado por Meta"}
+                  disabled={clearMetaCapiAccessToken}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se cifra antes de guardarse y nunca vuelve a mostrarse. Reemplazalo pegando un nuevo valor.
+                </p>
+                {metaCapiAccessTokenConfigured || clearMetaCapiAccessToken ? (
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setClearMetaCapiAccessToken((value) => !value)}
+                    >
+                      {clearMetaCapiAccessToken ? "Conservar token" : "Eliminar token"}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>

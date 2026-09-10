@@ -1,6 +1,7 @@
 import "./globals.css"
 import type { Metadata } from "next"
-import { GoogleTagManager } from "@next/third-parties/google"
+import Script from "next/script"
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { NavigationFeedbackProvider } from "@/components/navigation-feedback"
@@ -68,7 +69,9 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const [settings, session] = await Promise.all([getStoreSettings(), auth()])
-  const gtmId = process.env.NEXT_PUBLIC_GTM_ID
+  const gtmId = settings?.gtmContainerId?.match(/^GTM-[A-Z0-9]+$/) ? settings.gtmContainerId : undefined
+  const gaMeasurementId = settings?.gaMeasurementId?.match(/^G-[A-Z0-9]+$/) ? settings.gaMeasurementId : undefined
+  const metaPixelId = settings?.metaPixelId?.match(/^\d+$/) ? settings.metaPixelId : undefined
   const shouldHideWhatsappForUser =
     session?.user?.role !== undefined &&
     ["SUPERADMIN", "OWNER", "ADMIN"].includes(session.user.role)
@@ -88,6 +91,15 @@ export default async function RootLayout({
   return (
     <html lang="es">
       {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
+      {!gtmId && gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
+      {metaPixelId ? (
+        <Script id="meta-pixel-init" strategy="beforeInteractive">
+          {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${metaPixelId}');fbq('track','PageView');`}
+        </Script>
+      ) : null}
       <body>
         <NavigationFeedbackProvider>
           <ThemeProvider colors={themeColors}>
@@ -98,6 +110,17 @@ export default async function RootLayout({
               message={settings?.whatsappWidgetMessage ?? null}
             />
             <Toaster />
+            {metaPixelId ? (
+              <noscript>
+                <img
+                  alt=""
+                  height="1"
+                  width="1"
+                  style={{ display: "none" }}
+                  src={`https://www.facebook.com/tr?id=${metaPixelId}&ev=PageView&noscript=1`}
+                />
+              </noscript>
+            ) : null}
           </ThemeProvider>
         </NavigationFeedbackProvider>
       </body>

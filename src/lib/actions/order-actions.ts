@@ -4,12 +4,13 @@ import { sendNewOrderNotificationEmail, sendOrderConfirmationEmail } from "@/lib
 
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { OrderItemType, OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client"
 import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
 import { validateComboCartSelection } from "@/lib/cart-combos"
 import { buildOrderItemComponentSnapshots } from "@/lib/order-combos"
+import { sendMetaPurchaseEvent } from "@/lib/meta-conversions-api"
 
 type CartWithComboData = Prisma.CartGetPayload<{
   include: {
@@ -393,6 +394,26 @@ export async function createOrder(formData: FormData) {
       } catch (emailError) {
         console.error("Failed to send new order notification email:", emailError)
       }
+    }
+
+    try {
+      const requestHeaders = await headers()
+      await sendMetaPurchaseEvent({
+        storeSettingsId: settings?.id,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        total: order.total,
+        shippingCost: order.shippingCost,
+        taxAmount: order.taxAmount,
+        items: order.items,
+        email,
+        phone,
+        clientIpAddress: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+        clientUserAgent: requestHeaders.get("user-agent"),
+      })
+    } catch (analyticsError) {
+      // A marketing integration must never prevent a confirmed order.
+      console.error("Meta Conversions API purchase error:", analyticsError)
     }
 
     return { orderId: order.id, paymentUrl: undefined }

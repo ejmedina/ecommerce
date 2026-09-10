@@ -52,6 +52,8 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
         ),
         {
           value: Number(order.total),
+          shipping: Number(order.shippingCost),
+          tax: Number(order.taxAmount),
         }
       )
     : null
@@ -63,6 +65,7 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
           <PurchaseTracker
             orderId={order.id}
             transactionId={order.orderNumber}
+            eventId={`meta_purchase_${order.id}`}
             payload={purchasePayload}
           />
         ) : null}

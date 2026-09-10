@@ -6,13 +6,29 @@ import { requireAuth } from "@/lib/admin-auth"
 import { normalizeTimeZone } from "@/lib/time-zone"
 import { mergeThemeColors } from "@/lib/theme-colors"
 import { validateNotificationEmails } from "@/lib/notification-emails"
+import { encryptSecret } from "@/lib/secret-encryption"
+
+function normalizeTrackingId(value: unknown, pattern: RegExp, label: string) {
+  if (value === null || value === undefined || value === "") return null
+  if (typeof value !== "string") throw new Error(`${label} inválido`)
+
+  const normalized = value.trim().toUpperCase()
+  if (!pattern.test(normalized)) throw new Error(`${label} inválido`)
+  return normalized
+}
 
 export async function GET() {
   const authError = await requireAuth()
   if (authError) return authError
 
   try {
-    let settings = await db.storeSettings.findFirst()
+    let settings = await db.storeSettings.findFirst({
+      include: {
+        analyticsSecret: {
+          select: { metaCapiAccessTokenCiphertext: true },
+        },
+      },
+    })
 
     const defaultPaymentMethods = {
       ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
@@ -24,7 +40,7 @@ export async function GET() {
 
     // If no settings exist, create with defaults
     if (!settings) {
-      settings = await db.storeSettings.create({
+      const createdSettings = await db.storeSettings.create({
         data: {
           storeName: "Mi Tienda",
           shippingConfig: getDefaultShippingConfig(),
@@ -35,14 +51,24 @@ export async function GET() {
           timeZone: "America/Argentina/Buenos_Aires",
         },
       })
-    } else if (!settings.paymentMethods) {
+      return NextResponse.json({
+        ...createdSettings,
+        metaCapiAccessTokenConfigured: false,
+      })
+    }
+
+    if (!settings.paymentMethods) {
       settings = {
         ...settings,
         paymentMethods: defaultPaymentMethods,
       }
     }
 
-    return NextResponse.json(settings)
+    const { analyticsSecret, ...publicSettings } = settings
+    return NextResponse.json({
+      ...publicSettings,
+      metaCapiAccessTokenConfigured: Boolean(analyticsSecret?.metaCapiAccessTokenCiphertext),
+    })
   } catch (error) {
     console.error("Settings GET error:", error)
     return NextResponse.json({ error: "Error al obtener configuración" }, { status: 500 })
@@ -82,6 +108,11 @@ export async function PUT(req: NextRequest) {
       minShippingOrderAmount,
       storeUrl,
       timeZone,
+      gtmContainerId,
+      gaMeasurementId,
+      metaPixelId,
+      metaCapiAccessToken,
+      clearMetaCapiAccessToken,
       // Store Pickup
       storePickupEnabled,
       // Home page fields
@@ -106,6 +137,47 @@ export async function PUT(req: NextRequest) {
     // If no shipping config provided, use default
     const finalShippingConfig = shippingConfig || (!existing ? getDefaultShippingConfig() : null)
     const notificationEmails = validateNotificationEmails(newOrderNotificationEmails)
+
+    if (metaCapiAccessToken !== undefined && typeof metaCapiAccessToken !== "string") {
+      return NextResponse.json({ error: "Token de Conversions API inválido" }, { status: 400 })
+    }
+    if (clearMetaCapiAccessToken === true && metaCapiAccessToken?.trim()) {
+      return NextResponse.json({ error: "No podés reemplazar y eliminar el token al mismo tiempo" }, { status: 400 })
+    }
+
+    let encryptedMetaCapiToken: ReturnType<typeof encryptSecret> | null = null
+    if (metaCapiAccessToken?.trim()) {
+      if (metaCapiAccessToken.trim().length > 4096) {
+        return NextResponse.json({ error: "Token de Conversions API inválido" }, { status: 400 })
+      }
+      try {
+        encryptedMetaCapiToken = encryptSecret(metaCapiAccessToken.trim())
+      } catch (error) {
+        console.error("Analytics secret encryption error:", error)
+        return NextResponse.json(
+          { error: "No se pudo guardar el token. Configurá ANALYTICS_ENCRYPTION_KEY en el servidor." },
+          { status: 500 },
+        )
+      }
+    }
+
+    let trackingIds: {
+      gtmContainerId: string | null
+      gaMeasurementId: string | null
+      metaPixelId: string | null
+    }
+    try {
+      trackingIds = {
+        gtmContainerId: normalizeTrackingId(gtmContainerId, /^GTM-[A-Z0-9]+$/, "ID de Google Tag Manager"),
+        gaMeasurementId: normalizeTrackingId(gaMeasurementId, /^G-[A-Z0-9]+$/, "ID de medición de Google Analytics"),
+        metaPixelId: normalizeTrackingId(metaPixelId, /^\d+$/, "ID de Meta Pixel"),
+      }
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "IDs de tracking inválidos" },
+        { status: 400 },
+      )
+    }
 
     if (notificationEmails.invalidEmails.length > 0) {
       return NextResponse.json(
@@ -138,6 +210,7 @@ export async function PUT(req: NextRequest) {
       whatsappWidgetMessage,
       storePickupEnabled,
       timeZone: normalizeTimeZone(timeZone),
+      ...trackingIds,
     }
 
     if (newOrderEmailNotificationsEnabled !== undefined) {
@@ -191,7 +264,40 @@ export async function PUT(req: NextRequest) {
       data: updateData,
     })
 
-    return NextResponse.json({ success: true })
+    if (encryptedMetaCapiToken) {
+      await db.storeAnalyticsSecret.upsert({
+        where: { storeSettingsId: id },
+        create: {
+          storeSettingsId: id,
+          metaCapiAccessTokenCiphertext: encryptedMetaCapiToken.ciphertext,
+          metaCapiAccessTokenIv: encryptedMetaCapiToken.iv,
+          metaCapiAccessTokenAuthTag: encryptedMetaCapiToken.authTag,
+          metaCapiAccessTokenUpdatedAt: new Date(),
+        },
+        update: {
+          metaCapiAccessTokenCiphertext: encryptedMetaCapiToken.ciphertext,
+          metaCapiAccessTokenIv: encryptedMetaCapiToken.iv,
+          metaCapiAccessTokenAuthTag: encryptedMetaCapiToken.authTag,
+          metaCapiAccessTokenUpdatedAt: new Date(),
+        },
+      })
+    } else if (clearMetaCapiAccessToken === true) {
+      await db.storeAnalyticsSecret.upsert({
+        where: { storeSettingsId: id },
+        create: { storeSettingsId: id },
+        update: {
+          metaCapiAccessTokenCiphertext: null,
+          metaCapiAccessTokenIv: null,
+          metaCapiAccessTokenAuthTag: null,
+          metaCapiAccessTokenUpdatedAt: null,
+        },
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      metaCapiAccessTokenConfigured: Boolean(encryptedMetaCapiToken),
+    })
   } catch (error) {
     console.error("Settings update error:", error)
     return NextResponse.json({ error: "Error al guardar" }, { status: 500 })
