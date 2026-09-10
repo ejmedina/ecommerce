@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { type CartComboConfiguration, summarizeComboConfiguration } from "@/lib/combos"
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { createOrder } from "@/lib/actions/order-actions"
-import { Check, CheckCircle2, ChevronRight, Truck } from "lucide-react"
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Truck } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail } from "lucide-react"
 import { useCart } from "@/components/cart-context"
@@ -27,6 +27,7 @@ import {
   getDefaultShippingConfig 
 } from "@/lib/shipping"
 import { type PricingResult } from "@/lib/pricing"
+import { getDeliveryOptions, type DeliveryScheduleRuleInput } from "@/lib/delivery-scheduling"
 
 interface SavedAddress {
   id: string
@@ -70,6 +71,10 @@ interface CheckoutStepsProps {
     paymentMethods?: Record<string, { isActive: boolean; label: string; description: string }> | null
     minShippingOrderAmount?: unknown
     storePickupEnabled?: boolean
+    deliverySchedulingEnabled?: boolean
+    deliveryDateOptionsLimit?: number
+    deliveryScheduleRules?: DeliveryScheduleRuleInput[]
+    timeZone?: string
   }
   pricingResult: PricingResult
   user?: { id: string; email?: string | null; name?: string | null } | null
@@ -101,6 +106,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   const storePickupEnabled = settings.storePickupEnabled !== false;
   const initialShippingMethod = storePickupEnabled ? "pickup" : "shipping";
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "shipping">(initialShippingMethod)
+  const [selectedDeliveryKey, setSelectedDeliveryKey] = useState<string | null>(null)
   
   const defaultPaymentMethods: Record<string, { isActive: boolean; label: string; description: string }> = {
     ONLINE_CARD: { isActive: true, label: "Mercado Pago", description: "Pago online seguro" },
@@ -170,16 +176,17 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   const shippingNeedsCitySelection = availableShippingCities.length > 0
   
   const shippingCalculation = useMemo(() => {
+    const deliveryProvince = formData.state || selectedProvince
     if (
       shippingMethod !== "shipping"
-      || !selectedProvince
+      || !deliveryProvince
       || (shippingNeedsCitySelection && !formData.city)
     ) {
       return null
     }
 
     const calc = calculateShipping(
-      selectedProvince as ProvinceId,
+      deliveryProvince as ProvinceId,
       shippingNeedsCitySelection ? formData.city : "",
       pricingResult.totalToPay,
       shippingConfig
@@ -194,13 +201,30 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       isFree: calc.isFree,
       freeFrom: calc.freeFrom,
       zoneName: calc.zone.name,
+      zoneId: calc.zone.id,
     }
-  }, [formData.city, pricingResult.totalToPay, selectedProvince, shippingConfig, shippingMethod, shippingNeedsCitySelection])
+  }, [formData.city, formData.state, pricingResult.totalToPay, selectedProvince, shippingConfig, shippingMethod, shippingNeedsCitySelection])
 
   const shippingCost = shippingMethod === "shipping" 
     ? (shippingCalculation?.cost ?? 0)
     : 0
   const total = pricingResult.totalToPay + shippingCost
+  const deliverySchedulingEnabled = shippingMethod === "shipping" && settings.deliverySchedulingEnabled === true
+  const deliveryOptions = useMemo(() => {
+    if (!deliverySchedulingEnabled || !shippingCalculation?.zoneId) return []
+    return getDeliveryOptions({
+      rules: settings.deliveryScheduleRules || [],
+      shippingZoneId: shippingCalculation.zoneId,
+      timeZone: settings.timeZone || "America/Argentina/Buenos_Aires",
+      limit: settings.deliveryDateOptionsLimit || 2,
+    })
+  }, [deliverySchedulingEnabled, settings.deliveryDateOptionsLimit, settings.deliveryScheduleRules, settings.timeZone, shippingCalculation?.zoneId])
+  const selectedDeliveryOption = deliveryOptions.find((option) => option.key === selectedDeliveryKey) || null
+  const shippingIsAlwaysFree = shippingConfig.zones.length > 0 && shippingConfig.zones.every((zone) => zone.cost === 0)
+
+  useEffect(() => {
+    setSelectedDeliveryKey(null)
+  }, [shippingCalculation?.zoneId])
 
   // Determine visible steps based on settings
   const visibleSteps = getVisibleSteps(shippingMethod)
@@ -269,6 +293,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
         if (shippingMethod === "shipping") {
           const min = Number(settings.minShippingOrderAmount) || 0
           return pricingResult.rawSubtotal >= min
+            && (!deliverySchedulingEnabled || selectedDeliveryOption !== null)
         }
         return true
       case "address":
@@ -368,6 +393,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       formDataObj.set("state", formData.state)
       formDataObj.set("postalCode", formData.postalCode)
       formDataObj.set("instructions", formData.instructions)
+      if (selectedDeliveryOption) {
+        formDataObj.set("scheduledDeliveryDate", selectedDeliveryOption.date)
+        formDataObj.set("deliveryScheduleRuleId", selectedDeliveryOption.ruleId)
+      }
       formDataObj.set("discountAmount", pricingResult.discountAmount.toString())
 
       const result = await createOrder(formDataObj)
@@ -557,6 +586,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                     <RadioGroupItem value="shipping" id="shipping" />
                     <Label htmlFor="shipping" className="flex-1 cursor-pointer">
                       <strong>Envío a domicilio</strong>
+                      {shippingIsAlwaysFree && <span className="text-muted-foreground ml-2">Gratis</span>}
                     </Label>
                   </div>
                 </RadioGroup>
@@ -566,7 +596,9 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                   <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
                     <div className="flex items-center gap-2">
                       <Truck className="h-4 w-4" />
-                      <span className="font-medium text-sm">Calculá el costo de envío</span>
+                      <span className="font-medium text-sm">
+                        {shippingIsAlwaysFree ? "Elegí tu zona de entrega" : "Calculá el costo de envío"}
+                      </span>
                     </div>
                     
                     <div className="space-y-2">
@@ -638,6 +670,36 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           <p className="text-xs text-muted-foreground">
                             Comprando {formatCurrency(shippingCalculation.freeFrom)} tenés envío gratis
                           </p>
+                        )}
+                      </div>
+                    )}
+
+                    {deliverySchedulingEnabled && shippingCalculation && selectedProvince && (!shippingNeedsCitySelection || formData.city) && (
+                      <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">Elegí tu día de entrega</span>
+                        </div>
+                        {deliveryOptions.length > 0 ? (
+                          <RadioGroup value={selectedDeliveryKey || ""} onValueChange={setSelectedDeliveryKey} className="space-y-2">
+                            {deliveryOptions.map((option) => (
+                              <div key={option.key} className="flex items-center gap-3 rounded-lg border bg-background p-3">
+                                <RadioGroupItem value={option.key} id={`delivery-${option.key}`} />
+                                <Label htmlFor={`delivery-${option.key}`} className="flex-1 cursor-pointer capitalize">
+                                  <strong>{option.label}</strong>
+                                </Label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        ) : (
+                          <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                            <p>No hay fechas de entrega disponibles para esta zona. Elegí otra zona o retiralo en tienda.</p>
+                            {storePickupEnabled && (
+                              <Button type="button" variant="outline" size="sm" onClick={() => setShippingMethod("pickup")}>
+                                Elegir retiro en tienda
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -854,6 +916,9 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                   {shippingMethod === "shipping" && (
                     <p><strong>Dirección:</strong> {formData.street} {formData.number}, {formData.city}, {formData.state}</p>
                   )}
+                  {selectedDeliveryOption ? (
+                    <p className="capitalize"><strong>Entrega:</strong> {selectedDeliveryOption.label}</p>
+                  ) : null}
                   <p><strong>Método de pago:</strong> {paymentMethodsConfig[paymentMethod]?.label || paymentMethod}</p>
                 </div>
 

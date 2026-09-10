@@ -107,6 +107,8 @@ export function RouteSheetActions({
     const ordersHtml = routeSheet.items.map((item, index) => {
       const order = item.order
       const address = order.shippingAddress
+      const scheduledDelivery = order.deliverySlotLabel
+        || (order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate).toLocaleDateString("es-AR") : "No especificada")
       const itemsList = getCommercialOrderItems(order.items).map((oi) =>
         `<li>
           <div>${oi.quantityOrdered}x ${oi.name}${oi.itemType === "COMBO" ? ' <span style="font-size:11px;border:1px solid #bbb;border-radius:999px;padding:1px 8px;color:#666;">Combo</span>' : ""}</div>
@@ -130,6 +132,7 @@ export function RouteSheetActions({
               <p><strong>Teléfono:</strong> ${order.user.phone || 'N/A'}</p>
               <p><strong>Dirección:</strong> ${address?.street || ''} ${address?.number || ''} ${address?.floor ? ', Piso ' + address.floor : ''} ${address?.apartment ? ', Depto ' + address.apartment : ''}</p>
               <p><strong>Localidad:</strong> ${address?.city || ''}, ${address?.state || ''}</p>
+              <p><strong>Entrega elegida:</strong> ${scheduledDelivery}</p>
               ${order.customerNotes ? `<p><strong>Notas:</strong> ${order.customerNotes}</p>` : ''}
             </div>
             <div>

@@ -81,6 +81,8 @@ interface Order {
   }
   shippingMethod: string
   shippingAddress: unknown
+  scheduledDeliveryDate?: string | null
+  deliverySlotLabel?: string | null
   customerNotes?: string | null
   items: OrderItem[]
 }
@@ -217,6 +219,12 @@ function escapeHtml(value: string) {
 
 function formatOrderCurrency(value: number) {
   return `$${Number(value).toLocaleString("es-AR")}`
+}
+
+function formatScheduledDelivery(order: Order, timeZone?: string | null) {
+  if (order.deliverySlotLabel) return order.deliverySlotLabel
+  if (order.scheduledDeliveryDate) return formatDate(order.scheduledDeliveryDate, undefined, timeZone)
+  return null
 }
 
 function getRouteIneligibilityReason(order: Order, requiresPaymentToFulfill: boolean) {
@@ -504,6 +512,7 @@ export function OrdersTable({
           ? "N/A"
           : address?.localityLine || "Sin domicilio cargado",
       ],
+      ["Entrega elegida", formatScheduledDelivery(order, timeZone) || "No especificada"],
     ]
 
     const customerDetailsHtml = customerDetails
@@ -756,7 +765,7 @@ export function OrdersTable({
                         />
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {selectedOrders.size} pedidos seleccionados
+                        {selectedOrders.size} pedidos seleccionados. La fecha elegida por cada cliente seguirá visible en la hoja de ruta.
                       </p>
                       {error ? (
                         <Alert variant="destructive">
@@ -798,6 +807,7 @@ export function OrdersTable({
               order,
               requiresPaymentToFulfill
             )
+            const scheduledDelivery = formatScheduledDelivery(order, timeZone)
 
             return (
               <Card key={order.id} className={`
@@ -862,6 +872,11 @@ export function OrdersTable({
                             <p className="text-muted-foreground">{formattedAddress.localityLine}</p>
                             {formattedAddress.instructions ? (
                               <p className="text-muted-foreground">Indicaciones: {formattedAddress.instructions}</p>
+                            ) : null}
+                            {scheduledDelivery ? (
+                              <p className="mt-2 font-medium text-primary capitalize">
+                                Entrega elegida: {scheduledDelivery}
+                              </p>
                             ) : null}
                           </>
                         ) : (

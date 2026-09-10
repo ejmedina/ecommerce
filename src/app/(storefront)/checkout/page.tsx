@@ -69,7 +69,9 @@ async function getCart() {
 }
 
 async function getSettings() {
-  let settings = await db.storeSettings.findFirst()
+  let settings = await db.storeSettings.findFirst({
+    include: { deliveryScheduleRules: { orderBy: { position: "asc" } } },
+  })
   if (!settings) {
     settings = await db.storeSettings.create({
       data: {
@@ -77,6 +79,7 @@ async function getSettings() {
         freeShippingMin: 0,
         fixedShippingCost: 0,
       },
+      include: { deliveryScheduleRules: { orderBy: { position: "asc" } } },
     })
   }
   // Convert Decimal to plain numbers to avoid hydration errors
@@ -88,6 +91,19 @@ async function getSettings() {
     paymentMethods: settings.paymentMethods as PaymentMethodsConfig | null,
     minShippingOrderAmount: Number(settings.minShippingOrderAmount) || 0,
     storePickupEnabled: settings.storePickupEnabled,
+    deliverySchedulingEnabled: settings.deliverySchedulingEnabled,
+    deliveryDateOptionsLimit: settings.deliveryDateOptionsLimit,
+    deliveryScheduleRules: settings.deliveryScheduleRules.map((rule) => ({
+      id: rule.id,
+      shippingZoneId: rule.shippingZoneId,
+      weekday: rule.weekday,
+      startTime: rule.startTime,
+      endTime: rule.endTime,
+      cutoffDaysBefore: rule.cutoffDaysBefore,
+      cutoffTime: rule.cutoffTime,
+      isActive: rule.isActive,
+    })),
+    timeZone: settings.timeZone,
   }
 }
 

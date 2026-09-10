@@ -109,6 +109,8 @@ export default async function OrdersPage({ searchParams }: Props) {
     },
     shippingMethod: order.shippingMethod,
     shippingAddress: order.shippingAddress,
+    scheduledDeliveryDate: order.scheduledDeliveryDate?.toISOString() || null,
+    deliverySlotLabel: order.deliverySlotLabel,
     customerNotes: order.customerNotes,
     items: order.items.map((item) => ({
       id: item.id,

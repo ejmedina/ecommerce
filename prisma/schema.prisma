@@ -337,6 +337,15 @@ model Order {
   shippingAddress    Json
   billingAddress     Json?
 
+  // Snapshot de la agenda elegida; no cambia si la regla se edita después.
+  deliveryZoneId           String?
+  deliveryZoneName         String?
+  scheduledDeliveryDate    DateTime? @db.Date
+  deliveryScheduleRuleId   String?
+  deliverySlotLabel        String?
+  deliveryWindowStart      String?
+  deliveryWindowEnd        String?
+
   mercadopagoId      String?
   mercadopagoData    Json?
 
@@ -611,10 +620,35 @@ model StoreSettings {
   metaPixelId         String?
   analyticsSecret     StoreAnalyticsSecret?
 
+  // Agenda de entregas recurrente por zona de envío.
+  deliverySchedulingEnabled Boolean @default(false)
+  deliveryDateOptionsLimit  Int     @default(2)
+  deliveryScheduleRules     DeliveryScheduleRule[]
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@map("store_settings")
+}
+
+model DeliveryScheduleRule {
+  id                String   @id @default(cuid())
+  storeSettingsId   String
+  shippingZoneId    String
+  weekday           Int      // 0 = domingo, 6 = sábado
+  startTime         String   // HH:mm, hora local de la tienda
+  endTime           String   // HH:mm, hora local de la tienda
+  cutoffDaysBefore  Int      @default(0)
+  cutoffTime        String   // HH:mm, hora local de la tienda
+  isActive          Boolean  @default(true)
+  position          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  storeSettings StoreSettings @relation(fields: [storeSettingsId], references: [id], onDelete: Cascade)
+
+  @@index([storeSettingsId, shippingZoneId, weekday])
+  @@map("delivery_schedule_rules")
 }
 
 // Server-only credentials. The token is encrypted before it reaches this table

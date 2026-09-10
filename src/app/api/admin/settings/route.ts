@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { getDefaultShippingConfig } from "@/lib/shipping"
+import { getDefaultShippingConfig, type ShippingConfig } from "@/lib/shipping"
 import { requireAuth } from "@/lib/admin-auth"
 import { normalizeTimeZone } from "@/lib/time-zone"
 import { mergeThemeColors } from "@/lib/theme-colors"
@@ -17,6 +17,37 @@ function normalizeTrackingId(value: unknown, pattern: RegExp, label: string) {
   return normalized
 }
 
+function normalizeDeliveryRules(value: unknown, shippingConfig: ShippingConfig | null) {
+  if (!Array.isArray(value)) throw new Error("Las reglas de entrega son inválidas")
+  const zoneIds = new Set((shippingConfig?.zones || []).map((zone) => zone.id))
+  const isTime = (time: unknown): time is string => typeof time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+
+  return value.map((rule, position) => {
+    if (!rule || typeof rule !== "object") throw new Error("Las reglas de entrega son inválidas")
+    const input = rule as Record<string, unknown>
+    const weekday = input.weekday
+    const cutoffDaysBefore = input.cutoffDaysBefore
+    if (
+      typeof input.shippingZoneId !== "string" || !zoneIds.has(input.shippingZoneId) ||
+      typeof weekday !== "number" || !Number.isInteger(weekday) || weekday < 0 || weekday > 6 ||
+      !isTime(input.startTime) || !isTime(input.endTime) || input.startTime >= input.endTime ||
+      typeof cutoffDaysBefore !== "number" || !Number.isInteger(cutoffDaysBefore) || cutoffDaysBefore < 0 || cutoffDaysBefore > 30 ||
+      !isTime(input.cutoffTime)
+    ) throw new Error("Revisá los datos de las reglas de entrega")
+
+    return {
+      shippingZoneId: input.shippingZoneId,
+      weekday,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      cutoffDaysBefore,
+      cutoffTime: input.cutoffTime,
+      isActive: input.isActive !== false,
+      position,
+    }
+  })
+}
+
 export async function GET() {
   const authError = await requireAuth()
   if (authError) return authError
@@ -27,6 +58,7 @@ export async function GET() {
         analyticsSecret: {
           select: { metaCapiAccessTokenCiphertext: true },
         },
+        deliveryScheduleRules: { orderBy: { position: "asc" } },
       },
     })
 
@@ -108,6 +140,9 @@ export async function PUT(req: NextRequest) {
       minShippingOrderAmount,
       storeUrl,
       timeZone,
+      deliverySchedulingEnabled,
+      deliveryDateOptionsLimit,
+      deliveryScheduleRules,
       gtmContainerId,
       gaMeasurementId,
       metaPixelId,
@@ -137,6 +172,24 @@ export async function PUT(req: NextRequest) {
     // If no shipping config provided, use default
     const finalShippingConfig = shippingConfig || (!existing ? getDefaultShippingConfig() : null)
     const notificationEmails = validateNotificationEmails(newOrderNotificationEmails)
+
+    let normalizedDeliveryRules: ReturnType<typeof normalizeDeliveryRules> | undefined
+    if (deliveryScheduleRules !== undefined) {
+      try {
+        normalizedDeliveryRules = normalizeDeliveryRules(
+          deliveryScheduleRules,
+          (shippingConfig || existing?.shippingConfig || null) as ShippingConfig | null,
+        )
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Reglas de entrega inválidas" },
+          { status: 400 },
+        )
+      }
+    }
+    if (deliverySchedulingEnabled === true && normalizedDeliveryRules?.every((rule) => !rule.isActive)) {
+      return NextResponse.json({ error: "Agregá al menos una regla de entrega activa" }, { status: 400 })
+    }
 
     if (metaCapiAccessToken !== undefined && typeof metaCapiAccessToken !== "string") {
       return NextResponse.json({ error: "Token de Conversions API inválido" }, { status: 400 })
@@ -254,14 +307,32 @@ export async function PUT(req: NextRequest) {
 
     // Update payment methods if provided
     if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods
+    if (deliverySchedulingEnabled !== undefined) updateData.deliverySchedulingEnabled = deliverySchedulingEnabled === true
+    if (deliveryDateOptionsLimit !== undefined) {
+      const optionLimit = Number(deliveryDateOptionsLimit)
+      if (!Number.isInteger(optionLimit) || optionLimit < 1 || optionLimit > 8) {
+        return NextResponse.json({ error: "La cantidad de fechas debe estar entre 1 y 8" }, { status: 400 })
+      }
+      updateData.deliveryDateOptionsLimit = optionLimit
+    }
 
     // Update store URL if provided
     if (storeUrl !== undefined) updateData.storeUrl = storeUrl
     if (timeZone !== undefined) updateData.timeZone = timeZone
 
-    await db.storeSettings.update({
-      where: { id },
-      data: updateData,
+    await db.$transaction(async (tx) => {
+      await tx.storeSettings.update({
+        where: { id },
+        data: updateData,
+      })
+      if (normalizedDeliveryRules) {
+        await tx.deliveryScheduleRule.deleteMany({ where: { storeSettingsId: id } })
+        if (normalizedDeliveryRules.length > 0) {
+          await tx.deliveryScheduleRule.createMany({
+            data: normalizedDeliveryRules.map((rule) => ({ ...rule, storeSettingsId: id })),
+          })
+        }
+      }
     })
 
     if (encryptedMetaCapiToken) {

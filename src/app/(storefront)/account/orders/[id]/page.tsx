@@ -150,6 +150,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 {shippingAddress?.floor && <p>Piso: {shippingAddress.floor}</p>}
                 {shippingAddress?.apartment && <p>Depto: {shippingAddress.apartment}</p>}
                 <p>{shippingAddress?.city}, {shippingAddress?.state} {shippingAddress?.postalCode}</p>
+                {order.deliverySlotLabel && <p className="capitalize"><strong>Entrega:</strong> {order.deliverySlotLabel}</p>}
               </>
             )}
             {shippingAddress?.instructions && (

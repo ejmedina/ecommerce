@@ -63,6 +63,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   }
 
   const timeZone = settings?.timeZone ?? null
+  const scheduledDelivery = order.deliverySlotLabel
+    || (order.scheduledDeliveryDate ? formatDateTime(order.scheduledDeliveryDate, timeZone) : null)
 
   function getOrderStatusBadge(status: string) {
     const variants: Record<string, "default" | "success" | "warning" | "destructive"> = {
@@ -221,6 +223,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 {shippingAddress?.floor && <p>Piso: {shippingAddress.floor}</p>}
                 {shippingAddress?.apartment && <p>Depto: {shippingAddress.apartment}</p>}
                 <p>{shippingAddress?.city}, {shippingAddress?.state} {shippingAddress?.postalCode}</p>
+                {scheduledDelivery && (
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-primary">
+                    <p className="font-medium">Entrega elegida por el cliente</p>
+                    <p className="capitalize">{scheduledDelivery}</p>
+                  </div>
+                )}
                 <div className="mt-2 space-y-2">
                   <a 
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress?.street} ${shippingAddress?.number}, ${shippingAddress?.city}, ${shippingAddress?.state}, Argentina`)}`}

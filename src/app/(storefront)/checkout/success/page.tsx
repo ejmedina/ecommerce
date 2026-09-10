@@ -97,6 +97,7 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
                   order.paymentStatus
                 }
               </p>
+              {order.deliverySlotLabel ? <p className="text-sm mt-2 capitalize"><strong>Entrega:</strong> {order.deliverySlotLabel}</p> : null}
             </div>
 
             {order.paymentMethod === "BANK_TRANSFER" && (

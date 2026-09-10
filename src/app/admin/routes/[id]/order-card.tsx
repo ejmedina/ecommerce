@@ -37,7 +37,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { formatCurrency, formatDateTime } from "@/lib/utils"
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { ArrowUp, ArrowDown, Phone, MessageCircle, AlertTriangle, Check, X, MapPin, Navigation, GripVertical, Globe, Save, Loader2, Trash2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
@@ -55,6 +55,8 @@ interface OrderCardProps {
       orderNumber: string
       total: number | string
       orderStatus: string
+      scheduledDeliveryDate?: string | null
+      deliverySlotLabel?: string | null
       customerNotes?: string | null
       shippingAddress: ShippingAddress | null
       user: {
@@ -144,6 +146,8 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
   const effectiveDeliveryOutcome = getEffectiveDeliveryOutcome(item)
   const isDelivered = effectiveDeliveryOutcome === "DELIVERED"
   const isNotDelivered = effectiveDeliveryOutcome === "NOT_DELIVERED"
+  const scheduledDelivery = item.order.deliverySlotLabel
+    || (item.order.scheduledDeliveryDate ? formatDate(item.order.scheduledDeliveryDate, undefined, timeZone) : null)
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
@@ -402,6 +406,11 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
                   </>
                 )}
               </div>
+            )}
+            {scheduledDelivery && (
+              <p className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-sm font-medium text-primary capitalize">
+                Entrega elegida: {scheduledDelivery}
+              </p>
             )}
           </div>
 
@@ -716,6 +725,12 @@ export function OrderCard({ item, index, mode, totalItems, whatsappMessage, stor
             </a>
           )}
         </div>
+
+        {scheduledDelivery && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-sm text-primary">
+            <strong>Entrega elegida por el cliente:</strong> <span className="capitalize">{scheduledDelivery}</span>
+          </div>
+        )}
 
         {/* Commercial summary */}
         <div>

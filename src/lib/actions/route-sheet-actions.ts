@@ -28,6 +28,7 @@ function serializeRouteSheet(rs: any) {
         updatedAt: item.order.updatedAt.toISOString(),
         paidAt: item.order.paidAt?.toISOString() || null,
         cancelledAt: item.order.cancelledAt?.toISOString() || null,
+        scheduledDeliveryDate: item.order.scheduledDeliveryDate?.toISOString() || null,
         items: item.order.items.map((oi: any) => ({
           ...oi,
           price: Number(oi.price),

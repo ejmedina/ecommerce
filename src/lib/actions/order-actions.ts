@@ -11,6 +11,8 @@ import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
 import { validateComboCartSelection } from "@/lib/cart-combos"
 import { buildOrderItemComponentSnapshots } from "@/lib/order-combos"
 import { sendMetaPurchaseEvent } from "@/lib/meta-conversions-api"
+import { calculateShipping, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
+import { getDeliveryOptions } from "@/lib/delivery-scheduling"
 
 type CartWithComboData = Prisma.CartGetPayload<{
   include: {
@@ -115,6 +117,8 @@ export async function createOrder(formData: FormData) {
     const state = formData.get("state") as string
     const postalCode = formData.get("postalCode") as string
     const instructions = formData.get("instructions") as string
+    const scheduledDeliveryDate = formData.get("scheduledDeliveryDate") as string
+    const deliveryScheduleRuleId = formData.get("deliveryScheduleRuleId") as string
 
     // Get cart items
     const cart = await db.cart.findUnique({
@@ -225,7 +229,9 @@ export async function createOrder(formData: FormData) {
     })
 
     // Get settings for shipping
-    const settings = await db.storeSettings.findFirst()
+    const settings = await db.storeSettings.findFirst({
+      include: { deliveryScheduleRules: { orderBy: { position: "asc" } } },
+    })
     
     const storePickupEnabled = settings?.storePickupEnabled !== false
     const shippingMethod =
@@ -259,6 +265,32 @@ export async function createOrder(formData: FormData) {
       : 0
 
     const total = pricingResult.totalToPay + shippingCost
+
+    let selectedDelivery: ReturnType<typeof getDeliveryOptions>[number] | null = null
+    let deliveryZone: { id: string; name: string } | null = null
+    if (shippingMethod === "shipping" && settings?.deliverySchedulingEnabled) {
+      const shipping = calculateShipping(
+        state as ProvinceId,
+        city,
+        pricingResult.totalToPay,
+        settings.shippingConfig as ShippingConfig | null,
+      )
+      if (!shipping) return { error: "No encontramos una zona de entrega para esta dirección." }
+
+      deliveryZone = { id: shipping.zone.id, name: shipping.zone.name }
+      const options = getDeliveryOptions({
+        rules: settings.deliveryScheduleRules,
+        shippingZoneId: shipping.zone.id,
+        timeZone: settings.timeZone,
+        limit: settings.deliveryDateOptionsLimit,
+      })
+      selectedDelivery = options.find(
+        (option) => option.date === scheduledDeliveryDate && option.ruleId === deliveryScheduleRuleId,
+      ) || null
+      if (!selectedDelivery) {
+        return { error: "La fecha de entrega elegida ya no está disponible. Elegí una nueva opción." }
+      }
+    }
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
@@ -345,6 +377,13 @@ export async function createOrder(formData: FormData) {
           discountAmount: discountAmount,
           total,
           shippingMethod,
+          deliveryZoneId: deliveryZone?.id || null,
+          deliveryZoneName: deliveryZone?.name || null,
+          scheduledDeliveryDate: selectedDelivery ? new Date(`${selectedDelivery.date}T12:00:00Z`) : null,
+          deliveryScheduleRuleId: selectedDelivery?.ruleId || null,
+          deliverySlotLabel: selectedDelivery?.label || null,
+          deliveryWindowStart: selectedDelivery?.startTime || null,
+          deliveryWindowEnd: selectedDelivery?.endTime || null,
           shippingAddress: {
             name,
             phone,

@@ -17,6 +17,9 @@ import { ColorPicker, ThemePreview } from "@/components/admin/color-picker"
 import { defaultColors } from "@/components/theme-provider"
 import { mergeThemeColors, type ThemeColors } from "@/lib/theme-colors"
 import { validateNotificationEmails } from "@/lib/notification-emails"
+import type { DeliveryScheduleRuleInput } from "@/lib/delivery-scheduling"
+
+const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 
 interface StoreSettings {
   id: string
@@ -54,6 +57,9 @@ interface StoreSettings {
   gaMeasurementId: string | null
   metaPixelId: string | null
   metaCapiAccessTokenConfigured: boolean
+  deliverySchedulingEnabled: boolean
+  deliveryDateOptionsLimit: number
+  deliveryScheduleRules: DeliveryScheduleRuleInput[]
 }
 
 export function SettingsForm() {
@@ -90,6 +96,9 @@ export function SettingsForm() {
   const [metaCapiAccessToken, setMetaCapiAccessToken] = useState("")
   const [metaCapiAccessTokenConfigured, setMetaCapiAccessTokenConfigured] = useState(false)
   const [clearMetaCapiAccessToken, setClearMetaCapiAccessToken] = useState(false)
+  const [deliverySchedulingEnabled, setDeliverySchedulingEnabled] = useState(false)
+  const [deliveryDateOptionsLimit, setDeliveryDateOptionsLimit] = useState(2)
+  const [deliveryScheduleRules, setDeliveryScheduleRules] = useState<DeliveryScheduleRuleInput[]>([])
 
   // Theme colors state
   const [themeColors, setThemeColors] = useState<ThemeColors>(defaultColors)
@@ -138,6 +147,9 @@ export function SettingsForm() {
       setMetaCapiAccessToken("")
       setMetaCapiAccessTokenConfigured(data.metaCapiAccessTokenConfigured === true)
       setClearMetaCapiAccessToken(false)
+      setDeliverySchedulingEnabled(data.deliverySchedulingEnabled === true)
+      setDeliveryDateOptionsLimit(data.deliveryDateOptionsLimit || 2)
+      setDeliveryScheduleRules(data.deliveryScheduleRules || [])
       
       if (data.shippingConfig) {
         setShippingConfig(data.shippingConfig)
@@ -215,6 +227,9 @@ export function SettingsForm() {
           gtmContainerId: gtmContainerId || null,
           gaMeasurementId: gaMeasurementId || null,
           metaPixelId: metaPixelId || null,
+          deliverySchedulingEnabled,
+          deliveryDateOptionsLimit,
+          deliveryScheduleRules,
           ...(metaCapiAccessToken ? { metaCapiAccessToken } : {}),
           ...(clearMetaCapiAccessToken ? { clearMetaCapiAccessToken: true } : {}),
         }),
@@ -338,6 +353,31 @@ export function SettingsForm() {
     })
   }
 
+  const addDeliveryRule = () => {
+    const zone = shippingConfig.zones[0]
+    if (!zone) {
+      toast({ variant: "destructive", title: "Primero configurá una zona de envío" })
+      return
+    }
+    setDeliveryScheduleRules((rules) => [
+      ...rules,
+      {
+        id: `new-${Date.now()}`,
+        shippingZoneId: zone.id,
+        weekday: 4,
+        startTime: "09:00",
+        endTime: "16:00",
+        cutoffDaysBefore: 2,
+        cutoffTime: "13:00",
+        isActive: true,
+      },
+    ])
+  }
+
+  const updateDeliveryRule = (index: number, updates: Partial<DeliveryScheduleRuleInput>) => {
+    setDeliveryScheduleRules((rules) => rules.map((rule, ruleIndex) => ruleIndex === index ? { ...rule, ...updates } : rule))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -357,10 +397,11 @@ export function SettingsForm() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="colors">Colores</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
+          <TabsTrigger value="delivery">Entregas</TabsTrigger>
           <TabsTrigger value="media">Logos</TabsTrigger>
           <TabsTrigger value="blog">Blog</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -494,6 +535,96 @@ export function SettingsForm() {
                 <p className="text-xs text-muted-foreground">
                   Usa [NOMBRE_TIENDA] para insertar automáticamente el nombre de tu tienda.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="delivery" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Agenda de entregas por zona</CardTitle>
+              <CardDescription>
+                Cada regla habilita una franja semanal para una zona de envío. El cliente verá las próximas fechas que cumplan el cierre configurado.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex items-start gap-3 rounded-md border p-4">
+                <Checkbox
+                  id="deliverySchedulingEnabled"
+                  checked={deliverySchedulingEnabled}
+                  onCheckedChange={(checked) => setDeliverySchedulingEnabled(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="deliverySchedulingEnabled" className="cursor-pointer">Permitir que el cliente elija la fecha de entrega</Label>
+                  <p className="text-xs text-muted-foreground">Solo se aplica a envíos a domicilio; el retiro en tienda no cambia.</p>
+                </div>
+              </div>
+
+              <div className="grid max-w-xs gap-2">
+                <Label htmlFor="deliveryDateOptionsLimit">Próximas fechas a ofrecer</Label>
+                <Input
+                  id="deliveryDateOptionsLimit"
+                  type="number"
+                  min={1}
+                  max={8}
+                  value={deliveryDateOptionsLimit}
+                  onChange={(event) => setDeliveryDateOptionsLimit(Number(event.target.value))}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                {deliveryScheduleRules.map((rule, index) => (
+                  <div key={rule.id} className="grid gap-3 rounded-lg border p-4 md:grid-cols-4">
+                    <div className="grid gap-1">
+                      <Label>Zona</Label>
+                      <select
+                        value={rule.shippingZoneId}
+                        onChange={(event) => updateDeliveryRule(index, { shippingZoneId: event.target.value })}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        {shippingConfig.zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Día de entrega</Label>
+                      <select
+                        value={rule.weekday}
+                        onChange={(event) => updateDeliveryRule(index, { weekday: Number(event.target.value) })}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        {WEEKDAYS.map((day, weekday) => <option key={day} value={weekday}>{day}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Franja horaria</Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="time" value={rule.startTime} onChange={(event) => updateDeliveryRule(index, { startTime: event.target.value })} />
+                        <span>a</span>
+                        <Input type="time" value={rule.endTime} onChange={(event) => updateDeliveryRule(index, { endTime: event.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Cierre de pedidos</Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={30} value={rule.cutoffDaysBefore} onChange={(event) => updateDeliveryRule(index, { cutoffDaysBefore: Number(event.target.value) })} />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">días antes a</span>
+                        <Input type="time" value={rule.cutoffTime} onChange={(event) => updateDeliveryRule(index, { cutoffTime: event.target.value })} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 md:col-span-4">
+                      <Checkbox checked={rule.isActive} onCheckedChange={(checked) => updateDeliveryRule(index, { isActive: checked === true })} id={`delivery-active-${rule.id}`} />
+                      <Label htmlFor={`delivery-active-${rule.id}`} className="cursor-pointer">Regla activa</Label>
+                      <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => setDeliveryScheduleRules((rules) => rules.filter((_, ruleIndex) => ruleIndex !== index))}>
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {deliveryScheduleRules.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay reglas. Agregá una por cada zona y día de reparto.</p> : null}
+                <Button type="button" variant="outline" onClick={addDeliveryRule}>Agregar regla de entrega</Button>
               </div>
             </CardContent>
           </Card>
