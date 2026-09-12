@@ -101,6 +101,12 @@ export async function updateOrdersStatus(
 // ============================================
 
 export async function createOrder(formData: FormData) {
+  let transactionContext: {
+    cartId?: string
+    orderNumber?: string
+    startedAt?: number
+  } = {}
+
   try {
     const cartId = formData.get("cartId") as string
     const rawShippingMethod = formData.get("shippingMethod") as string
@@ -365,7 +371,25 @@ export async function createOrder(formData: FormData) {
     const initialStatus: OrderStatus = settings?.autoConfirmOrders ? "CONFIRMED" : "RECEIVED"
 
     // Create order
+    transactionContext = {
+      cartId,
+      orderNumber,
+      startedAt: Date.now(),
+    }
+    console.info("Order transaction started", {
+      cartId,
+      orderNumber,
+      itemCount: orderItemsToCreate.length,
+      timeoutMs: 15_000,
+    })
+
     const order = await db.$transaction(async (tx) => {
+      const createStartedAt = Date.now()
+      console.info("Order transaction callback started", {
+        cartId,
+        orderNumber,
+        transactionQueueMs: createStartedAt - transactionContext.startedAt!,
+      })
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
@@ -412,11 +436,38 @@ export async function createOrder(formData: FormData) {
         },
       })
 
-      await tx.cartItem.deleteMany({
+      const orderCreateDurationMs = Date.now() - createStartedAt
+      console.info("Order transaction order created", {
+        cartId,
+        orderId: createdOrder.id,
+        orderNumber,
+        durationMs: orderCreateDurationMs,
+        transactionElapsedMs: Date.now() - transactionContext.startedAt!,
+      })
+
+      const clearCartStartedAt = Date.now()
+      const deletedCartItems = await tx.cartItem.deleteMany({
         where: { cartId },
+      })
+      console.info("Order transaction cart cleared", {
+        cartId,
+        orderId: createdOrder.id,
+        orderNumber,
+        deletedItemCount: deletedCartItems.count,
+        durationMs: Date.now() - clearCartStartedAt,
+        transactionElapsedMs: Date.now() - transactionContext.startedAt!,
       })
 
       return createdOrder
+    }, {
+      timeout: 15_000,
+    })
+
+    console.info("Order transaction committed", {
+      cartId,
+      orderId: order.id,
+      orderNumber,
+      durationMs: Date.now() - transactionContext.startedAt!,
     })
 
     // Send confirmation email
@@ -457,7 +508,22 @@ export async function createOrder(formData: FormData) {
 
     return { orderId: order.id, paymentUrl: undefined }
   } catch (error) {
-    console.error("Order creation error:", error)
+    const prismaError = error instanceof Prisma.PrismaClientKnownRequestError
+      ? {
+          code: error.code,
+          meta: error.meta,
+        }
+      : undefined
+
+    console.error("Order creation error", {
+      cartId: transactionContext.cartId,
+      orderNumber: transactionContext.orderNumber,
+      transactionElapsedMs: transactionContext.startedAt
+        ? Date.now() - transactionContext.startedAt
+        : undefined,
+      prismaError,
+      error,
+    })
     return {
       error: error instanceof Error
         ? error.message
