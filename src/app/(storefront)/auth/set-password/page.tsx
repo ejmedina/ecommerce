@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { getCheckoutReturnTo } from "@/lib/checkout-resume"
 import { signIn } from "next-auth/react"
 
 function SetPasswordForm() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const token = searchParams.get("token") || ""
+  const returnTo = getCheckoutReturnTo(searchParams.get("returnTo"))
   
   const [status, setStatus] = useState<"loading" | "verifying" | "success" | "error">(token ? "verifying" : "error")
   const [email, setEmail] = useState("")
@@ -45,7 +47,8 @@ function SetPasswordForm() {
           setStatus("error")
           setMessage(data.message || "Enlace de verificación expirado o inválido")
         }
-      } catch {
+      } catch (error) {
+        console.error("Password setup token verification failed", { error })
         setStatus("error")
         setMessage("Error al conectar con el servidor")
       }
@@ -60,10 +63,10 @@ function SetPasswordForm() {
     if (status === "success" && countdown > 0) {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000)
     } else if (status === "success" && countdown === 0) {
-      window.location.href = "/"
+      window.location.href = returnTo || "/"
     }
     return () => clearTimeout(timer)
-  }, [status, countdown])
+  }, [status, countdown, returnTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,7 +128,8 @@ function SetPasswordForm() {
           variant: "destructive",
         })
       }
-    } catch {
+    } catch (error) {
+      console.error("Password setup submission failed", { error })
       setStatus("loading")
       toast({
         title: "Error",
@@ -170,7 +174,9 @@ function SetPasswordForm() {
               </div>
               <CardTitle className="text-green-600">¡Registro completo!</CardTitle>
               <CardDescription>
-                Tu cuenta ha sido activada y ya iniciamos tu sesión.
+                {returnTo
+                  ? "Tu cuenta ha sido activada y ya iniciamos tu sesión. Te llevaremos a finalizar tu compra."
+                  : "Tu cuenta ha sido activada y ya iniciamos tu sesión."}
               </CardDescription>
             </>
           )}

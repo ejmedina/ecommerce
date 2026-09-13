@@ -1,24 +1,26 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Loader2, CheckCircle, XCircle, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { buildCheckoutLoginUrl, getCheckoutReturnTo } from "@/lib/checkout-resume"
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const token = searchParams.get("token")
+  const returnTo = getCheckoutReturnTo(searchParams.get("returnTo"))
+  const loginUrl = buildCheckoutLoginUrl(returnTo)
   
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
-  const [message, setMessage] = useState("")
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    token ? "loading" : "error",
+  )
+  const [message, setMessage] = useState(token ? "" : "Token no proporcionado")
 
   useEffect(() => {
     if (!token) {
-      setStatus("error")
-      setMessage("Token no proporcionado")
       return
     }
 
@@ -35,6 +37,7 @@ export default function VerifyEmailPage() {
           setMessage(data.message || "Error al verificar el email")
         }
       } catch (error) {
+        console.error("Email verification request failed", { error })
         setStatus("error")
         setMessage("Error al conectar con el servidor")
       }
@@ -94,10 +97,14 @@ export default function VerifyEmailPage() {
           {status === "success" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Ahora podés iniciar sesión con tu cuenta verificada.
+                {returnTo
+                  ? "Iniciá sesión para retomar tu compra donde la dejaste."
+                  : "Ahora podés iniciar sesión con tu cuenta verificada."}
               </p>
               <Button asChild className="w-full">
-                <Link href="/login">Iniciar Sesión</Link>
+                <Link href={loginUrl}>
+                  {returnTo ? "Iniciar sesión y continuar compra" : "Iniciar Sesión"}
+                </Link>
               </Button>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hash } from "bcryptjs"
 import { db } from "@/lib/db"
+import { getCheckoutReturnTo } from "@/lib/checkout-resume"
 import { isMigratedUserPendingActivation, sendActivationForUser } from "@/lib/account-activation"
 
 function registrationSuccessResponse(
@@ -23,10 +24,12 @@ function registrationSuccessResponse(
 
 export async function POST(req: NextRequest) {
   let normalizedEmail = ""
+  let checkoutReturnTo: string | null = null
 
   try {
-    const { name, email, password, phone } = await req.json()
+    const { name, email, password, phone, returnTo } = await req.json()
     normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
+    checkoutReturnTo = getCheckoutReturnTo(returnTo)
 
     if (!name || !normalizedEmail || !password) {
       return NextResponse.json(
@@ -56,12 +59,14 @@ export async function POST(req: NextRequest) {
 
     if (existingUser) {
       if (isMigratedUserPendingActivation(existingUser)) {
-        await sendActivationForUser(existingUser)
+        await sendActivationForUser(existingUser, { returnTo: checkoutReturnTo })
+        console.info("Registration activation requested for migrated account", { returnTo: checkoutReturnTo })
         return registrationSuccessResponse(existingUser, "migrated")
       }
 
       if (!existingUser.isActive) {
-        await sendActivationForUser(existingUser)
+        await sendActivationForUser(existingUser, { returnTo: checkoutReturnTo })
+        console.info("Registration activation re-sent for pending account", { returnTo: checkoutReturnTo })
         return registrationSuccessResponse(existingUser, "pending")
       }
 
@@ -90,7 +95,9 @@ export async function POST(req: NextRequest) {
       importedFromWooCommerce: false,
       requiresPasswordSetup: false,
       passwordHash: user.passwordHash,
-    })
+    }, { returnTo: checkoutReturnTo })
+
+    console.info("Registration activation requested for new account", { returnTo: checkoutReturnTo })
 
     return registrationSuccessResponse(user, "new")
   } catch (error) {
@@ -103,7 +110,8 @@ export async function POST(req: NextRequest) {
         })
 
         if (existingUser && !existingUser.isActive) {
-          await sendActivationForUser(existingUser)
+          await sendActivationForUser(existingUser, { returnTo: checkoutReturnTo })
+          console.info("Registration activation recovered after an error", { returnTo: checkoutReturnTo })
           return registrationSuccessResponse(
             existingUser,
             isMigratedUserPendingActivation(existingUser) ? "migrated" : "pending",

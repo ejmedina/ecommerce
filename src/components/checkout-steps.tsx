@@ -337,7 +337,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(registerData),
+        body: JSON.stringify({ ...registerData, returnTo: "/checkout" }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || data.error || "Error al registrar")

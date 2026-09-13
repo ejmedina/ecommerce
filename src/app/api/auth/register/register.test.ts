@@ -48,6 +48,7 @@ describe("POST /api/auth/register", () => {
           email: "cliente@example.com",
           password: "123456",
           phone: "11223344",
+          returnTo: "/checkout",
         }),
       }) as never
     )
@@ -57,7 +58,7 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(200)
     expect(data.flow).toBe("migrated")
     expect(mockDb.user.create).not.toHaveBeenCalled()
-    expect(mockSendActivationForUser).toHaveBeenCalledWith(existingUser)
+    expect(mockSendActivationForUser).toHaveBeenCalledWith(existingUser, { returnTo: "/checkout" })
   })
 
   it("keeps normal registration flow for new users", async () => {
@@ -89,6 +90,40 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(200)
     expect(data.flow).toBe("new")
     expect(mockDb.user.create).toHaveBeenCalled()
-    expect(mockSendActivationForUser).toHaveBeenCalled()
+    expect(mockSendActivationForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "nuevo@example.com" }),
+      { returnTo: null },
+    )
+  })
+
+  it("does not accept an external registration continuation", async () => {
+    const { POST } = await import("./route")
+
+    mockDb.user.findUnique.mockResolvedValue(null)
+    mockDb.user.create.mockResolvedValue({
+      id: "user-3",
+      email: "nuevo@example.com",
+      name: "Nuevo",
+      passwordHash: "hashed-password",
+    })
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Nuevo",
+          email: "nuevo@example.com",
+          password: "123456",
+          phone: "11223344",
+          returnTo: "https://malicious.example",
+        }),
+      }) as never,
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockSendActivationForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "nuevo@example.com" }),
+      { returnTo: null },
+    )
   })
 })

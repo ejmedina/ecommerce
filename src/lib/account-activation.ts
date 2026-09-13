@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { getCheckoutReturnTo } from "@/lib/checkout-resume"
 import { sendVerificationEmail } from "@/lib/email"
 import { createVerificationTokenRecord } from "@/lib/verification-tokens"
 
@@ -26,9 +27,10 @@ export async function sendActivationForUser(user: {
   importedFromWooCommerce: boolean
   requiresPasswordSetup: boolean
   passwordHash: string | null
-}) {
+}, options?: { returnTo?: string | null }) {
   const expires = new Date(Date.now() + ACTIVATION_EXPIRATION_MS)
   const migratedAccount = isMigratedUserPendingActivation(user)
+  const returnTo = getCheckoutReturnTo(options?.returnTo)
 
   const token = await createVerificationTokenRecord({
     identifier: user.email,
@@ -40,11 +42,18 @@ export async function sendActivationForUser(user: {
     to: user.email,
     token,
     type: migratedAccount ? "migrated_account" : "email_verification",
+    returnTo,
+  })
+
+  console.info("Account activation email sent", {
+    migratedAccount,
+    returnTo,
   })
 
   return {
     email: user.email,
     migratedAccount,
+    returnTo,
   }
 }
 
