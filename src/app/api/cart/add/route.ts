@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { mergeGuestCartIntoUserCart } from "@/lib/cart"
 import {
   parseCartComboConfiguration,
   validateComboCartSelection,
@@ -24,8 +25,18 @@ export async function POST(request: Request) {
     const sessionId = cookieStore.get("cart_session_id")?.value
 
     let cart
+    let preserveGuestCart = false
 
-    if (session?.user?.id) {
+    if (session?.user?.id && sessionId) {
+      try {
+        await mergeGuestCartIntoUserCart(session.user.id, sessionId)
+      } catch (error) {
+        preserveGuestCart = true
+        console.error("Guest cart merge failed before adding an item", { error })
+      }
+    }
+
+    if (session?.user?.id && !preserveGuestCart) {
       cart = await db.cart.findUnique({
         where: { userId: session.user.id },
       })
@@ -52,6 +63,10 @@ export async function POST(request: Request) {
         cart = await db.cart.create({
           data: { sessionId: newSessionId },
         })
+      }
+
+      if (preserveGuestCart) {
+        console.warn("Adding item to browser cart after a failed cart merge")
       }
     }
 

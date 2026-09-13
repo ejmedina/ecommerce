@@ -2,6 +2,7 @@ import Link from "next/link"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
+import { getCartState } from "@/lib/cart"
 import { CheckoutSteps } from "@/components/checkout-steps"
 import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
 
@@ -18,54 +19,7 @@ async function getCart() {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("cart_session_id")?.value
 
-  let cart = null
-  
-  if (session?.user?.id) {
-    cart = await db.cart.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        items: {
-          include: {
-            product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
-            variant: true,
-          },
-        },
-      },
-    })
-  } else if (sessionId) {
-    cart = await db.cart.findUnique({
-      where: { sessionId },
-      include: {
-        items: {
-          include: {
-            product: { include: { images: { take: 1, orderBy: { order: "asc" } } } },
-            variant: true,
-          },
-        },
-      },
-    })
-  }
-
-  // Convert Decimal to plain numbers to avoid hydration errors
-  if (cart) {
-    return {
-      ...cart,
-      items: cart.items.map(item => ({
-        ...item,
-        comboConfiguration: item.comboConfiguration,
-        product: {
-          ...item.product,
-          price: Number(item.product.price),
-        },
-        variant: item.variant ? {
-          ...item.variant,
-          price: item.variant.price ? Number(item.variant.price) : null,
-        } : null,
-      }))
-    }
-  }
-
-  return null
+  return getCartState(session?.user?.id, sessionId)
 }
 
 async function getSettings() {
