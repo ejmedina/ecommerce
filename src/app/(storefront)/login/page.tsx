@@ -362,6 +362,11 @@ export default function LoginPage() {
                   {loginForm.formState.errors.password && (
                     <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
                   )}
+                  <div className="text-right">
+                    <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
                   {loginForm.formState.isSubmitting ? "Cargando..." : "Iniciar sesión"}

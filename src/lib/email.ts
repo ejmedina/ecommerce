@@ -120,7 +120,7 @@ export async function sendVerificationEmail({
 }: {
   to: string
   token: string
-  type: "email_change" | "guest_checkout" | "email_verification" | "migrated_account"
+  type: "email_change" | "guest_checkout" | "email_verification" | "migrated_account" | "password_reset"
   returnTo?: string | null
 }) {
   const baseUrl = await getStoreUrl()
@@ -160,6 +160,13 @@ export async function sendVerificationEmail({
     buttonLabel = "Activar mi cuenta"
     intro = "Encontramos una cuenta asociada a compras anteriores en nuestro sitio anterior."
     ignoreText = "Si no reconocés esta cuenta, podés ignorar este mensaje."
+  } else if (type === "password_reset") {
+    verifyUrl = `${baseUrl}/auth/reset-password?token=${encodeURIComponent(token)}`
+    subject = "Restablecé tu contraseña en El Pan a tu Casa"
+    description = "Hacé clic en el enlace para elegir una nueva contraseña."
+    buttonLabel = "Restablecer mi contraseña"
+    intro = "Recibimos una solicitud para restablecer la contraseña de tu cuenta."
+    ignoreText = "Si no solicitaste este cambio, podés ignorar este mensaje."
   } else {
     // email_verification - new user registration
     const verificationUrl = new URL("/auth/verify-email", baseUrl)
