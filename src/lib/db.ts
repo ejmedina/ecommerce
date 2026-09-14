@@ -47,29 +47,69 @@ function isRetriableDatabaseError(error: unknown) {
     candidate.constructor?.name === "PrismaClientInitializationError" ||
     candidate.message?.includes("Can't reach database server") ||
     candidate.message?.includes("Timed out fetching a new connection from the connection pool") ||
+    candidate.message?.includes("Error in PostgreSQL connection: Error { kind: Closed") ||
     false
   )
 }
 
-async function withDatabaseRetry<T>(
+function databaseErrorDetails(error: unknown) {
+  if (!error || typeof error !== "object") return { type: typeof error }
+
+  const candidate = error as {
+    code?: string
+    name?: string
+    constructor?: { name?: string }
+    message?: string
+  }
+
+  return {
+    code: candidate.code,
+    name: candidate.name || candidate.constructor?.name,
+    reason: candidate.message?.includes("kind: Closed")
+      ? "connection_closed"
+      : candidate.message?.includes("connection pool")
+        ? "connection_pool_timeout"
+        : candidate.message?.includes("Can't reach database server")
+          ? "database_unreachable"
+          : undefined,
+  }
+}
+
+export async function withDatabaseRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
-  disconnect: () => Promise<void>,
+  retryDelays = DB_RETRY_DELAYS_MS,
 ) {
-  for (let attempt = 0; attempt <= DB_RETRY_DELAYS_MS.length; attempt++) {
+  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
     try {
-      return await operation()
+      const result = await operation()
+      if (attempt > 0) {
+        console.info("Database operation recovered after retry", {
+          operation: operationName,
+          attempts: attempt,
+        })
+      }
+      return result
     } catch (error) {
-      if (!isRetriableDatabaseError(error) || attempt === DB_RETRY_DELAYS_MS.length) {
+      const retriable = isRetriableDatabaseError(error)
+      if (!retriable || attempt === retryDelays.length) {
+        console.error("Database operation failed", {
+          operation: operationName,
+          attempts: attempt,
+          retriable,
+          ...databaseErrorDetails(error),
+        })
         throw error
       }
 
-      const delay = DB_RETRY_DELAYS_MS[attempt]
-      console.warn(
-        `Database connection failed during ${operationName}. Retrying in ${delay}ms...`,
-      )
-
-      await disconnect().catch(() => null)
+      const delay = retryDelays[attempt]
+      console.warn("Database operation retry scheduled", {
+        operation: operationName,
+        attempt: attempt + 1,
+        maxRetries: retryDelays.length,
+        delayMs: delay,
+        ...databaseErrorDetails(error),
+      })
       await sleep(delay)
     }
   }
@@ -85,7 +125,7 @@ function createPrismaClient() {
   configureDatabaseUrl()
 
   const prisma = new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : [],
   })
 
   return prisma.$extends({
@@ -94,7 +134,6 @@ function createPrismaClient() {
         return withDatabaseRetry(
           () => query(args),
           model ? `${model}.${operation}` : operation,
-          () => prisma.$disconnect(),
         )
       },
     },
