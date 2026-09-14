@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { db } from "@/lib/db"
+import { isExpectedCredentialsSigninError } from "@/lib/auth-logging"
 import type { UserRole } from "@prisma/client"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -59,6 +60,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as UserRole
       }
       return session
+    },
+  },
+  logger: {
+    error(error) {
+      if (isExpectedCredentialsSigninError(error)) {
+        console.info("Authentication rejected", { reason: "invalid_credentials" })
+        return
+      }
+
+      console.error("Authentication provider error", { error })
     },
   },
   pages: {
