@@ -1,8 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { hash } from "bcryptjs"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { sendPasswordResetEmail } from "@/lib/password-reset"
 import type { UserRole } from "@prisma/client"
 
 async function requireAdminSession() {
@@ -21,6 +23,105 @@ function revalidateUserAdminPaths(userId?: string) {
   if (userId) {
     revalidatePath(`/admin/users/${userId}/edit`)
     revalidatePath(`/admin/users/${userId}/addresses`)
+  }
+}
+
+function canManageUserPassword(actorRole: UserRole, targetRole: UserRole) {
+  if (["SUPERADMIN", "OWNER"].includes(targetRole)) return false
+  if (targetRole === "ADMIN") return ["SUPERADMIN", "OWNER"].includes(actorRole)
+  return true
+}
+
+async function getPasswordManageableUser(userId: string, actorRole: UserRole) {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true,
+      status: true,
+      passwordHash: true,
+    },
+  })
+
+  if (!user) throw new Error("Usuario inválido")
+  if (!canManageUserPassword(actorRole, user.role)) {
+    throw new Error("No tenés permisos para gestionar la contraseña de este usuario")
+  }
+  if (!user.isActive || user.status === "BLOCKED" || !user.passwordHash) {
+    throw new Error("La cuenta debe estar activa para restablecer su contraseña")
+  }
+
+  return user
+}
+
+export async function sendUserPasswordReset(userId: string) {
+  try {
+    const session = await requireAdminSession()
+    const user = await getPasswordManageableUser(userId, session.user.role)
+    const emailResult = await sendPasswordResetEmail(user.email)
+
+    if (!emailResult.success) {
+      console.error("Admin password reset email failed", { error: emailResult.error })
+      return { error: "No pudimos enviar el email de recuperación. Probá nuevamente." }
+    }
+
+    await db.auditLog.create({
+      data: {
+        entity: "USER",
+        entityId: user.id,
+        action: "ADMIN_PASSWORD_RESET_EMAIL",
+        userId: session.user.id,
+        userType: session.user.role,
+        data: { delivery: "email" },
+      },
+    })
+    console.info("Admin password reset email sent", { targetRole: user.role })
+    revalidateUserAdminPaths(user.id)
+    return { success: true }
+  } catch (error) {
+    console.error("Admin password reset email action failed", { error })
+    return { error: error instanceof Error ? error.message : "No pudimos procesar la solicitud." }
+  }
+}
+
+export async function setUserPasswordByAdmin(userId: string, password: string) {
+  try {
+    const session = await requireAdminSession()
+    if (typeof password !== "string" || password.length < 8) {
+      return { error: "La contraseña debe tener al menos 8 caracteres." }
+    }
+
+    const user = await getPasswordManageableUser(userId, session.user.role)
+    const passwordHash = await hash(password, 12)
+
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      })
+      await tx.verificationToken.deleteMany({
+        where: { identifier: user.email, type: "PASSWORD_RESET" },
+      })
+      await tx.auditLog.create({
+        data: {
+          entity: "USER",
+          entityId: user.id,
+          action: "ADMIN_PASSWORD_SET",
+          userId: session.user.id,
+          userType: session.user.role,
+          data: { delivery: "manual" },
+        },
+      })
+    })
+
+    console.info("Admin password set", { targetRole: user.role })
+    revalidateUserAdminPaths(user.id)
+    return { success: true }
+  } catch (error) {
+    console.error("Admin password set action failed", { error })
+    return { error: error instanceof Error ? error.message : "No pudimos actualizar la contraseña." }
   }
 }
 

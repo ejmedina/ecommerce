@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { sendVerificationEmail } from "@/lib/email"
-import { createVerificationTokenRecord } from "@/lib/verification-tokens"
+import { sendPasswordResetEmail } from "@/lib/password-reset"
 
-const PASSWORD_RESET_EXPIRATION_MS = 60 * 60 * 1000
 const GENERIC_RESPONSE = {
   success: true,
   message: "Si existe una cuenta activa con ese email, te enviamos un enlace para restablecer la contraseña.",
@@ -33,16 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json(GENERIC_RESPONSE)
     }
 
-    const token = await createVerificationTokenRecord({
-      identifier: user.email,
-      type: "PASSWORD_RESET",
-      expires: new Date(Date.now() + PASSWORD_RESET_EXPIRATION_MS),
-    })
-    const emailResult = await sendVerificationEmail({
-      to: user.email,
-      token,
-      type: "password_reset",
-    })
+    const emailResult = await sendPasswordResetEmail(user.email)
 
     if (!emailResult.success) {
       console.error("Password reset email could not be sent", { error: emailResult.error })

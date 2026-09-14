@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 import { db } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import { getStoreTimeZone } from "@/lib/store-settings"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateUserProfile } from "../../actions"
+import { AdminPasswordActions } from "../../admin-password-actions"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -17,7 +19,7 @@ interface Props {
 export default async function EditUserPage({ params }: Props) {
   const { id } = await params
   const timeZone = await getStoreTimeZone()
-  const user = await db.user.findUnique({
+  const [user, session] = await Promise.all([db.user.findUnique({
     where: { id },
     select: {
       id: true,
@@ -31,11 +33,14 @@ export default async function EditUserPage({ params }: Props) {
       requiresPasswordSetup: true,
       createdAt: true,
     },
-  })
+  }), auth()])
 
   if (!user) notFound()
 
   const roleIsProtected = user.role === "SUPERADMIN" || user.role === "OWNER"
+  const canManagePassword =
+    !roleIsProtected &&
+    (user.role !== "ADMIN" || ["SUPERADMIN", "OWNER"].includes(session?.user?.role || ""))
   const isManuallyBlocked = user.status === "BLOCKED"
   const isPendingActivation =
     !isManuallyBlocked &&
@@ -135,6 +140,19 @@ export default async function EditUserPage({ params }: Props) {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Acceso a la cuenta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!canManagePassword ? (
+            <p className="text-sm text-muted-foreground">No tenés permisos para administrar las credenciales de este usuario.</p>
+          ) : (
+            <AdminPasswordActions userId={user.id} />
+          )}
         </CardContent>
       </Card>
     </div>
