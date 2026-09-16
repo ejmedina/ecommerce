@@ -72,6 +72,7 @@ function getVolumeDiscountIncentives(cart: NonNullable<ReturnType<typeof useCart
 export function FloatingCart() {
   const { cart, isOpen, setIsOpen, refreshCart, pricingResult, settings, updateItemQuantityOptimistic, isSyncing } = useCart()
   const [isRemoving, setIsRemoving] = useState<string | null>(null)
+  const storePickupEnabled = settings?.storePickupEnabled === true
 
   if (!isOpen) return null
 
@@ -272,10 +273,12 @@ export function FloatingCart() {
                   <p className="font-medium">Mínimo para envío a domicilio</p>
                   <p>Te faltan <strong>{formatCurrency(minShippingOrderAmount - rawSubtotal)}</strong> para alcanzar el mínimo de {formatCurrency(minShippingOrderAmount)}.</p>
                 </div>
-                <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
-                  <p className="font-medium">También podés retirar en tienda</p>
-                  <p>El retiro en tienda no tiene compra mínima.</p>
-                </div>
+                {storePickupEnabled && (
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
+                    <p className="font-medium">También podés retirar en tienda</p>
+                    <p>El retiro en tienda no tiene compra mínima.</p>
+                  </div>
+                )}
               </div>
             )}
             

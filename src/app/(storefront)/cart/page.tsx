@@ -89,6 +89,7 @@ export default function CartPage() {
   const itemCount = cart.items.reduce((sum: number, item: CartPageItem) => sum + item.quantity, 0)
   const appliedDiscounts = cart.pricingResult?.discounts || []
   const totalToPay = cart.pricingResult?.totalToPay || 0
+  const storePickupEnabled = settings?.storePickupEnabled === true
 
   const handleUpdate = (itemId: string, newQty: number) => {
     if (newQty < 1) return
@@ -247,10 +248,12 @@ export default function CartPage() {
                     <p className="font-medium">Mínimo para envío a domicilio</p>
                     <p>Te faltan <strong>{formatCurrency(settings.minShippingOrderAmount - subtotal)}</strong> para alcanzar el mínimo de {formatCurrency(settings.minShippingOrderAmount)}.</p>
                   </div>
-                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
-                    <p className="font-medium">También podés retirar en tienda</p>
-                    <p>El retiro en tienda no tiene compra mínima.</p>
-                  </div>
+                  {storePickupEnabled && (
+                    <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm text-sky-900">
+                      <p className="font-medium">También podés retirar en tienda</p>
+                      <p>El retiro en tienda no tiene compra mínima.</p>
+                    </div>
+                  )}
                 </div>
               )}
               <Button 

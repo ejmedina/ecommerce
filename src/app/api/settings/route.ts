@@ -14,6 +14,7 @@ export async function GET() {
         themeColors: true,
         minShippingOrderAmount: true,
         shippingConfig: true,
+        storePickupEnabled: true,
       }
     })
 
@@ -21,6 +22,7 @@ export async function GET() {
       return NextResponse.json({
         storeName: "Mi Tienda",
         minShippingOrderAmount: 0,
+        storePickupEnabled: false,
       })
     }
 
