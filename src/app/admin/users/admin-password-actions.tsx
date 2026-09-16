@@ -28,7 +28,7 @@ export function AdminPasswordActions({ userId }: { userId: string }) {
     })
   }
 
-  function setPassword() {
+  function handleSetPassword() {
     setMessage("")
     setError("")
     if (password !== confirmPassword) {
@@ -67,7 +67,7 @@ export function AdminPasswordActions({ userId }: { userId: string }) {
           <div className="space-y-2"><Label htmlFor="admin-password">Nueva contraseña</Label><Input id="admin-password" type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></div>
           <div className="space-y-2"><Label htmlFor="admin-password-confirm">Confirmar contraseña</Label><Input id="admin-password-confirm" type="password" minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" /></div>
         </div>
-        <Button type="button" className="mt-3" onClick={setPassword} disabled={isPending || !password || !confirmPassword}>
+        <Button type="button" className="mt-3" onClick={handleSetPassword} disabled={isPending || !password || !confirmPassword}>
           <KeyRound className="mr-1.5 h-4 w-4" />Actualizar contraseña
         </Button>
       </div>
