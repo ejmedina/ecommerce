@@ -320,8 +320,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error al iniciar sesión")
-      router.refresh()
-      nextStep()
+      // A full navigation ensures the session cookie and the cart merged by the
+      // login endpoint are both available before rendering the next checkout step.
+      window.location.assign("/checkout")
+      return
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error al iniciar sesión")
     } finally {

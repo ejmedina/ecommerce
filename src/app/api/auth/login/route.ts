@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { db } from "@/lib/db"
 import { signIn } from "@/lib/auth"
 import { isMigratedUserPendingActivation } from "@/lib/account-activation"
+import { mergeGuestCartIntoUserCart } from "@/lib/cart"
 import { AuthError } from "next-auth"
 
 export async function POST(request: Request) {
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
     const user = await db.user.findUnique({
       where: { email: normalizedEmail },
       select: {
+        id: true,
         isActive: true,
         passwordHash: true,
         status: true,
@@ -74,6 +77,26 @@ export async function POST(request: Request) {
         { error: "Credenciales inválidas" },
         { status: 401 }
       )
+    }
+
+    const cookieStore = await cookies()
+    const guestCartSessionId = cookieStore.get("cart_session_id")?.value
+
+    if (guestCartSessionId) {
+      try {
+        const mergeResult = await mergeGuestCartIntoUserCart(user.id, guestCartSessionId)
+        console.info("Guest cart merge completed during login", {
+          strategy: mergeResult.strategy,
+          itemCount: "itemCount" in mergeResult ? mergeResult.itemCount : 0,
+        })
+      } catch (error) {
+        // Authentication remains successful. The next cart read retries the merge and
+        // preserves the guest cart if that retry also fails.
+        console.error("Guest cart merge deferred after successful login", {
+          error,
+          hasGuestCartSession: true,
+        })
+      }
     }
 
     return NextResponse.json({ success: true })
