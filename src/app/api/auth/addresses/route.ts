@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { calculateShipping, getDefaultShippingConfig, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
+
+async function isServiceableLocality(state: string, city: string) {
+  const settings = await db.storeSettings.findFirst({ select: { shippingConfig: true } })
+  const shippingConfig = (settings?.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig()
+  return Boolean(calculateShipping(state as ProvinceId, city, 0, shippingConfig))
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,9 +62,25 @@ export async function POST(req: NextRequest) {
 
     // Validation
     if (!label || !street || !number || !city || !state || !postalCode) {
+      console.warn("Address rejected", { event: "address.rejected", operation: "create", userId: session.user.id, reason: "incomplete_address" })
       return NextResponse.json(
         { message: "Todos los campos requeridos deben completarse" },
         { status: 400 }
+      )
+    }
+
+    if (!(await isServiceableLocality(state, city))) {
+      console.warn("Address rejected", {
+        event: "address.rejected",
+        operation: "create",
+        userId: session.user.id,
+        reason: "outside_delivery_area",
+        city,
+        state,
+      })
+      return NextResponse.json(
+        { message: "No hacemos envíos a la localidad seleccionada. Elegí una localidad habilitada." },
+        { status: 400 },
       )
     }
 

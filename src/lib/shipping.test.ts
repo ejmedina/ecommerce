@@ -82,6 +82,21 @@ describe('calculateShipping', () => {
     expect(result).toBeNull()
   })
 
+  it('should reject a locality that is not explicitly configured for a restricted province zone', () => {
+    const result = calculateShipping('CABA', 'Florida Oeste', 10000, {
+      zones: [{
+        id: 'caba',
+        name: 'CABA',
+        provinces: ['CABA'],
+        cities: ['CABA', 'Palermo'],
+        cost: 0,
+        freeFrom: null,
+        isActive: true,
+      }],
+    })
+    expect(result).toBeNull()
+  })
+
   it('should calculate CABA shipping as free (no cost)', () => {
     const result = calculateShipping('CABA', 'CABA', 10000, defaultConfig)
     expect(result).not.toBeNull()
@@ -97,6 +112,11 @@ describe('calculateShipping', () => {
     expect(result!.cost).toBe(5000)
     expect(result!.isFree).toBe(false)
     expect(result!.zone.name).toBe('Buenos Aires - Zona Norte')
+  })
+
+  it('should include Florida Oeste in the northern Buenos Aires delivery zone', () => {
+    const result = calculateShipping('BUENOS_AIRES', 'Florida Oeste', 10000, defaultConfig)
+    expect(result?.zone.name).toBe('Buenos Aires - Zona Norte')
   })
 
   it('should calculate free shipping when subtotal exceeds freeFrom', () => {

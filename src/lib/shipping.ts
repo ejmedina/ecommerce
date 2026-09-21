@@ -46,7 +46,8 @@ export const BUENOS_AIRES_ZONE_CITIES: Record<BuenosAiresZone, string[]> = {
   ZONA_NORTE: [
     "San Isidro", "Vicente López", "Tigre", "San Fernando", "Pilar",
     "Escobar", "José C. Paz", "Malvinas Argentinas", "Zárate", "Campana",
-    "San Martín", "Tres de Febrero", "Hurlingham", "Ituzaingó", "Morón"
+    "San Martín", "Tres de Febrero", "Hurlingham", "Ituzaingó", "Morón",
+    "Florida Oeste"
   ],
   ZONA_SUR: [
     "Avellaneda", "Lanús", "Lomas de Zamora", "Esteban Echeverría",

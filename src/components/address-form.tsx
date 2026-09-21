@@ -8,29 +8,30 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
-import { ARGENTINE_PROVINCES } from "@/lib/shipping"
+import { ARGENTINE_PROVINCES, getAvailableCitiesForProvince, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
 
 interface Address {
   id?: string
   label: string
   street: string
   number: string
-  floor?: string
-  apartment?: string
+  floor?: string | null
+  apartment?: string | null
   city: string
   state: string
   postalCode: string
-  instructions?: string
+  instructions?: string | null
   isDefault?: boolean
 }
 
 interface AddressFormProps {
   address?: Address | null
+  shippingConfig: ShippingConfig
   onSuccess?: () => void
   onCancel?: () => void
 }
 
-export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
+export function AddressForm({ address, shippingConfig, onSuccess, onCancel }: AddressFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -47,6 +48,10 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
     instructions: address?.instructions || "",
     isDefault: address?.isDefault || false,
   })
+  const allowedProvinceIds = new Set(shippingConfig.zones.filter((zone) => zone.isActive).flatMap((zone) => zone.provinces))
+  const availableCities = formData.state
+    ? getAvailableCitiesForProvince(formData.state as ProvinceId, shippingConfig)
+    : []
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -132,7 +137,7 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
           <Label htmlFor="floor">Piso</Label>
           <Input
             id="floor"
-            value={formData.floor}
+            value={formData.floor ?? ""}
             onChange={(e) => setFormData(prev => ({ ...prev, floor: e.target.value }))}
             placeholder="3"
           />
@@ -141,7 +146,7 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
           <Label htmlFor="apartment">Depto</Label>
           <Input
             id="apartment"
-            value={formData.apartment}
+            value={formData.apartment ?? ""}
             onChange={(e) => setFormData(prev => ({ ...prev, apartment: e.target.value }))}
             placeholder="A"
           />
@@ -151,25 +156,38 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="city">Ciudad *</Label>
-          <Input
-            id="city"
-            value={formData.city}
-            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-            placeholder="Buenos Aires"
-            required
-          />
+          {availableCities.length > 0 ? (
+            <select
+              id="city"
+              value={formData.city}
+              onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              required
+            >
+              <option value="">Seleccioná una localidad</option>
+              {availableCities.map((city) => <option key={city} value={city}>{city}</option>)}
+            </select>
+          ) : (
+            <Input
+              id="city"
+              value={formData.city}
+              onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+              placeholder="Buenos Aires"
+              required
+            />
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="state">Provincia *</Label>
           <select
             id="state"
             value={formData.state}
-            onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value, city: "" }))}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             required
           >
             <option value="">Seleccioná una provincia</option>
-            {ARGENTINE_PROVINCES.map((province) => (
+            {ARGENTINE_PROVINCES.filter((province) => allowedProvinceIds.has(province.id)).map((province) => (
               <option key={province.id} value={province.id}>
                 {province.name}
               </option>
@@ -193,7 +211,7 @@ export function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) 
         <Label htmlFor="instructions">Instrucciones de entrega</Label>
         <Textarea
           id="instructions"
-          value={formData.instructions}
+          value={formData.instructions ?? ""}
           onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
           placeholder="Ej: timbre en el 3er piso, dejar en conserjería..."
           rows={2}

@@ -11,7 +11,7 @@ import { calculateCartPricing, type CartPricingItem } from "@/lib/pricing"
 import { validateComboCartSelection } from "@/lib/cart-combos"
 import { buildOrderItemComponentSnapshots } from "@/lib/order-combos"
 import { sendMetaPurchaseEvent } from "@/lib/meta-conversions-api"
-import { calculateShipping, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
+import { calculateShipping, getDefaultShippingConfig, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
 import { getDeliveryOptions } from "@/lib/delivery-scheduling"
 
 type CartWithComboData = Prisma.CartGetPayload<{
@@ -38,6 +38,21 @@ type CartWithComboData = Prisma.CartGetPayload<{
 }>
 
 type CartItemWithComboData = CartWithComboData["items"][number]
+
+function logCheckoutRejection(
+  reason: string,
+  context: {
+    cartId?: string | null
+    userId?: string | null
+    shippingMethod?: string | null
+    city?: string | null
+    state?: string | null
+    settingsId?: string | null
+  },
+) {
+  // Keep this useful for support while deliberately excluding street, phone and email.
+  console.warn("Checkout rejected", { event: "checkout.rejected", reason, ...context })
+}
 
 // ============================================
 // UPDATE ORDERS STATUS (MASIVO)
@@ -155,6 +170,7 @@ export async function createOrder(formData: FormData) {
     })
 
     if (!cart || cart.items.length === 0) {
+      logCheckoutRejection("empty_or_missing_cart", { cartId, shippingMethod: rawShippingMethod })
       return { error: "El carrito está vacío" }
     }
 
@@ -246,11 +262,13 @@ export async function createOrder(formData: FormData) {
         : rawShippingMethod
 
     if (shippingMethod !== "pickup" && shippingMethod !== "shipping") {
+      logCheckoutRejection("invalid_shipping_method", { cartId, userId: cart.userId, shippingMethod })
       return { error: "Método de envío inválido" }
     }
 
     if (shippingMethod === "shipping") {
       if (!street || !number || !city || !state || !postalCode) {
+        logCheckoutRejection("incomplete_address", { cartId, userId: cart.userId, shippingMethod, city, state, settingsId: settings?.id })
         return { error: "Completá la dirección de entrega para continuar." }
       }
     }
@@ -258,32 +276,34 @@ export async function createOrder(formData: FormData) {
     // Check minimum order amount for shipping
     const minShippingAmount = settings?.minShippingOrderAmount ? Number(settings.minShippingOrderAmount) : 0
     if (shippingMethod === "shipping" && minShippingAmount > 0 && subtotal < minShippingAmount) {
+      logCheckoutRejection("minimum_shipping_amount_not_reached", { cartId, userId: cart.userId, shippingMethod, city, state, settingsId: settings?.id })
       return { error: `El monto mínimo para envío a domicilio es $${minShippingAmount}` }
     }
 
-    // Si tenemos modulo de envio avanzado, se recomienda pasar los params correctos.
-    // Por ahora reescribimos retrocompatibilidad de freeShippingMin.
-    const freeShippingMin = settings?.freeShippingMin ? Number(settings.freeShippingMin) : 0
-    const fixedShippingCost = settings?.fixedShippingCost ? Number(settings.fixedShippingCost) : 0
-
-    const shippingCost = shippingMethod === "shipping"
-      ? (pricingResult.totalToPay >= freeShippingMin ? 0 : fixedShippingCost)
-      : 0
-
-    const total = pricingResult.totalToPay + shippingCost
-
     let selectedDelivery: ReturnType<typeof getDeliveryOptions>[number] | null = null
     let deliveryZone: { id: string; name: string } | null = null
-    if (shippingMethod === "shipping" && settings?.deliverySchedulingEnabled) {
-      const shipping = calculateShipping(
-        state as ProvinceId,
-        city,
-        pricingResult.totalToPay,
-        settings.shippingConfig as ShippingConfig | null,
-      )
-      if (!shipping) return { error: "No encontramos una zona de entrega para esta dirección." }
+    const configuredShipping = (settings?.shippingConfig as ShippingConfig | null) || getDefaultShippingConfig()
+    const shipping = shippingMethod === "shipping"
+      ? calculateShipping(state as ProvinceId, city, pricingResult.totalToPay, configuredShipping)
+      : null
 
+    if (shippingMethod === "shipping" && !shipping) {
+      logCheckoutRejection("address_outside_delivery_area", { cartId, userId: cart.userId, shippingMethod, city, state, settingsId: settings?.id })
+      return { error: "No encontramos una zona de entrega para esta dirección. Corregí la provincia y localidad para continuar." }
+    }
+
+    const shippingCost = shipping?.cost || 0
+    const total = pricingResult.totalToPay + shippingCost
+
+    if (shipping) {
       deliveryZone = { id: shipping.zone.id, name: shipping.zone.name }
+    }
+
+    if (shippingMethod === "shipping" && settings?.deliverySchedulingEnabled) {
+      // The early rejection above guarantees this branch has a delivery zone.
+      if (!shipping) {
+        throw new Error("No se pudo resolver la zona de entrega.")
+      }
       const options = getDeliveryOptions({
         rules: settings.deliveryScheduleRules,
         shippingZoneId: shipping.zone.id,
@@ -294,6 +314,7 @@ export async function createOrder(formData: FormData) {
         (option) => option.date === scheduledDeliveryDate && option.ruleId === deliveryScheduleRuleId,
       ) || null
       if (!selectedDelivery) {
+        logCheckoutRejection("scheduled_delivery_unavailable", { cartId, userId: cart.userId, shippingMethod, city, state, settingsId: settings?.id })
         return { error: "La fecha de entrega elegida ya no está disponible. Elegí una nueva opción." }
       }
     }

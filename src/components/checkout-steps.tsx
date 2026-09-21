@@ -157,7 +157,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
 
   // Get allowed provinces from shipping config
   const allowedProvinceIds = useMemo(
-    () => new Set(shippingConfig.zones.flatMap((zone: ShippingZone) => zone.provinces)),
+    () => new Set(shippingConfig.zones.filter((zone: ShippingZone) => zone.isActive).flatMap((zone: ShippingZone) => zone.provinces)),
     [shippingConfig]
   )
   const availableProvinces = ARGENTINE_PROVINCES.filter(p => allowedProvinceIds.has(p.id))
@@ -174,6 +174,17 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
     [allowedProvinceIds, formData.state, shippingConfig]
   )
   const shippingNeedsCitySelection = availableShippingCities.length > 0
+
+  const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId) || null
+  const selectedAddressShipping = useMemo(() => {
+    if (!selectedSavedAddress) return null
+    return calculateShipping(
+      selectedSavedAddress.state as ProvinceId,
+      selectedSavedAddress.city,
+      pricingResult.totalToPay,
+      shippingConfig,
+    )
+  }, [pricingResult.totalToPay, selectedSavedAddress, shippingConfig])
   
   const shippingCalculation = useMemo(() => {
     const deliveryProvince = formData.state || selectedProvince
@@ -225,6 +236,24 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   useEffect(() => {
     setSelectedDeliveryKey(null)
   }, [shippingCalculation?.zoneId])
+
+  // Existing addresses were created before locality restrictions existed. Load the
+  // selected one into the editable checkout state so it can be fixed in place.
+  useEffect(() => {
+    if (!selectedSavedAddress || showNewAddressForm) return
+    setFormData((previous) => ({
+      ...previous,
+      street: selectedSavedAddress.street,
+      number: selectedSavedAddress.number,
+      floor: selectedSavedAddress.floor || "",
+      apartment: selectedSavedAddress.apartment || "",
+      city: selectedSavedAddress.city,
+      state: selectedSavedAddress.state,
+      postalCode: selectedSavedAddress.postalCode,
+      instructions: selectedSavedAddress.instructions || "",
+    }))
+    setSelectedProvince(selectedSavedAddress.state as ProvinceId)
+  }, [selectedSavedAddress, showNewAddressForm])
 
   // Determine visible steps based on settings
   const visibleSteps = getVisibleSteps(shippingMethod)
@@ -297,7 +326,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
         }
         return true
       case "address":
-        return !!(formData.street && formData.number && formData.city && formData.state && formData.postalCode)
+        return !!(
+          formData.street && formData.number && formData.city && formData.state && formData.postalCode
+          && calculateShipping(formData.state as ProvinceId, formData.city, pricingResult.totalToPay, shippingConfig)
+        )
       case "payment":
         return true
       case "confirm":
@@ -371,6 +403,52 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       nextStep()
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Error")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function saveSelectedAddressCorrection() {
+    if (!selectedSavedAddress || !selectedAddressId) return
+
+    const serviceable = calculateShipping(
+      formData.state as ProvinceId,
+      formData.city,
+      pricingResult.totalToPay,
+      shippingConfig,
+    )
+    if (!serviceable) {
+      toast({
+        variant: "destructive",
+        title: "Localidad no habilitada",
+        description: "Elegí una provincia y localidad dentro de las zonas de entrega configuradas.",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/auth/addresses/${selectedAddressId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedSavedAddress,
+          ...formData,
+          id: undefined,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || "No pudimos actualizar la dirección")
+
+      setSavedAddresses((current) => current.map((address) => address.id === selectedAddressId ? data : address))
+      setShowNewAddressForm(false)
+      toast({ title: "Dirección actualizada", description: "Ya podés continuar con tu compra." })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "No pudimos actualizar la dirección",
+        description: error instanceof Error ? error.message : "Intentá nuevamente.",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -771,10 +849,41 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                           <p className="text-sm text-muted-foreground">
                             {address.street} {address.number}, {address.city}, {address.state}
                           </p>
+                          {selectedAddressId === address.id && !selectedAddressShipping && (
+                            <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                              <p>Esta dirección no coincide con una zona de entrega habilitada.</p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-2"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setShowNewAddressForm(true)
+                                }}
+                              >
+                                Corregir dirección
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <Button variant="outline" onClick={() => setShowNewAddressForm(true)} className="w-full">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedAddressId(null)
+                      setFormData((previous) => ({
+                        ...previous,
+                        street: "",
+                        number: "",
+                        floor: "",
+                        apartment: "",
+                        city: "",
+                        state: "",
+                        postalCode: "",
+                        instructions: "",
+                      }))
+                      setShowNewAddressForm(true)
+                    }} className="w-full">
                       + Agregar nueva dirección
                     </Button>
                   </>
@@ -869,9 +978,15 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                   </>
                 )}
                 <div className="mt-auto">
-                  <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
-                    Continuar <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
+                  {showNewAddressForm && selectedSavedAddress ? (
+                    <Button onClick={saveSelectedAddressCorrection} className="w-full" isLoading={isLoading}>
+                      Guardar corrección
+                    </Button>
+                  ) : (
+                    <Button onClick={nextStep} className="w-full" disabled={!canProceed()}>
+                      Continuar <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

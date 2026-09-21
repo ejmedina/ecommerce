@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { AddressForm } from "./address-form"
+import type { ShippingConfig } from "@/lib/shipping"
 
 interface Address {
   id: string
@@ -23,9 +24,10 @@ interface Address {
 
 interface AddressListProps {
   addresses: Address[]
+  shippingConfig: ShippingConfig
 }
 
-export function AddressList({ addresses: initialAddresses }: AddressListProps) {
+export function AddressList({ addresses: initialAddresses, shippingConfig }: AddressListProps) {
   const router = useRouter()
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses)
   const [showForm, setShowForm] = useState(false)
@@ -69,6 +71,7 @@ export function AddressList({ addresses: initialAddresses }: AddressListProps) {
         <CardContent>
           <AddressForm 
             address={editingAddress} 
+            shippingConfig={shippingConfig}
             onSuccess={handleSuccess}
             onCancel={() => {
               setShowForm(false)
