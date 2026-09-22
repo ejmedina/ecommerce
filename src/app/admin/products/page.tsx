@@ -7,6 +7,7 @@ import { Plus, Edit, ImageOff, AlertCircle, BadgeDollarSign, Upload } from "luci
 import { ProductFilters } from "./product-filters"
 import { PaginationControls } from "./pagination-controls"
 import { Badge } from "@/components/ui/badge"
+import { findAccentInsensitiveProductIds } from "@/lib/product-search"
 
 const productListInclude = {
   category: true,
@@ -74,6 +75,9 @@ export default async function ProductsPage(props: {
   const categoryId = typeof searchParams.category === 'string' && searchParams.category !== 'all' ? searchParams.category : undefined
   const sort = typeof searchParams.sort === 'string' ? searchParams.sort : 'date_desc'
   const discountFilter = typeof searchParams.discount === 'string' ? searchParams.discount : 'all'
+  const status = typeof searchParams.status === "string" && ["all", "active", "inactive"].includes(searchParams.status)
+    ? searchParams.status
+    : "all"
   const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1
   const limit = 20
   const skip = (page - 1) * limit
@@ -89,15 +93,12 @@ export default async function ProductsPage(props: {
     ? getCategoryScopeIds(allCategories, categoryId)
     : []
 
+  const matchingProductIds = search ? await findAccentInsensitiveProductIds(search) : []
   const where: Prisma.ProductWhereInput = {
     AND: [
-      search ? {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { sku: { contains: search, mode: 'insensitive' } },
-          { slug: { contains: search, mode: 'insensitive' } },
-        ]
-      } : {},
+      search ? { id: { in: matchingProductIds } } : {},
+      status === "active" ? { isActive: true } : {},
+      status === "inactive" ? { isActive: false } : {},
       categoryScopeIds.length > 0 ? { categoryId: { in: categoryScopeIds } } : {},
       discountFilter === 'with_discount' ? { discountType: { not: 'NONE' } } : {},
       discountFilter === 'compare_price' ? { discountType: 'COMPARE_PRICE' } : {},

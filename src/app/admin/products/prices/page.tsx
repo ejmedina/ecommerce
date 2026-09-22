@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { PaginationControls } from "@/components/admin/pagination-controls"
 import { updateProductPrice, updateVariantPrice } from "./actions"
 import { PriceProductSearch } from "./price-product-search"
+import { findAccentInsensitiveProductIds } from "@/lib/product-search"
 
 interface Props {
   searchParams: Promise<{
@@ -35,16 +36,13 @@ export default async function ProductPricesPage({ searchParams }: Props) {
   const status = params.status || "active"
   const sort = params.sort || "name_asc"
   const page = Number.parseInt(params.page || "1", 10)
+  const matchingProductIds = search ? await findAccentInsensitiveProductIds(search) : []
 
   const where: Prisma.ProductWhereInput = {
     ...(categoryId ? { categoryId } : {}),
     ...(status === "active" ? { isActive: true } : {}),
     ...(status === "inactive" ? { isActive: false } : {}),
-    ...(search
-      ? {
-          name: { contains: search, mode: "insensitive" },
-        }
-      : {}),
+    ...(search ? { id: { in: matchingProductIds } } : {}),
   }
 
   let orderBy: Prisma.ProductOrderByWithRelationInput = { name: "asc" }

@@ -13,6 +13,9 @@ interface SearchSuggestionRow {
   popularity: number
 }
 
+const ACCENTED_CHARACTERS = "áàäâéèëêíìïîóòöôúùüûñç"
+const PLAIN_CHARACTERS = "aaaaeeeeiiiioooouuuunc"
+
 export async function GET(request: NextRequest) {
   const rawQuery = request.nextUrl.searchParams.get("q") ?? ""
   const query = normalizeSearchQuery(rawQuery)
@@ -30,12 +33,12 @@ export async function GET(request: NextRequest) {
       FROM "products" p
       LEFT JOIN "order_items" oi ON oi."productId" = p."id"
       WHERE p."isActive" = true
-        AND p."name" ILIKE ${`%${query}%`}
+        AND translate(lower(p."name"), ${ACCENTED_CHARACTERS}, ${PLAIN_CHARACTERS}) LIKE ${`%${query}%`}
       GROUP BY p."id", p."name", p."slug", p."createdAt"
       ORDER BY
         CASE
-          WHEN LOWER(p."name") = LOWER(${query}) THEN 0
-          WHEN LOWER(p."name") LIKE LOWER(${`${query}%`}) THEN 1
+          WHEN translate(lower(p."name"), ${ACCENTED_CHARACTERS}, ${PLAIN_CHARACTERS}) = ${query} THEN 0
+          WHEN translate(lower(p."name"), ${ACCENTED_CHARACTERS}, ${PLAIN_CHARACTERS}) LIKE ${`${query}%`} THEN 1
           ELSE 2
         END,
         COALESCE(SUM(oi."quantityOrdered"), 0) DESC,

@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import type { Prisma } from "@prisma/client"
+import { findAccentInsensitiveProductIds } from "@/lib/product-search"
 
 async function getCategorySlugsIncludingDescendants(slug: string) {
   const categories = await db.category.findMany({
@@ -65,10 +66,7 @@ export async function getProductsAction({
   }
   
   if (s) {
-    where.OR = [
-      { name: { contains: s, mode: "insensitive" } },
-      { description: { contains: s, mode: "insensitive" } },
-    ]
+    where.id = { in: await findAccentInsensitiveProductIds(s) }
   }
 
   // Base conditions for browsing (strictly hide out of stock)

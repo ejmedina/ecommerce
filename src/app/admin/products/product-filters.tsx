@@ -8,6 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
 
+const PRODUCT_STATUS_PREFERENCE_KEY = "admin-products-status-filter"
+const PRODUCT_STATUS_VALUES = ["all", "active", "inactive"] as const
+type ProductStatus = typeof PRODUCT_STATUS_VALUES[number]
+
 interface Category {
   id: string
   name: string
@@ -28,6 +32,22 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
   const [category, setCategory] = useState(searchParams.get("category") || "all")
   const [sort, setSort] = useState(searchParams.get("sort") || "date_desc")
   const [discount, setDiscount] = useState(searchParams.get("discount") || "all")
+  const [status, setStatus] = useState<ProductStatus>(
+    PRODUCT_STATUS_VALUES.includes(searchParams.get("status") as ProductStatus)
+      ? searchParams.get("status") as ProductStatus
+      : "all"
+  )
+
+  useEffect(() => {
+    if (searchParams.has("status")) return
+    const savedStatus = window.localStorage.getItem(PRODUCT_STATUS_PREFERENCE_KEY)
+    if (!PRODUCT_STATUS_VALUES.includes(savedStatus as ProductStatus)) return
+
+    // localStorage is only available after hydration. Deferring avoids changing
+    // state during React's effect synchronization phase.
+    const timeout = window.setTimeout(() => setStatus(savedStatus as ProductStatus), 0)
+    return () => window.clearTimeout(timeout)
+  }, [searchParams])
 
   const categoryOptions = useMemo(() => {
     const childrenByParent = new Map<string | null, Category[]>()
@@ -86,13 +106,20 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
     } else {
       params.delete("discount")
     }
+
+    window.localStorage.setItem(PRODUCT_STATUS_PREFERENCE_KEY, status)
+    if (status !== "all") {
+      params.set("status", status)
+    } else {
+      params.delete("status")
+    }
     
     // Al filtrar, siempre volvemos a la página 1
     params.set("page", "1")
 
     startNavigation()
     router.push(`/admin/products?${params.toString()}`)
-  }, [debouncedSearch, category, sort, discount, router, startNavigation])
+  }, [debouncedSearch, category, sort, discount, router, startNavigation, status])
 
   return (
     <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border shadow-sm mb-6">
@@ -104,6 +131,19 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
         />
+      </div>
+
+      <div className="w-full md:w-[200px]">
+        <Select value={status} onValueChange={(value) => setStatus(value as ProductStatus)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="active">Sólo activos</SelectItem>
+            <SelectItem value="inactive">Sólo inactivos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       
       <div className="w-full md:w-[200px]">
