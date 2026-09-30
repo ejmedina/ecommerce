@@ -484,9 +484,9 @@ export function ProductForm({ product, categories, availableProducts, onCategori
 
   const availableProductSearchOptions = useMemo(
     () =>
-      availableProducts.map((availableProduct) => ({
+      availableProducts.filter((availableProduct) => availableProduct.isActive).map((availableProduct) => ({
         id: availableProduct.id,
-        label: `${availableProduct.name}${availableProduct.sku ? ` (${availableProduct.sku})` : ""}${!availableProduct.isActive ? " - inactivo" : ""}`,
+        label: `${availableProduct.name}${availableProduct.sku ? ` (${availableProduct.sku})` : ""}`,
       })),
     [availableProducts]
   )
