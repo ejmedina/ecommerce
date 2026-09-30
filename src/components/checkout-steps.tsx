@@ -28,6 +28,7 @@ import {
 } from "@/lib/shipping"
 import { type PricingResult } from "@/lib/pricing"
 import { getDeliveryOptions, type DeliveryScheduleRuleInput } from "@/lib/delivery-scheduling"
+import { normalizeOrderPhone } from "@/lib/order-phone"
 
 interface SavedAddress {
   id: string
@@ -77,7 +78,7 @@ interface CheckoutStepsProps {
     timeZone?: string
   }
   pricingResult: PricingResult
-  user?: { id: string; email?: string | null; name?: string | null } | null
+  user?: { id: string; email?: string | null; name?: string | null; phone?: string | null } | null
   addresses?: SavedAddress[]
 }
 
@@ -138,7 +139,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: "",
+    phone: normalizeOrderPhone(user?.phone) || "",
     street: "",
     number: "",
     floor: "",
@@ -333,7 +334,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
       case "payment":
         return true
       case "confirm":
-        return true
+        return !!normalizeOrderPhone(formData.phone)
       default:
         return false
     }
@@ -388,14 +389,14 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
 
   const handleGuestCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!guestEmail) return
+    if (!guestEmail || !normalizeOrderPhone(formData.phone)) return
     setIsLoading(true)
     setAuthError("")
     try {
       const res = await fetch("/api/auth/guest-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: guestEmail }),
+        body: JSON.stringify({ email: guestEmail, phone: formData.phone.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Error")
@@ -455,6 +456,10 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
   }
 
   async function handleSubmit() {
+    if (!normalizeOrderPhone(formData.phone)) {
+      toast({ variant: "destructive", title: "Teléfono requerido", description: "Ingresá un teléfono de al menos 8 dígitos para confirmar el pedido." })
+      return
+    }
     setIsSubmitting(true)
 
     try {
@@ -603,7 +608,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                         </div>
                         <div>
                           <Label htmlFor="register-phone">Teléfono</Label>
-                          <Input id="register-phone" type="tel" inputMode="numeric" value={registerData.phone} onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "") }))} required />
+                          <Input id="register-phone" type="tel" inputMode="numeric" minLength={8} value={registerData.phone} onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "") }))} required />
                         </div>
                         <div>
                           <Label htmlFor="register-email">Email</Label>
@@ -626,13 +631,17 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                       <Mail className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
                       <h3 className="font-medium">Checkout como invitado</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Ingresá tu email para continuar.
+                        Ingresá tu email y teléfono para continuar.
                       </p>
                     </div>
                     <form onSubmit={handleGuestCheckout} className="space-y-4">
                       <div>
                         <Label htmlFor="guest-email">Email</Label>
                         <Input id="guest-email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="tu@email.com" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="guest-phone">Teléfono *</Label>
+                        <Input id="guest-phone" name="phone" type="tel" inputMode="tel" minLength={8} value={formData.phone} onChange={handleInputChange} required />
                       </div>
                       {authError && <p className="text-sm text-destructive">{authError}</p>}
                       <Button type="submit" className="w-full" isLoading={isLoading} disabled={guestSent}>
@@ -1028,6 +1037,13 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                 <CardTitle>Confirmar pedido</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col">
+                {user && !normalizeOrderPhone(user.phone) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-phone">Teléfono de contacto *</Label>
+                    <Input id="confirm-phone" name="phone" type="tel" inputMode="tel" minLength={8} value={formData.phone} onChange={handleInputChange} required />
+                    <p className="text-sm text-muted-foreground">Lo guardaremos en tu cuenta para este pedido y futuras compras.</p>
+                  </div>
+                )}
                 <div className="bg-muted p-4 rounded-lg space-y-2">
                   <p><strong>Método de envío:</strong> {shippingMethod === "pickup" ? "Retiro en tienda" : "Envío a domicilio"}</p>
                   {shippingMethod === "shipping" && (
@@ -1055,7 +1071,7 @@ export function CheckoutSteps({ cart, settings, pricingResult, user, addresses =
                     className="w-full" 
                     size="lg" 
                     isLoading={isSubmitting}
-                    disabled={isSubmitting || (shippingMethod === "shipping" && Number(settings.minShippingOrderAmount) > 0 && pricingResult.rawSubtotal < Number(settings.minShippingOrderAmount))}
+                    disabled={isSubmitting || !canProceed() || (shippingMethod === "shipping" && Number(settings.minShippingOrderAmount) > 0 && pricingResult.rawSubtotal < Number(settings.minShippingOrderAmount))}
                   >
                     {isSubmitting ? "Procesando..." : `Confirmar pedido - ${formatCurrency(total)}`}
                   </Button>

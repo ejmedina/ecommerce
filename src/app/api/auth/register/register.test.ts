@@ -24,6 +24,17 @@ describe("POST /api/auth/register", () => {
     vi.clearAllMocks()
   })
 
+  it("rejects a registration without a valid phone", async () => {
+    const { POST } = await import("./route")
+    const response = await POST(new Request("http://localhost:3000/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name: "Cliente", email: "cliente@example.com", password: "12345678", phone: "   " }),
+    }) as never)
+
+    expect(response.status).toBe(400)
+    expect(mockDb.user.create).not.toHaveBeenCalled()
+  })
+
   it("starts activation flow instead of creating a duplicate for migrated users", async () => {
     const { POST } = await import("./route")
 

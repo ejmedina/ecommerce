@@ -3,6 +3,7 @@ import { hash } from "bcryptjs"
 import { db } from "@/lib/db"
 import { getCheckoutReturnTo } from "@/lib/checkout-resume"
 import { isMigratedUserPendingActivation, sendActivationForUser } from "@/lib/account-activation"
+import { normalizeOrderPhone } from "@/lib/order-phone"
 
 function registrationSuccessResponse(
   user: { id: string; email: string; name: string | null },
@@ -38,9 +39,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!phone) {
+    const normalizedPhone = normalizeOrderPhone(phone)
+    if (!normalizedPhone) {
       return NextResponse.json(
-        { message: "El teléfono es requerido" },
+        { message: "Ingresá un teléfono válido de al menos 8 dígitos" },
         { status: 400 }
       )
     }
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         email: normalizedEmail,
-        phone,
+        phone: normalizedPhone,
         passwordHash,
         role: "CUSTOMER",
         isActive: false, // User must verify email to activate

@@ -75,8 +75,12 @@ export default async function CheckoutPage() {
 
   // Get saved addresses for logged in user
   let addresses: Awaited<ReturnType<typeof getAddresses>> = []
+  let customerPhone: string | null = null
   if (session?.user?.id) {
-    addresses = await getAddresses(session.user.id)
+    [addresses, customerPhone] = await Promise.all([
+      getAddresses(session.user.id),
+      db.user.findUnique({ where: { id: session.user.id }, select: { phone: true } }).then((customer) => customer?.phone ?? null),
+    ])
   }
 
   const hasCart = cart && cart.items.length > 0
@@ -108,7 +112,7 @@ export default async function CheckoutPage() {
           cart={cart}
           settings={settings}
           pricingResult={pricingResult}
-          user={session?.user || null}
+          user={session?.user ? { ...session.user, phone: customerPhone } : null}
           addresses={addresses}
         />
       ) : (

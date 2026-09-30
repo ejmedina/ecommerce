@@ -13,6 +13,7 @@ import { buildOrderItemComponentSnapshots } from "@/lib/order-combos"
 import { sendMetaPurchaseEvent } from "@/lib/meta-conversions-api"
 import { calculateShipping, getDefaultShippingConfig, type ProvinceId, type ShippingConfig } from "@/lib/shipping"
 import { getDeliveryOptions } from "@/lib/delivery-scheduling"
+import { normalizeOrderPhone } from "@/lib/order-phone"
 
 type CartWithComboData = Prisma.CartGetPayload<{
   include: {
@@ -129,7 +130,7 @@ export async function createOrder(formData: FormData) {
     
     const name = formData.get("name") as string
     const email = formData.get("email") as string
-    const phone = formData.get("phone") as string
+    const phone = typeof formData.get("phone") === "string" ? (formData.get("phone") as string).trim() : ""
     const street = formData.get("street") as string
     const number = formData.get("number") as string
     const floor = formData.get("floor") as string
@@ -383,6 +384,15 @@ export async function createOrder(formData: FormData) {
       userId = genericGuest.id
     }
 
+    const customer = await db.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    })
+    const orderPhone = normalizeOrderPhone(customer?.phone) || normalizeOrderPhone(phone)
+    if (!orderPhone) {
+      return { error: "Ingresá un teléfono de contacto válido de al menos 8 dígitos para confirmar el pedido." }
+    }
+
     let finalPaymentMethod = paymentMethod
     if (finalPaymentMethod === "MERCADOPAGO") {
       finalPaymentMethod = "ONLINE_CARD"
@@ -411,6 +421,9 @@ export async function createOrder(formData: FormData) {
         orderNumber,
         transactionQueueMs: createStartedAt - transactionContext.startedAt!,
       })
+      if (!normalizeOrderPhone(customer?.phone)) {
+        await tx.user.update({ where: { id: userId! }, data: { phone: orderPhone } })
+      }
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
@@ -431,7 +444,7 @@ export async function createOrder(formData: FormData) {
           deliveryWindowEnd: selectedDelivery?.endTime || null,
           shippingAddress: {
             name,
-            phone,
+            phone: orderPhone,
             street,
             number,
             floor: floor || null,
@@ -518,7 +531,7 @@ export async function createOrder(formData: FormData) {
         taxAmount: order.taxAmount,
         items: order.items,
         email,
-        phone,
+        phone: orderPhone,
         clientIpAddress: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
         clientUserAgent: requestHeaders.get("user-agent"),
       })

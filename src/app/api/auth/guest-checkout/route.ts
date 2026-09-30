@@ -4,14 +4,19 @@ import { sendVerificationEmail } from "@/lib/email"
 import { hash } from "bcryptjs"
 import { isMigratedUserPendingActivation, sendActivationForUser } from "@/lib/account-activation"
 import { createVerificationTokenRecord } from "@/lib/verification-tokens"
+import { normalizeOrderPhone } from "@/lib/order-phone"
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json()
+    const { email, phone } = await request.json()
     const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
+    const normalizedPhone = normalizeOrderPhone(phone)
 
     if (!normalizedEmail) {
       return NextResponse.json({ error: "Email requerido" }, { status: 400 })
+    }
+    if (!normalizedPhone) {
+      return NextResponse.json({ error: "Ingresá un teléfono válido de al menos 8 dígitos" }, { status: 400 })
     }
 
     // Check if user already exists
@@ -55,6 +60,7 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         passwordHash,
         name: "Invitado",
+        phone: normalizedPhone,
         role: "CUSTOMER",
         status: "PENDING",
         isActive: false, // Start as inactive until they set their password
