@@ -42,6 +42,11 @@ interface OrderEmailItem {
   quantityOrdered: number
   price: unknown
   unitTotal: unknown
+  components?: {
+    name: string
+    sku?: string | null
+    quantityOrdered: number
+  }[]
 }
 
 interface OrderEmailAddress {
@@ -73,6 +78,8 @@ interface OrderEmailData {
   paymentMethod?: string
   paymentStatus?: string
   createdAt?: Date
+  scheduledDeliveryDate?: Date | null
+  deliverySlotLabel?: string | null
 }
 
 function escapeHtml(value: unknown) {
@@ -285,11 +292,22 @@ export async function sendNewOrderNotificationEmail(
   recipients: string[],
   timeZone = "America/Argentina/Buenos_Aires",
 ) {
+  return sendEmail({
+    to: recipients,
+    subject: `Nuevo pedido ${order.orderNumber} — ${order.user.name || order.user.email}`,
+    html: renderNewOrderNotificationEmail(order, timeZone),
+  })
+}
+
+export function renderNewOrderNotificationEmail(
+  order: OrderEmailData,
+  timeZone = "America/Argentina/Buenos_Aires",
+) {
   const address = isOrderEmailAddress(order.shippingAddress) ? order.shippingAddress : null
   const createdAt = order.createdAt ?? new Date()
   const itemsHtml = order.items.map((item) => `
     <tr>
-      <td>${escapeHtml(item.name)}${item.sku ? `<br><small>SKU: ${escapeHtml(item.sku)}</small>` : ""}</td>
+      <td>${escapeHtml(item.name)}${item.sku ? `<br><small>SKU: ${escapeHtml(item.sku)}</small>` : ""}${item.components?.length ? `<ul>${item.components.map((component) => `<li>${component.quantityOrdered} × ${escapeHtml(component.name)}${component.sku ? ` (SKU: ${escapeHtml(component.sku)})` : ""}</li>`).join("")}</ul>` : ""}</td>
       <td style="text-align:center">${item.quantityOrdered}</td>
       <td style="text-align:right">${formatMoney(item.price)}</td>
       <td style="text-align:right">${formatMoney(item.unitTotal)}</td>
@@ -298,6 +316,10 @@ export async function sendNewOrderNotificationEmail(
   const deliveryHtml = order.shippingMethod === "pickup"
     ? "<strong>Retiro en tienda</strong>"
     : `${escapeHtml(address?.street)} ${escapeHtml(address?.number)}${address?.floor ? `, Piso ${escapeHtml(address.floor)}` : ""}${address?.apartment ? `, Depto. ${escapeHtml(address.apartment)}` : ""}<br>${escapeHtml(address?.city)}, ${escapeHtml(address?.state)} (${escapeHtml(address?.postalCode)})`
+  const scheduledDelivery = order.deliverySlotLabel
+    || (order.scheduledDeliveryDate
+      ? new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeZone }).format(order.scheduledDeliveryDate)
+      : null)
 
   const html = `<!doctype html>
   <html><head><meta charset="utf-8"><style>
@@ -313,6 +335,7 @@ export async function sendNewOrderNotificationEmail(
     <h2>Cliente</h2>
     <p><strong>${escapeHtml(order.user.name || "Sin nombre")}</strong><br>${escapeHtml(order.user.email)}${address?.phone ? `<br>Tel.: ${escapeHtml(address.phone)}` : ""}</p>
     <h2>Entrega</h2><p>${deliveryHtml}</p>
+    ${scheduledDelivery ? `<p><strong>Fecha elegida:</strong> ${escapeHtml(scheduledDelivery)}</p>` : ""}
     ${address?.instructions ? `<p class="note"><strong>Indicaciones:</strong><br>${escapeHtml(address.instructions)}</p>` : ""}
     <h2>Detalle del pedido</h2>
     <table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
@@ -320,9 +343,5 @@ export async function sendNewOrderNotificationEmail(
     <h2>Pago</h2><p>${escapeHtml(paymentMethodLabels[order.paymentMethod || ""] || order.paymentMethod || "Sin especificar")} · Estado: ${escapeHtml(order.paymentStatus || "PENDING")}</p>
   </main></body></html>`
 
-  return sendEmail({
-    to: recipients,
-    subject: `Nuevo pedido ${order.orderNumber} — ${order.user.name || order.user.email}`,
-    html,
-  })
+  return html
 }

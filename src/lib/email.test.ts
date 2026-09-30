@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { sendVerificationEmail, getStoreUrl } from './email'
+import { sendVerificationEmail, getStoreUrl, renderNewOrderNotificationEmail } from './email'
 import { db } from './db'
 
 // Mock crypto
@@ -118,5 +118,48 @@ describe('sendVerificationEmail', () => {
 
     // Restore env
     process.env.RESEND_API_KEY = originalEnv
+  })
+})
+
+describe('renderNewOrderNotificationEmail', () => {
+  const order = {
+    id: 'order-1',
+    orderNumber: 'ORD-123',
+    user: { email: 'cliente@example.com', name: 'Cliente' },
+    items: [
+      { name: 'Pan - Integral', sku: 'PAN-INT', quantityOrdered: 1, price: 100, unitTotal: 100 },
+      {
+        name: 'Combo desayuno', quantityOrdered: 2, price: 200, unitTotal: 400,
+        components: [
+          { name: 'Medialuna - Manteca', sku: 'MED-MAN', quantityOrdered: 4 },
+        ],
+      },
+    ],
+    subtotal: 500,
+    shippingCost: 0,
+    total: 500,
+    shippingMethod: 'shipping',
+    createdAt: new Date('2026-09-29T15:00:00Z'),
+  }
+
+  it('shows the chosen delivery slot and variants in products and combos', () => {
+    const html = renderNewOrderNotificationEmail({
+      ...order,
+      scheduledDeliveryDate: new Date('2026-10-01T12:00:00Z'),
+      deliverySlotLabel: 'jueves 1 de octubre · 09:00 a 12:00',
+    })
+
+    expect(html).toContain('Fecha elegida:</strong> jueves 1 de octubre · 09:00 a 12:00')
+    expect(html).toContain('Pan - Integral')
+    expect(html).toContain('4 × Medialuna - Manteca')
+    expect(html).toContain('SKU: MED-MAN')
+  })
+
+  it('falls back to the scheduled date and omits it when none was chosen', () => {
+    expect(renderNewOrderNotificationEmail({
+      ...order,
+      scheduledDeliveryDate: new Date('2026-10-01T12:00:00Z'),
+    }, 'America/Argentina/Buenos_Aires')).toContain('jueves, 1 de octubre de 2026')
+    expect(renderNewOrderNotificationEmail(order)).not.toContain('Fecha elegida:')
   })
 })
