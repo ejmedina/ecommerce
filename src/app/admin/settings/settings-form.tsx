@@ -64,6 +64,7 @@ interface StoreSettings {
 
 export function SettingsForm() {
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<StoreSettings | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -117,9 +118,12 @@ export function SettingsForm() {
   }, [])
 
   const loadSettings = async () => {
+    setLoading(true)
+    setLoadError("")
     try {
-      const res = await fetch("/api/admin/settings")
+      const res = await fetch("/api/admin/settings", { cache: "no-store" })
       const data = await res.json()
+      if (!res.ok || !data?.id) throw new Error(data?.error || "No se pudo cargar la configuración")
       setSettings(data)
       
       setStoreName(data.storeName || "")
@@ -171,6 +175,8 @@ export function SettingsForm() {
       }
     } catch (error) {
       console.error("Error loading settings:", error)
+      setSettings(null)
+      setLoadError(error instanceof Error ? error.message : "No se pudo cargar la configuración")
     } finally {
       setLoading(false)
     }
@@ -382,6 +388,15 @@ export function SettingsForm() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="space-y-4 rounded-lg border border-destructive/30 p-6">
+        <p>No se pudo cargar la configuración: {loadError}</p>
+        <Button onClick={loadSettings}>Reintentar</Button>
       </div>
     )
   }
