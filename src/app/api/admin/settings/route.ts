@@ -214,16 +214,20 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    let trackingIds: {
-      gtmContainerId: string | null
-      gaMeasurementId: string | null
-      metaPixelId: string | null
-    }
+    const trackingIds: {
+      gtmContainerId?: string | null
+      gaMeasurementId?: string | null
+      metaPixelId?: string | null
+    } = {}
     try {
-      trackingIds = {
-        gtmContainerId: normalizeTrackingId(gtmContainerId, /^GTM-[A-Z0-9]+$/, "ID de Google Tag Manager"),
-        gaMeasurementId: normalizeTrackingId(gaMeasurementId, /^G-[A-Z0-9]+$/, "ID de medición de Google Analytics"),
-        metaPixelId: normalizeTrackingId(metaPixelId, /^\d+$/, "ID de Meta Pixel"),
+      if (gtmContainerId !== undefined) {
+        trackingIds.gtmContainerId = normalizeTrackingId(gtmContainerId, /^GTM-[A-Z0-9]+$/, "ID de Google Tag Manager")
+      }
+      if (gaMeasurementId !== undefined) {
+        trackingIds.gaMeasurementId = normalizeTrackingId(gaMeasurementId, /^G-[A-Z0-9]+$/, "ID de medición de Google Analytics")
+      }
+      if (metaPixelId !== undefined) {
+        trackingIds.metaPixelId = normalizeTrackingId(metaPixelId, /^\d+$/, "ID de Meta Pixel")
       }
     } catch (error) {
       return NextResponse.json(
