@@ -137,6 +137,8 @@ describe('renderNewOrderNotificationEmail', () => {
     ],
     subtotal: 500,
     shippingCost: 0,
+    discountAmount: 0,
+    taxAmount: 0,
     total: 500,
     shippingMethod: 'shipping',
     createdAt: new Date('2026-09-29T15:00:00Z'),
@@ -161,5 +163,17 @@ describe('renderNewOrderNotificationEmail', () => {
       scheduledDeliveryDate: new Date('2026-10-01T12:00:00Z'),
     }, 'America/Argentina/Buenos_Aires')).toContain('jueves, 1 de octubre de 2026')
     expect(renderNewOrderNotificationEmail(order)).not.toContain('Fecha elegida:')
+  })
+
+  it('shows a discount that explains the difference between subtotal and total', () => {
+    const html = renderNewOrderNotificationEmail({
+      ...order,
+      subtotal: 55305,
+      discountAmount: 345,
+      total: 54960,
+    })
+
+    expect(html).toContain('<td>Descuento</td>')
+    expect(html).toContain(`-${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(345)}`)
   })
 })

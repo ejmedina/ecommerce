@@ -218,6 +218,18 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <span>Envío</span>
               <span>{Number(order.shippingCost) === 0 ? "Gratis" : formatCurrency(Number(order.shippingCost))}</span>
             </div>
+            {Number(order.discountAmount) > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Descuento</span>
+                <span>-{formatCurrency(Number(order.discountAmount))}</span>
+              </div>
+            )}
+            {Number(order.taxAmount) > 0 && (
+              <div className="flex justify-between">
+                <span>Impuestos</span>
+                <span>{formatCurrency(Number(order.taxAmount))}</span>
+              </div>
+            )}
           </div>
 
           <Separator className="my-4" />

@@ -72,6 +72,8 @@ interface OrderEmailData {
   items: OrderEmailItem[]
   subtotal: unknown
   shippingCost: unknown
+  discountAmount: unknown
+  taxAmount: unknown
   total: unknown
   shippingMethod: string
   shippingAddress?: unknown
@@ -259,6 +261,8 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData) {
       <div style="text-align: right; margin-top: 20px;">
         <p style="margin: 5px 0;">Subtotal: $${Number(order.subtotal).toLocaleString()}</p>
         <p style="margin: 5px 0;">Envío: ${Number(order.shippingCost) === 0 ? "Gratis" : `$${Number(order.shippingCost).toLocaleString()}`}</p>
+        ${Number(order.discountAmount) > 0 ? `<p style="margin: 5px 0;">Descuento: -${formatMoney(order.discountAmount)}</p>` : ""}
+        ${Number(order.taxAmount) > 0 ? `<p style="margin: 5px 0;">Impuestos: ${formatMoney(order.taxAmount)}</p>` : ""}
         <p style="margin: 5px 0; font-size: 18px; font-bold;"><strong>Total: $${Number(order.total).toLocaleString()}</strong></p>
       </div>
       
@@ -320,6 +324,12 @@ export function renderNewOrderNotificationEmail(
     || (order.scheduledDeliveryDate
       ? new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeZone }).format(order.scheduledDeliveryDate)
       : null)
+  const discountRow = Number(order.discountAmount) > 0
+    ? `<tr><td>Descuento</td><td style="text-align:right">-${formatMoney(order.discountAmount)}</td></tr>`
+    : ""
+  const taxRow = Number(order.taxAmount) > 0
+    ? `<tr><td>Impuestos</td><td style="text-align:right">${formatMoney(order.taxAmount)}</td></tr>`
+    : ""
 
   const html = `<!doctype html>
   <html><head><meta charset="utf-8"><style>
@@ -339,7 +349,7 @@ export function renderNewOrderNotificationEmail(
     ${address?.instructions ? `<p class="note"><strong>Indicaciones:</strong><br>${escapeHtml(address.instructions)}</p>` : ""}
     <h2>Detalle del pedido</h2>
     <table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
-    <table class="totals"><tr><td>Subtotal</td><td style="text-align:right">${formatMoney(order.subtotal)}</td></tr><tr><td>Envío</td><td style="text-align:right">${formatMoney(order.shippingCost)}</td></tr><tr><td class="total">Total</td><td class="total" style="text-align:right">${formatMoney(order.total)}</td></tr></table>
+    <table class="totals"><tr><td>Subtotal</td><td style="text-align:right">${formatMoney(order.subtotal)}</td></tr><tr><td>Envío</td><td style="text-align:right">${formatMoney(order.shippingCost)}</td></tr>${discountRow}${taxRow}<tr><td class="total">Total</td><td class="total" style="text-align:right">${formatMoney(order.total)}</td></tr></table>
     <h2>Pago</h2><p>${escapeHtml(paymentMethodLabels[order.paymentMethod || ""] || order.paymentMethod || "Sin especificar")} · Estado: ${escapeHtml(order.paymentStatus || "PENDING")}</p>
   </main></body></html>`
 
